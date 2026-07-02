@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "lighthouse": {
+      "type": "http",
+      "url": "https://beans-diversity-high-honors.trycloudflare.com/api/mcp"
+    }
+  }
+}
