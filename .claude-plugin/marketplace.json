@@ -2,7 +2,7 @@
   "name": "laighthouse-analytics",
   "description": "라이트하우스 분석 플러그인 마켓플레이스 — MCP 연동 데이터를 표, 차트, 성과 보고서로 렌더링합니다.",
   "owner": {
-    "name": "Laight",
+    "name": "LaightAI",
     "email": "minhyeok.son@laight.ai"
   },
   "plugins": [
@@ -13,7 +13,7 @@
       "description": "라이트하우스 분석 플러그인 — MCP 연동 데이터를 표, 차트, 주간 성과 보고서로 렌더링합니다.",
       "version": "0.1.0",
       "author": {
-        "name": "Laight",
+        "name": "LaightAI",
         "email": "minhyeok.son@laight.ai"
       },
       "keywords": [
