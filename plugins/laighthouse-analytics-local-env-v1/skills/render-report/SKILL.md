@@ -57,14 +57,21 @@ MCP 데이터를 받아 **라이트하우스 스타일 월간/주간 성과 보�
 
 | 섹션 | Import 경로 | 항상 포함 |
 |------|------------|---------|
-| 월 목표 카드 | `@import sections/daily/daily-section-1-kpi-goals.md` | ✅ |
-| Overview: Sales Campaign Performance | `@import sections/daily/daily-section-2-overview.md` | ✅ |
-| Sales campaign: Daily performance in the last 7 days | `@import sections/daily/daily-section-3-sales-daily-chart.md` | ✅ |
-| Daily Revenue in DTC | `@import sections/daily/daily-section-4-dtc-revenue.md` | ✅ |
-| Performance by Campaign | `@import sections/daily/daily-section-5-campaign-table.md` | ✅ |
-| Performance by Asset group | `@import sections/daily/daily-section-6-asset-group-table.md` | ✅ |
+| 월 목표 카드 | `@import sections/section-1-kpi-goals.md` | ✅ |
+| 목표 달성 현황 | `@import sections/section-2-achievement.md` | ✅ |
+| 월별 광고 성과 | `@import sections/section-3-monthly-chart.md` | ✅ |
+| Executive Summary | `@import sections/section-4-executive-summary.md` | ✅ |
+| 카테고리별 매출액 비교 | `@import sections/section-5-category-sales.md` | ✅ |
+| 일일 카테고리별 매출 현황 | `@import sections/section-6-daily-chart.md` | ✅ |
+| 제품 판매 트렌드 분석 | `@import sections/section-7-trend-analysis.md` | ✅ |
+| 매체별 성과 비교 | `@import sections/section-8-media-performance.md` | ✅ |
 
-Daily report는 포함 섹션 조건 없이 전체 섹션을 항상 렌더링한다.
+Daily report는 포함 섹션 조건 없이 전체 섹션(1~8)을 항상 렌더링한다.
+섹션 4(Executive Summary), 7(제품 판매 트렌드 분석)은 일반(weekly/mtd/monthly) 레포트와 동일한
+`sections/section-4-executive-summary.md`, `sections/section-7-trend-analysis.md`를 그대로 사용하며,
+`mcp__dify__*` 호출 로직도 동일하게 적용한다 (실패 시 수치 기반 AI 생성으로 폴백).
+
+> ⚠️ 기존 `sections/daily/daily-section-*.md` 파일들은 더 이상 daily 렌더링에 사용하지 않는다.
 
 ### report_type: `weekly` / `mtd` / `monthly`
 
