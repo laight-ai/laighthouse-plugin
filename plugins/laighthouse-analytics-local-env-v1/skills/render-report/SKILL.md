@@ -40,9 +40,12 @@ MCP 데이터를 받아 **라이트하우스 스타일 월간/주간 성과 보�
    - ⚠️ **`monthly_roas` 항목의 수치는 소수(예: 2.2, 0.87)로 반환되므로 반드시 × 100 후 표시**한다 (2.2 → 220%, 0.87 → 87%)
    - `daily` → `{ "report_type": "daily", "data_type": "sales" }`
    - `weekly` / `mtd` / `monthly` → `{ "report_type": "...", "data_type": ["sales", "branding"] }`
-3. 나머지 `mcp__laighthouse__*` 도구를 호출해 각 섹션 데이터를 가져온다.
-4. **포함 섹션** 목록을 확인하고 해당하는 섹션 스킬만 import하여 HTML을 조합한다.
-5. 아래 **보고서 골격**에 섹션들을 삽입해 `mcp__visualize__show_widget`으로 렌더링한다.
+3. 나머지 `mcp__laighthouse__*` 도구를 호출해 각 섹션 수치 데이터를 가져온다.
+4. **포함 섹션에 `Executive Summary`가 포함된 경우**, 수집한 수치 데이터를 `mcp__dify__*` 도구에 전달하여 분석 텍스트를 가져온다.
+   - dify 응답은 `executive_summary` key로 반환됨
+   - dify 응답 실패 시 수치 기반으로 AI가 직접 생성
+5. **포함 섹션** 목록을 확인하고 해당하는 섹션 스킬만 import하여 HTML을 조합한다.
+6. 아래 **보고서 골격**에 섹션들을 삽입해 `mcp__visualize__show_widget`으로 렌더링한다.
 
 ---
 
@@ -75,7 +78,6 @@ Daily report는 포함 섹션 조건 없이 전체 섹션을 항상 렌더링한
 | `Executive Summary` | `@import sections/section-4-executive-summary.md` |
 | `카테고리별 매출액` | `@import sections/section-5-category-sales.md` |
 | `일일 카테고리별` | `@import sections/section-6-daily-chart.md` |
-| `제품 판매 트렌드` | `@import sections/section-7-trend-analysis.md` |
 | `매체별 성과` | `@import sections/section-8-media-performance.md` |
 
 ---
