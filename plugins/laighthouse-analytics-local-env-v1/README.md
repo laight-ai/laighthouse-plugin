@@ -6,7 +6,7 @@
 
 | 유형 | 이름 | 설명 |
 |------|------|------|
-| MCP | laighthouse | `https://beans-diversity-high-honors.trycloudflare.com/api/mcp` 연동 |
+| MCP | laighthouse | `https://alien-watching-jane-nextel.trycloudflare.com/api/mcp` 연동 |
 | 스킬 | render-table | MCP 결과를 HTML 테이블로 렌더링 |
 | 스킬 | render-chart | MCP 결과를 Chart.js 차트로 시각화 |
 | 스킬 | render-report | MCP 결과를 라이트하우스 주간 성과 보고서 형식으로 렌더링 |
@@ -27,7 +27,7 @@
 
 - **이름**: laighthouse
 - **타입**: HTTP (Streamable HTTP transport)
-- **URL**: `https://beans-diversity-high-honors.trycloudflare.com/api/mcp`
+- **URL**: `https://alien-watching-jane-nextel.trycloudflare.com/api/mcp`
 - **인증**: 없음 (공개 엔드포인트)
 
 ## 설정
@@ -40,7 +40,7 @@ MCP 서버가 인증을 요구하는 경우 `.mcp.json`의 `headers`에 토큰�
   "mcpServers": {
     "laighthouse": {
       "type": "http",
-      "url": "https://beans-diversity-high-honors.trycloudflare.com/api/mcp",
+      "url": "https://alien-watching-jane-nextel.trycloudflare.com/api/mcp",
       "headers": {
         "Authorization": "Bearer ${LIGHTHOUSE_API_TOKEN}"
       }
