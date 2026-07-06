@@ -1,4 +1,4 @@
-# Daily Section 4: Daily Revenue in DTC
+# Daily Section 5: Daily Revenue in DTC
 
 **report_type:** `daily`
 **MCP 도구:** `get_sales_performance_daily` (mtd_sales_daily, start_date=week_start, end_date=target_date)
@@ -10,7 +10,7 @@
 ## HTML
 
 ```html
-<!-- DAILY SECTION 4: Daily Revenue in DTC -->
+<!-- DAILY SECTION 5: Daily Revenue in DTC -->
 <div style="background:white; border:1px solid #e2e8f0; padding:20px 24px; margin-bottom:16px;">
   <div style="font-size:15px; font-weight:700; color:#1e293b; margin-bottom:16px;">Daily Revenue in DTC</div>
   <div style="position:relative; height:260px;">

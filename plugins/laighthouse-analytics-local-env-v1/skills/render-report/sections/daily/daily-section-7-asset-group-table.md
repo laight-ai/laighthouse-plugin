@@ -1,4 +1,4 @@
-# Daily Section 6: Performance by Asset group
+# Daily Section 7: Performance by Asset group
 
 **report_type:** `daily`
 **MCP 도구:** `get_sales_by_asset_group_monthly` (start_month=current_month, end_month=current_month, day_offset=target_date.day)
@@ -24,7 +24,7 @@
 ## HTML
 
 ```html
-<!-- DAILY SECTION 6: Performance by Asset group -->
+<!-- DAILY SECTION 7: Performance by Asset group -->
 <div style="background:white; border:1px solid #e2e8f0; padding:20px 24px; margin-bottom:16px;">
   <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
     <div style="font-size:15px; font-weight:700; color:#1e293b;">Performance by Asset group</div>

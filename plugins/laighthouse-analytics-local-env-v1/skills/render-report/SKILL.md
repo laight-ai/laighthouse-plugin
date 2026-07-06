@@ -40,9 +40,13 @@ MCP 데이터를 받아 **라이트하우스 스타일 월간/주간 성과 보�
    - ⚠️ **`monthly_roas` 항목의 수치는 소수(예: 2.2, 0.87)로 반환되므로 반드시 × 100 후 표시**한다 (2.2 → 220%, 0.87 → 87%)
    - `daily` → `{ "report_type": "daily", "data_type": "sales" }`
    - `weekly` / `mtd` / `monthly` → `{ "report_type": "...", "data_type": ["sales", "branding"] }`
-3. 나머지 `mcp__laighthouse__*` 도구를 호출해 각 섹션 데이터를 가져온다.
-4. **포함 섹션** 목록을 확인하고 해당하는 섹션 스킬만 import하여 HTML을 조합한다.
-5. 아래 **보고서 골격**에 섹션들을 삽입해 `mcp__visualize__show_widget`으로 렌더링한다.
+3. 나머지 `mcp__laighthouse__*` 도구를 호출해 각 섹션 수치 데이터를 가져온다.
+4. **포함 섹션에 `Executive Summary`가 포함된 경우** (daily는 항상 포함), 수집한 수치 데이터를
+   `mcp__dify__*` 도구에 전달하여 분석 텍스트를 가져온다.
+   - dify 응답은 `executive_summary` key로 반환됨
+   - dify 응답 실패 시 수치 기반으로 AI가 직접 생성
+5. **포함 섹션** 목록을 확인하고 해당하는 섹션 스킬만 import하여 HTML을 조합한다.
+6. 아래 **보고서 골격**에 섹션들을 삽입해 `mcp__visualize__show_widget`으로 렌더링한다.
 
 ---
 
@@ -56,12 +60,23 @@ MCP 데이터를 받아 **라이트하우스 스타일 월간/주간 성과 보�
 |------|------------|---------|
 | 월 목표 카드 | `@import sections/daily/daily-section-1-kpi-goals.md` | ✅ |
 | Overview: Sales Campaign Performance | `@import sections/daily/daily-section-2-overview.md` | ✅ |
-| Sales campaign: Daily performance in the last 7 days | `@import sections/daily/daily-section-3-sales-daily-chart.md` | ✅ |
-| Daily Revenue in DTC | `@import sections/daily/daily-section-4-dtc-revenue.md` | ✅ |
-| Performance by Campaign | `@import sections/daily/daily-section-5-campaign-table.md` | ✅ |
-| Performance by Asset group | `@import sections/daily/daily-section-6-asset-group-table.md` | ✅ |
+| Executive Summary | `@import sections/daily/daily-section-3-executive-summary.md` | ✅ |
+| Sales campaign: Daily performance in the last 7 days | `@import sections/daily/daily-section-4-sales-daily-chart.md` | ✅ |
+| Daily Revenue in DTC | `@import sections/daily/daily-section-5-dtc-revenue.md` | ✅ |
+| Performance by Campaign | `@import sections/daily/daily-section-6-campaign-table.md` | ✅ |
+| Performance by Asset group | `@import sections/daily/daily-section-7-asset-group-table.md` | ✅ |
 
-Daily report는 포함 섹션 조건 없이 전체 섹션을 항상 렌더링한다.
+> 파일 번호는 daily 보고서 내 실제 렌더링 순서(1~7)와 1:1로 맞춰져 있다.
+> `daily-section-3-executive-summary.md`는 로직을 이중 관리하지 않기 위해 내부적으로
+> 공용 `sections/section-4-executive-summary.md`(dify 호출 포함)를 `@import`하는 얇은 래퍼다.
+
+Daily report는 포함 섹션 조건 없이 전체 섹션을 항상 렌더링한다 (렌더링 순서: 월 목표 카드 → Overview
+→ Executive Summary → 최근 7일 일별 차트 → Daily Revenue in DTC → Performance by Campaign →
+Performance by Asset group).
+
+Executive Summary는 weekly/mtd/monthly와 동일하게 `sections/section-4-executive-summary.md`를
+공용으로 사용하며, `mcp__dify__*` 호출 로직도 동일하게 적용한다 (dify 응답 실패 시 daily 수치 기반으로
+AI가 직접 생성하는 방식으로 폴백).
 
 ### report_type: `weekly` / `mtd` / `monthly`
 
