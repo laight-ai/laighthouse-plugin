@@ -2,9 +2,9 @@
   "mcpServers": {
     "lighthouse": {
       "type": "http",
-      "url": "https://alien-watching-jane-nextel.trycloudflare.com/api/mcp"
+      "url": "https://appropriations-considering-abilities-workplace.trycloudflare.com/api/mcp"
     },
-    "dify": {
+    "ag_dify": {
       "type": "http",
       "url": "https://dify.laightai.com/mcp/server/Mpp3wIRBMeniCB1N/mcp"
     }
