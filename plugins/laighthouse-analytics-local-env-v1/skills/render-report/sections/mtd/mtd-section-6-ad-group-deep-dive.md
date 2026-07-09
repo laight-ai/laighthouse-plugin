@@ -4,14 +4,14 @@
 
 ---
 
-## MCP 도구 호출: `df_dify` 서버의 분석 tool (텍스트), `get_naver_sa_performance_daily` (수치, mtd-section-7과 동일 호출)
+## MCP 도구 호출: `df_dify` 서버의 분석 tool (텍스트), `get_naver_group_performance` (수치, mtd-section-7과 동일 호출)
 
 `mcp__df_dify__<workflow-tool-name>`으로 분석 텍스트를 가져온다. 응답에서 `analysis_by_ad_group` key의 값을 사용한다.
 
 ```
 호출 순서:
-1. `get_naver_sa_performance_daily`(group_by="ad-group", start_date=월초, end_date=target_date)
-   로 광고그룹별 노출/클릭/비용/전환 수치 데이터 수집 (mtd-section-7 그룹별 성과 호출과 동일, 데이터 재사용)
+1. `get_naver_group_performance`(start_date=월초, end_date=target_date)로 광고그룹별 성과 수치 데이터
+   수집 (mtd-section-7 그룹별 성과 호출과 동일, 데이터 재사용 — 이미 그룹별로 합산/정렬된 최종 값)
 2. mcp__df_dify__<workflow-tool-name> 으로 분석 요청 (1의 수치 데이터 전달)
 3. 응답의 analysis_by_ad_group 값을 렌더링
 ```

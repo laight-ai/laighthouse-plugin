@@ -2,18 +2,15 @@
 
 **report_type:** `mtd` (항상 포함)
 
-## MCP 도구 호출: `get_naver_sa_performance_daily`
+## MCP 도구 호출: `get_naver_group_performance`
 
 ```json
-{ "brand_name": "...", "group_by": "ad-group", "start_date": "월초", "end_date": "target_date" }
+{ "brand_name": "...", "start_date": "월초", "end_date": "target_date" }
 ```
-- naver 전용 MCP 도구 (`laighthouse-prism/src/mcp_server/tools_naver.py`). report-backend의
-  `_mtd_components.py::build_groups_table`이 쓰는 것과 동일한 `/v2/naver/sa-performance/daily` 래퍼.
-- 응답 `items[]`를 `group_name`으로 그룹핑해 MTD 기간 합산:
-  - `group` ← `group_name`, `impressions` ← `sum(imp)`, `clicks` ← `sum(click)`
-  - `ad_cost` ← `sum(cost_exc_vat)`, `revenue` ← `sum(gross_conv_amnt)`
-  - `cpc` ← `ad_cost / clicks` (0으로 나누면 0)
-- 정렬은 `(-roas, -ad_cost, -revenue, group asc)` (report-backend와 동일)
+- naver 전용 MCP 도구 (`laighthouse-prism/src/mcp_server/tools_naver.py`). group_name 단위 groupby/
+  합산/cpc·roas 계산과 정렬(`-roas,-ad_cost,-revenue,group`)을 **서버에서 이미 끝낸 상태**로 반환한다.
+- 응답 `items[]`가 곧 `group_performance` 배열이다 (`group`/`impressions`/`clicks`/`cpc`/`ad_cost`/
+  `revenue`/`roas` 필드 그대로 사용).
 - mtd-section-6(광고 그룹별 심층 분석)이 동일 호출 결과를 재사용한다 (중복 호출 방지)
 
 ## 필요 데이터 (MCP)

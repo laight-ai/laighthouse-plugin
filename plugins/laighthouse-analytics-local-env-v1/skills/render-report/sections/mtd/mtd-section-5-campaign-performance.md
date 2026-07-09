@@ -2,23 +2,16 @@
 
 **report_type:** `mtd` (항상 포함)
 
-## MCP 도구 호출: `get_naver_sa_performance_daily`
+## MCP 도구 호출: `get_naver_campaign_performance`
 
 ```json
-{ "brand_name": "...", "group_by": "campaign", "start_date": "월초", "end_date": "target_date" }
+{ "brand_name": "...", "start_date": "월초", "end_date": "target_date" }
 ```
-- naver 전용 MCP 도구 (`laighthouse-prism/src/mcp_server/tools_naver.py`). report-backend의
-  `_mtd_components.py::build_campaign_table`이 쓰는 것과 동일한 `/v2/naver/sa-performance/daily` 래퍼.
-- 응답 `items[]`는 `(logdate, campaign_name, nvr_media_type)` 단위 행 — 클라이언트에서
-  `(campaign_name, nvr_media_type)`로 그룹핑해 MTD 기간 합산한다:
-  - `campaign` ← `campaign_name`
-  - `channel`("네이버 광고 채널명") ← `nvr_media_type` (PLINK/NVSHOP/BRS 그대로, null이면 "-")
-  - `revenue` ← `sum(gross_conv_amnt)`, `ad_cost` ← `sum(cost_exc_vat)`
-  - `roas` ← `revenue / ad_cost` (0으로 나누면 0), `impressions` ← `sum(imp)`, `clicks` ← `sum(click)`
-  - `ctr` ← `clicks / impressions`, `cpc` ← `ad_cost / clicks` (0으로 나누면 0)
-  - `purchases` ← `sum(gross_conv_cnt)`, `avg_price` ← `revenue / purchases` (0으로 나누면 0)
-- 정렬은 `(-roas, -ad_cost, -revenue, campaign asc, channel asc)` (report-backend와 동일한
-  결정적 정렬 기준)
+- naver 전용 MCP 도구 (`laighthouse-prism/src/mcp_server/tools_naver.py`). 캠페인×채널 단위 groupby/합산/
+  roas·ctr·cpc·avg_price 계산과 정렬(`-roas,-ad_cost,-revenue,campaign,channel`)을 **서버에서 이미
+  끝낸 상태**로 반환한다 — LLM이 raw row를 그룹핑하거나 비율을 계산할 필요가 없다.
+- 응답 `items[]`가 곧 `campaign_performance` 배열이다 (`campaign`/`channel`/`revenue`/`ad_cost`/
+  `roas`/`impressions`/`clicks`/`ctr`/`cpc`/`purchases`/`avg_price` 필드 그대로 사용, 그대로 렌더링).
 
 ## 필요 데이터 (MCP)
 - `campaign_performance`: 캠페인 배열

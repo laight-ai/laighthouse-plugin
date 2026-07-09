@@ -2,20 +2,18 @@
 
 **report_type:** `mtd` (항상 포함)
 
-## MCP 도구 호출: `get_naver_sa_performance_daily`
+## MCP 도구 호출: `get_naver_keyword_performance`
 
 ```json
-{ "brand_name": "...", "group_by": "keyword", "start_date": "월초", "end_date": "target_date", "limit": 50000 }
+{ "brand_name": "...", "start_date": "월초", "end_date": "target_date" }
 ```
-- naver 전용 MCP 도구 (`laighthouse-prism/src/mcp_server/tools_naver.py`). report-backend의
-  `_mtd_components.py::build_keywords_table`이 쓰는 것과 동일한 `/v2/naver/sa-performance/daily` 래퍼
-  (`term != "-"`인 행만 사용, report-backend와 동일).
-- 응답 `items[]`를 `term`(키워드)으로 그룹핑해 MTD 기간 합산:
-  - `keyword` ← `term`, `impressions` ← `sum(imp)`, `clicks` ← `sum(click)`, `ad_cost` ← `sum(cost_exc_vat)`
-  - `cpc` ← `ad_cost/clicks`, `ctr` ← `clicks/impressions`, `cpm` ← `1000*ad_cost/impressions` (모두 0으로 나누면 0)
-  - `purchases` ← `sum(gross_conv_cnt)`, `revenue` ← `sum(gross_conv_amnt)`, `roas` ← `revenue/ad_cost` (0으로 나누면 0)
-- 정렬은 `(-roas, -ad_cost, -revenue, keyword asc)` (report-backend와 동일)
-- 키워드 수가 매우 많을 수 있어 도구의 `limit`(최대 50,000, 페이지네이션은 `offset`)로 전체를 가져온다
+- naver 전용 MCP 도구 (`laighthouse-prism/src/mcp_server/tools_naver.py`). 도구 내부가 페이지네이션을
+  자동으로 다 돌며 raw row를 가져오고, `term`(키워드)별 groupby/합산/cpc·ctr·cpm·roas 계산과
+  정렬(`-roas,-ad_cost,-revenue,keyword`)까지 **서버에서 이미 끝낸 상태**로 반환한다
+  (`term == "-"`인 행은 서버에서 이미 제외됨).
+- 응답 `items[]`가 곧 `keyword_performance` 배열이다 (`keyword`/`impressions`/`clicks`/`ad_cost`/
+  `cpc`/`ctr`/`cpm`/`purchases`/`revenue`/`roas` 필드 그대로 사용).
+- 키워드 수가 매우 많을 수 있으나(수백~수천 건) 이미 합산된 최종 행 목록이므로 다시 집계하지 않는다.
 
 ## 필요 데이터 (MCP)
 - `keyword_performance`: 키워드 배열

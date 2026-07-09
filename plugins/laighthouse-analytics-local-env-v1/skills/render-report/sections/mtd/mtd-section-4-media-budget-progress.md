@@ -2,28 +2,16 @@
 
 **report_type:** `mtd` (항상 포함)
 
-## MCP 도구 호출: `get_naver_channel_progression`
+## MCP 도구 호출: `get_naver_channel_budget_progress`
 
 ```json
 { "brand_name": "...", "month": "YYYY-MM", "as_of_date": "target_date" }
 ```
-- naver 전용 MCP 도구 (`laighthouse-prism/src/mcp_server/tools_naver.py`). report-backend의
-  `_prism_components.py::build_source_progression`이 쓰는 것과 동일한 `/v2/naver/channel-progression`
-  래퍼이며, report_generator/default/mtd가 실제로 의존하는 naver 데이터만 노출한다.
-- 응답 `channels[]`의 `channel` 키(`nvad:BRS`/`nvad:PLINK`/`nvad:NVSHOP`/`nvgfa_ad:`/`nvgfa_dp:`)를
-  아래 라벨로 매핑한다 (report-backend `CHANNEL_SPECS`와 동일):
-  - `nvad:BRS` → 네이버 브랜드검색
-  - `nvad:PLINK` → 네이버 파워링크
-  - `nvad:NVSHOP` → 네이버 쇼핑검색
-  - `nvgfa_ad:` → 네이버 GFA 애드부스트
-  - `nvgfa_dp:` → 네이버 GFA 디스플레이
-- 채널별 필드 매핑:
-  - `budget_goal` ← `budget.series`에서 `date == 월말`인 항목의 `cost_cumsum` (월 전체 목표)
-  - `daily_budget` ← `budget.series`에서 `date == as_of_date`인 항목의 `cost_cumsum` (오늘까지의 목표)
-  - `spent` ← `actual[]`에서 `date <= as_of_date`인 항목들의 `cost` 합
-  - `daily_spent` ← `spent / (as_of_date의 일수)` (일 평균 소진액)
-  - `spent_rate` ← `spent / budget_goal * 100` (0으로 나누면 0)
-- `total` 합계 행은 5개 채널의 위 필드를 그대로 합산해 재계산한다 (MCP가 total을 별도로 주지 않음).
+- naver 전용 MCP 도구 (`laighthouse-prism/src/mcp_server/tools_naver.py`). 채널 라벨 매핑
+  (`nvad:BRS`→네이버 브랜드검색 등), `budget_goal`/`daily_budget`/`spent`/`daily_spent_avg`/
+  `spent_rate` 계산, `total` 합계 행까지 **서버에서 이미 끝낸 상태**로 반환한다.
+- 응답 `items[]`가 곧 `media_budget_progress.rows`, `total`이 곧 `media_budget_progress.total`이다
+  (필드명은 `media`↔`channel`만 다르므로 그대로 매핑해 렌더링).
 
 ## 필요 데이터 (MCP)
 - `media_budget_progress.channel_group`: 채널 그룹 레이블 (예: 'SA / DA')

@@ -2,18 +2,19 @@
 
 **트리거 키워드:** `카테고리별 매출액`
 
-## MCP 도구 호출: `get_naver_item_sales_daily` (전월/당월 2회 호출)
+## MCP 도구 호출: `get_naver_category_sales`
 
 ```json
-{ "brand_name": "...", "group_by": "category-3rd", "start_date": "전월초", "end_date": "전월말" }
+{
+  "brand_name": "...", "start_date": "당월초", "end_date": "target_date",
+  "prev_start_date": "전월초", "prev_end_date": "전월말"
+}
 ```
-```json
-{ "brand_name": "...", "group_by": "category-3rd", "start_date": "당월초", "end_date": "target_date" }
-```
-- naver 전용 MCP 도구 (`laighthouse-prism/src/mcp_server/tools_naver.py`, `/v2/naver/item-sales/daily` 래퍼)
-- 각 호출의 `items[]`를 `product_category_3rd`로 그룹핑해 `sum(sales_amount)`
-- `category_sales.growth` ← `(curr - prev) / prev * 100` (0으로 나누면 0)
-- mtd-section-2(상품별 누적 판매액)와 동일 호출을 재사용할 수 있다 (당월 구간)
+- naver 전용 MCP 도구 (`laighthouse-prism/src/mcp_server/tools_naver.py`). mtd-section-2와 동일 호출 —
+  카테고리별 합산과 전월 대비 `mom`(=`category_sales.growth`)까지 서버에서 이미 계산되어 있다.
+- `items[].sales`가 당월(`curr`), `mom`이 곧 `growth`다. `prev`(전월 매출)이 별도로 필요하면
+  `prev_sales = sales / (1 + mom/100)`처럼 역산하지 말고, mtd-section-2 호출을 그대로 재사용한다.
+- mtd-section-2(상품별 누적 판매액)와 동일 호출을 재사용할 수 있다 (중복 호출 방지)
 
 ## 필요 데이터 (MCP)
 - `category_sales.labels`: 카테고리 배열 (예: ['국내분유','커피','단백질보충제','우유/요거트','두유','기타'])
