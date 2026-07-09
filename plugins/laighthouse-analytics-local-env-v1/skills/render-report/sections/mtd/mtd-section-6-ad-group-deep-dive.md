@@ -4,16 +4,16 @@
 
 ---
 
-## MCP 도구 호출: `dify`
+## MCP 도구 호출: `df_dify` 서버의 분석 tool (텍스트), `get_ad_performance_monthly_table` (수치, mtd-section-7과 동일 호출)
 
-`mcp__dify__*` 도구를 호출하여 분석 텍스트를 가져온다.
-응답에서 `ad_group_analysis` key의 값을 사용한다.
+`mcp__df_dify__<workflow-tool-name>`으로 분석 텍스트를 가져온다. 응답에서 `analysis_by_ad_group` key의 값을 사용한다.
 
 ```
 호출 순서:
-1. mcp__laighthouse__* 로 광고그룹별 노출/클릭/비용/전환 수치 데이터 수집 (section-7 그룹별 성과 데이터 재사용)
-2. mcp__dify__* 로 분석 요청 (수치 데이터 전달)
-3. 응답의 ad_group_analysis 값을 렌더링
+1. `get_ad_performance_monthly_table`(group_by="ad-set", media="naver", day_offset=target_date.day)
+   로 광고그룹별 노출/클릭/비용/전환 수치 데이터 수집 (mtd-section-7 그룹별 성과 호출과 동일, 데이터 재사용)
+2. mcp__df_dify__<workflow-tool-name> 으로 분석 요청 (1의 수치 데이터 전달)
+3. 응답의 analysis_by_ad_group 값을 렌더링
 ```
 
 dify 응답 실패 시 mtd-section-7(그룹별 성과) 수치 기반으로 AI가 직접 생성한다.
@@ -24,11 +24,11 @@ dify 응답 실패 시 mtd-section-7(그룹별 성과) 수치 기반으로 AI가
 
 ```json
 {
-  "ad_group_analysis": "우수한 수준의 매출 발생률과, 새로 진입했음에도 개선 효과가 있는 것으로 예상되는 광고그룹을 4개를 선정하였습니다.\n\n01_브랜드_케이워드(소원검색, 국내분유)\n이번 달 클릭수는 82만건으로...\n\n01_공용스토어(브랜드검색, 공용스토어)\nCTR이 이번 달 8.5%로..."
+  "analysis_by_ad_group": "우수한 수준의 매출 발생률과, 새로 진입했음에도 개선 효과가 있는 것으로 예상되는 광고그룹을 4개를 선정하였습니다.\n\n01_브랜드_케이워드(소원검색, 국내분유)\n이번 달 클릭수는 82만건으로...\n\n01_공용스토어(브랜드검색, 공용스토어)\nCTR이 이번 달 8.5%로..."
 }
 ```
 
-- `ad_group_analysis`는 `\n\n`으로 구분된 블록으로 구성
+- `analysis_by_ad_group`는 `\n\n`으로 구분된 블록으로 구성
 - 각 블록의 첫 줄이 안내문 또는 광고그룹명이면 `<h4>` 소제목으로 렌더링 (첫 블록은 인트로 문단이라 `<p>`만)
 - 나머지 문장은 `<p>`로 렌더링
 
@@ -41,7 +41,7 @@ dify 응답 실패 시 mtd-section-7(그룹별 성과) 수치 기반으로 AI가
 <div class="card" style="margin-bottom:16px;">
   <div class="section-title">광고 그룹별 심층 분석</div>
   <div style="font-size:13px; color:#374151; line-height:1.8;">
-    <!-- ad_group_analysis를 \n\n 기준으로 분리, 첫 블록은 <p> 인트로, 이후 블록은 <h4>+<p> -->
+    <!-- analysis_by_ad_group를 \n\n 기준으로 분리, 첫 블록은 <p> 인트로, 이후 블록은 <h4>+<p> -->
     {AD_GROUP_ANALYSIS_BLOCKS}
   </div>
 </div>

@@ -2,6 +2,16 @@
 
 **report_type:** `mtd` (항상 포함)
 
+## MCP 도구 호출: `get_ad_performance_monthly_table`
+
+```json
+{ "brand_name": "...", "start_month": "당월", "end_month": "당월", "group_by": "ad", "media": "naver", "day_offset": "target_date.day", "limit": 500 }
+```
+- `group_by="ad"` (naver의 ad_name=검색 키워드/term), `media="naver"`, `day_offset`으로 MTD 컷오프
+- 반환은 마크다운 표 문자열 — 파싱해 아래 배열로 재구성 (`ad_name`→keyword, `cost`→ad_cost,
+  `purchase_amount`→revenue, `purchase_count`→purchases, `impression`/`click`/`ctr`/`cpc`/`cpm`/`roas` 그대로)
+- 키워드 수가 매우 많을 수 있어 `limit` 파라미터로 상위 N개(권장 500)로 절단 요청 권장
+
 ## 필요 데이터 (MCP)
 - `keyword_performance`: 키워드 배열
   ```json

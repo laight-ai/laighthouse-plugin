@@ -2,6 +2,16 @@
 
 **report_type:** `mtd` (항상 포함)
 
+## MCP 도구 호출: `get_ad_performance_monthly_table`
+
+```json
+{ "brand_name": "...", "start_month": "당월", "end_month": "당월", "group_by": "ad-set", "media": "naver", "day_offset": "target_date.day" }
+```
+- `group_by="ad-set"` (naver의 asset_group=group_name), `media="naver"`, `day_offset`으로 MTD 컷오프
+- 반환은 마크다운 표 문자열 — 파싱해 아래 배열로 재구성 (`asset_group`→group, `cost`→ad_cost,
+  `purchase_amount`→revenue, `impression`→impressions, `click`→clicks, `cpc` 그대로)
+- mtd-section-6(광고 그룹별 심층 분석)이 동일 호출 결과를 재사용한다 (중복 호출 방지)
+
 ## 필요 데이터 (MCP)
 - `group_performance`: 광고그룹 배열
   ```json

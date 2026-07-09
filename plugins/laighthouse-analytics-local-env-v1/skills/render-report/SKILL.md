@@ -36,16 +36,27 @@ MCP 데이터를 받아 **라이트하우스 스타일 월간/주간 성과 보�
 ## 실행 순서
 
 1. 파라미터를 파싱한다.
-2. `mcp__laighthouse__target-progress` 도구를 호출한다. `report_type`에 따라 인자가 다르다:
-   - ⚠️ **`monthly_roas` 항목의 수치는 소수(예: 2.2, 0.87)로 반환되므로 반드시 × 100 후 표시**한다 (2.2 → 220%, 0.87 → 87%)
-   - `daily` → `{ "report_type": "daily", "data_type": "sales" }`
-   - `weekly` / `mtd` / `monthly` → `{ "report_type": "...", "data_type": ["sales", "branding"] }`
-3. 나머지 `mcp__laighthouse__*` 도구를 호출해 각 섹션 수치 데이터를 가져온다.
+2. `mcp__lighthouse__target_progress` 도구(laighthouse-prism이 노출하는 실제 tool명 `target_progress`;
+   `.mcp.json` 서버 키는 `lighthouse`)를 호출한다. 이 도구는 `report_type`/`data_type` 인자를 받지 않고
+   `campaign_type`(`"sales"` | `"branding"` | 미지정=전체)만 지원하므로, sales/branding을 각각 보고 싶으면
+   campaign_type을 바꿔 두 번 호출한다:
+   - ⚠️ **`monthly_roas` 항목(`items[metric=monthly_roas]`)의 수치는 소수(예: 2.2, 0.87)로 반환되므로
+     반드시 × 100 후 표시**한다 (2.2 → 220%, 0.87 → 87%)
+   - `daily` → `{ "campaign_type": "sales" }` 1회
+   - `weekly` / `mtd` / `monthly` → `{ "campaign_type": "sales" }` + `{ "campaign_type": "branding" }` 2회
+   - 세부 계산·데이터 갭(브랜딩 impression/CPM 목표 없음)은 `sections/section-2-achievement.md` 참고
+3. 나머지 `mcp__lighthouse__*` 도구(`get_ad_performance_daily_table` / `get_ad_performance_monthly_table` /
+   `get_ad_performance_weekly_table` / `get_sku_sales_daily` / `get_sku_sales_monthly` 등, 각 섹션 파일에
+   명시된 정확한 tool명 참고)를 호출해 각 섹션 수치 데이터를 가져온다.
+   - naver 브랜드는 위 generic 도구들의 `media="naver"` 필터로 커버한다 — **naver 전용 MCP 도구는
+     새로 만들지 않는다.** 이 generic 도구로 채울 수 없는 섹션(카테고리별 매출/할인율/환불율 등,
+     `sections/section-5-category-sales.md` 등에 명시)은 "데이터 준비 중"으로 남긴다.
 4. **포함 섹션에 `Executive Summary`가 포함된 경우** (daily는 항상 포함), 수집한 수치 데이터를
-   `mcp__dify__*` 도구에 전달하여 분석 텍스트를 가져온다.
+   `mcp__df_dify__<workflow-tool-name>` 도구(`.mcp.json` 서버 키는 `df_dify`; 실제 tool명은 브랜드에
+   연결된 Dify 워크플로에 맞게 확인)에 전달하여 분석 텍스트를 가져온다.
    - dify 응답은 `executive_summary` key로 반환됨
-   - dify 응답 실패 시 수치 기반으로 AI가 직접 생성
-   - **`report_type`이 `mtd`인 경우**, 동일한 `mcp__dify__*` 호출(또는 동일 페이로드의 추가 호출)에서
+   - dify 응답 실패 시 수치 기반으로 AI가 직접 생성 (단, 근거 수치 자체가 데이터 갭이면 생성하지 않음)
+   - **`report_type`이 `mtd`인 경우**, 동일한 `mcp__df_dify__*` 호출(또는 동일 페이로드의 추가 호출)에서
      `performance_overview`, `product_analysis`, `ad_group_analysis` 3개 key도 함께 가져온다.
      각각 mtd-section-1/3/6에서 사용하며, 실패 시 해당 섹션 수치 기반으로 AI가 직접 생성한다.
 5. **포함 섹션** 목록을 확인하고 해당하는 섹션 스킬만 import하여 HTML을 조합한다.

@@ -4,38 +4,34 @@
 
 ---
 
-## MCP 도구 호출: `target-progress`
+## MCP 도구 호출: `target_progress`
 
-`report_type`에 따라 전달 인자가 다르다.
+도구 시그니처: `target_progress(brand_name, month, ctx, as_of_date=None, revenue_source="ad", campaign_type=None)`.
+`campaign_type`(`"sales"` | `"branding"`)만 지원하며 `report_type`/`data_type` 인자는 없다 — sales/branding을
+한 번에 반환하지 않으므로 **campaign_type을 바꿔 두 번 호출**한다. 응답은 `items`(3개: monthly_budget /
+monthly_revenue / monthly_roas)의 `target_full_month`(목표)·`actual_mtd`(실적)를 사용해 아래 매핑을 재구성한다.
 
 ### daily
 ```json
-{
-  "report_type": "daily",
-  "data_type": "sales"
-}
+{ "brand_name": "...", "month": "YYYY-MM", "as_of_date": "target_date", "campaign_type": "sales" }
 ```
-- 최상단 섹션에는 **sales** 데이터만 표시
+- 최상단 섹션에는 **sales** 응답만 표시 (`campaign_type=sales` 1회 호출)
 
-### weekly / mtd
+### weekly / mtd / monthly
 ```json
-{
-  "report_type": "weekly",
-  "data_type": ["sales", "branding"]
-}
+{ "brand_name": "...", "month": "YYYY-MM", "as_of_date": "target_date", "campaign_type": "sales" }
 ```
-- 응답에 sales + branding 모두 포함
-- **최상단 섹션(목표 달성 현황 카드)에는 sales 데이터만 표시**
-- branding 데이터는 하단 보조 섹션에 별도 표시
+```json
+{ "brand_name": "...", "month": "YYYY-MM", "as_of_date": "target_date", "campaign_type": "branding" }
+```
+- **최상단 섹션(목표 달성 현황 카드)에는 sales 응답만 표시**
+- branding 응답은 하단 보조 섹션에 별도 표시
 
-### monthly
-```json
-{
-  "report_type": "monthly",
-  "data_type": ["sales", "branding"]
-}
-```
-- weekly와 동일한 규칙: 최상단 카드는 sales, 하단에 branding 보조 섹션
+> ⚠️ **데이터 갭**: `target_progress`는 budget/revenue/roas 3개 지표만 반환한다. 브랜딩 보조 섹션의
+> `impression_achievement_rate`/`impression_goal`/`impression_actual`/`cpm_goal`/`cpm_actual`은 이 도구로
+> 채울 수 없다 (impression/CPM에 대한 "목표"는 어떤 generic 도구에도 존재하지 않음 — 실적만
+> `get_branding_performance_monthly`로 조회 가능). 목표값이 없는 한 브랜딩 보조 섹션의 노출/CPM 카드는
+> "목표 미설정" 표시로 대체하거나 생략한다. **naver 전용 도구를 새로 만들어 이 갭을 메우지 않는다.**
 
 ---
 
@@ -165,9 +161,9 @@
 
 ## 렌더링 규칙 요약
 
-| report_type | target-progress 인자 | 최상단 카드 | branding 보조 섹션 |
+| report_type | target_progress 호출 | 최상단 카드 | branding 보조 섹션 |
 |------------|---------------------|------------|------------------|
-| daily | `data_type: "sales"` | sales | ❌ 표시 안 함 |
-| weekly | `data_type: ["sales","branding"]` | sales | ✅ 표시 |
-| mtd | `data_type: ["sales","branding"]` | sales | ✅ 표시 |
-| monthly | `data_type: ["sales","branding"]` | sales | ✅ 표시 |
+| daily | `campaign_type=sales` 1회 | sales | ❌ 표시 안 함 |
+| weekly | `campaign_type=sales`+`branding` 2회 | sales | ✅ 표시 (impression/CPM 목표는 갭) |
+| mtd | `campaign_type=sales`+`branding` 2회 | sales | ✅ 표시 (impression/CPM 목표는 갭) |
+| monthly | `campaign_type=sales`+`branding` 2회 | sales | ✅ 표시 (impression/CPM 목표는 갭) |

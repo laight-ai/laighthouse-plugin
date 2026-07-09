@@ -2,6 +2,15 @@
 
 **트리거 키워드:** `카테고리별 매출액`
 
+## MCP 도구 호출: ⚠️ 매칭되는 generic 도구 없음
+
+카테고리 단위 매출 집계(2단계: 카테고리-1차/2차)는 laighthouse-prism에 `/v2/naver/item-sales`
+(daily/monthly, `NaverItemDimension.CATEGORY_1ST`/`CATEGORY_2ND` group-by)로 이미 구현되어 있으나,
+이 엔드포인트는 naver 전용 테이블(`nvss_item_perf`) 기반이라 **naver 전용 MCP 도구를 만들지 말라는
+지침에 따라 MCP tool로 노출하지 않는다.** 현재 노출된 `get_sku_sales_daily`/`get_sku_sales_monthly`는
+SKU(개별 상품) 단위이고 카테고리 롤업/할인율/환불율 필드가 없어 대체 불가.
+→ 이 섹션은 데이터 소스가 확정되기 전까지 "데이터 준비 중" 카드로 대체한다.
+
 ## 필요 데이터 (MCP)
 - `category_sales.labels`: 카테고리 배열 (예: ['국내분유','커피','단백질보충제','우유/요거트','두유','기타'])
 - `category_sales.prev_label`: 전월 레이블 (예: '26년 3월')

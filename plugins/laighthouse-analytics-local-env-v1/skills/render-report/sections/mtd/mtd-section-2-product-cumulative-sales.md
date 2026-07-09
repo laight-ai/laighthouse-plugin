@@ -2,6 +2,13 @@
 
 **report_type:** `mtd` (항상 포함)
 
+## MCP 도구 호출: ⚠️ 매칭되는 generic 도구 없음 (section-5/6과 동일한 갭)
+
+`sales`/`discount_rate`/`refund_rate`/`mom`을 카테고리 단위로 제공하는 generic MCP 도구가 없다.
+prism의 `/v2/naver/item-sales`가 category-1st/2nd group-by와 refund 필드를 갖고 있지만
+naver 전용 endpoint라 MCP tool로 노출하지 않는다(지침: naver 전용 MCP 도구 생성 금지). 게다가
+`discount_rate`는 item-sales 스키마에도 없는 필드다. → 이 섹션은 "데이터 준비 중" 카드로 대체한다.
+
 ## 필요 데이터 (MCP)
 - `product_cumulative_sales`: 카테고리 배열
   ```json

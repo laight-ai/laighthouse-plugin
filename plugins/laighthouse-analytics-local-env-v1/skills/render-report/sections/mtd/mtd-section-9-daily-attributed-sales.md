@@ -2,6 +2,15 @@
 
 **report_type:** `mtd` (항상 포함)
 
+## MCP 도구 호출: `get_ad_performance_daily_table`
+
+```json
+{ "brand_name": "...", "start_date": "월초", "end_date": "target_date(MTD 마지막 날)", "group_by": "total", "media": "naver" }
+```
+- `group_by="total"`, `media="naver"` → 날짜별 1행 (해당 월 1일부터 target_date까지)
+- 반환은 마크다운 표 문자열 — 파싱해 아래 배열로 재구성 (`logdate`→date, `cost`→ad_cost,
+  `purchase_amount`→revenue, `purchase_count`→purchases, `click`→clicks)
+
 ## 필요 데이터 (MCP)
 - `daily_attributed_sales`: 날짜별 배열
   ```json

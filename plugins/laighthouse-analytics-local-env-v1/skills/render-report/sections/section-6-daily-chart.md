@@ -2,6 +2,12 @@
 
 **트리거 키워드:** `일일 카테고리별`
 
+## MCP 도구 호출: ⚠️ 매칭되는 generic 도구 없음 (section-5와 동일한 갭)
+
+일별 카테고리별 매출 시계열도 section-5와 같은 이유로 매칭되는 generic MCP 도구가 없다
+(`/v2/naver/item-sales/daily`는 naver 전용 endpoint라 MCP tool로 노출하지 않음).
+→ "데이터 준비 중" 카드로 대체한다.
+
 ## 필요 데이터 (MCP)
 - `daily_sales.labels`: 날짜 배열 (예: ['2026-04-01', ..., '2026-04-30'])
 - `daily_sales.series`: 카테고리별 시계열 배열

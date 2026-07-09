@@ -4,20 +4,20 @@
 
 ---
 
-## MCP 도구 호출: `dify`
+## MCP 도구 호출: `df_dify` 서버의 분석 tool (텍스트만; 수치 소스는 section-5/6 — 현재 데이터 갭)
 
-`mcp__dify__*` 도구를 호출하여 분석 텍스트를 가져온다.
-응답에서 `product_analysis` key의 값을 사용한다.
+`mcp__df_dify__<workflow-tool-name>`으로 분석 텍스트를 가져온다. 응답에서 `analysis_of_ad_performance` key의 값을 사용한다.
 
 ```
 호출 순서:
-1. mcp__laighthouse__* 로 카테고리별 매출/광고 수치 데이터 수집 (section-5, section-6 데이터 재사용)
-2. mcp__dify__* 로 분석 요청 (수치 데이터 전달)
-3. 응답의 product_analysis 값을 렌더링
+1. section-5(카테고리별 매출액)/section-6(일일 카테고리별 매출) 수치 재사용
+2. mcp__df_dify__<workflow-tool-name> 으로 분석 요청 (1의 수치 데이터 전달)
+3. 응답의 analysis_of_ad_performance 값을 렌더링
 ```
 
-dify 응답 실패 시 section-5(카테고리별 매출액)/section-6(일일 카테고리별 매출) 수치 기반으로
-AI가 직접 생성한다.
+⚠️ section-5/6은 카테고리 단위 매출 데이터를 채울 generic MCP 도구가 없어 현재 데이터 갭 상태다
+(naver 전용 MCP 도구를 만들지 않기로 했으므로). 근거 수치가 없으면 dify 실패 시 폴백도 하지 않고
+이 섹션 전체를 "데이터 준비 중"으로 대체한다 — 없는 수치로 AI가 텍스트를 지어내지 않도록 한다.
 
 ---
 
@@ -25,11 +25,11 @@ AI가 직접 생성한다.
 
 ```json
 {
-  "product_analysis": "Overview\n매출이 가장 많이 발생하는 5개 카테고리(국내분유, 커피, 단백질보충제, 우유/요거트, 두유)를 분석 대상으로 선정하였습니다.\n\n국내분유\n프로모션 기간 광고 효율에서 CTR과의 관계가...\n\n커피\n커피 카테고리는 매출 대비 광고비 비중이..."
+  "analysis_of_ad_performance": "Overview\n매출이 가장 많이 발생하는 5개 카테고리(국내분유, 커피, 단백질보충제, 우유/요거트, 두유)를 분석 대상으로 선정하였습니다.\n\n국내분유\n프로모션 기간 광고 효율에서 CTR과의 관계가...\n\n커피\n커피 카테고리는 매출 대비 광고비 비중이..."
 }
 ```
 
-- `product_analysis`는 `\n\n`으로 구분된 블록으로 구성
+- `analysis_of_ad_performance`는 `\n\n`으로 구분된 블록으로 구성
 - 각 블록의 첫 줄이 `Overview` 또는 카테고리명(예: `국내분유`, `커피`)이면 `<h4>` 소제목으로 렌더링
 - 나머지 문장은 `<p>`로 렌더링 (section-7 트렌드 분석보다 더 긴 서술형)
 
@@ -42,7 +42,7 @@ AI가 직접 생성한다.
 <div class="card" style="margin-bottom:16px;">
   <div class="section-title">제품 판매 성과의 심층 분석</div>
   <div style="font-size:13px; color:#374151; line-height:1.8;">
-    <!-- product_analysis를 \n\n 기준으로 분리, 각 블록의 첫 줄은 <h4> 소제목 -->
+    <!-- analysis_of_ad_performance를 \n\n 기준으로 분리, 각 블록의 첫 줄은 <h4> 소제목 -->
     {PRODUCT_ANALYSIS_BLOCKS}
   </div>
 </div>

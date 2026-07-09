@@ -4,15 +4,15 @@
 
 ---
 
-## MCP 도구 호출: `dify`
+## MCP 도구 호출: `df_dify` 서버의 분석 tool (텍스트), `target_progress` (수치)
 
-`mcp__dify__*` 도구를 호출하여 분석 텍스트를 가져온다.
-응답에서 `performance_overview` key의 값을 사용한다.
+`mcp__df_dify__<workflow-tool-name>`으로 분석 텍스트를 가져온다 (`.mcp.json`의 dify 서버 키는
+`df_dify`; 실제 tool명은 브랜드 워크플로에 맞게 확인). 응답에서 `performance_overview` key의 값을 사용한다.
 
 ```
 호출 순서:
-1. mcp__laighthouse__* 로 수치 데이터 수집 (매출/예산/ROAS)
-2. mcp__dify__* 로 분석 요청 (수치 데이터 전달)
+1. `target_progress`(campaign_type="sales", section-2/목표 달성 현황과 동일 호출)로 매출/예산/ROAS 수치 수집
+2. `mcp__df_dify__<workflow-tool-name>` 으로 분석 요청 (1의 수치 데이터 전달)
 3. 응답의 performance_overview 값을 렌더링
 ```
 

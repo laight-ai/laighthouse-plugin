@@ -2,6 +2,24 @@
 
 **report_type:** `mtd` (항상 포함)
 
+## MCP 도구 호출: `get_naver_sa_performance_daily`
+
+```json
+{ "brand_name": "...", "group_by": "campaign", "start_date": "월초", "end_date": "target_date" }
+```
+- naver 전용 MCP 도구 (`laighthouse-prism/src/mcp_server/tools_naver.py`). report-backend의
+  `_mtd_components.py::build_campaign_table`이 쓰는 것과 동일한 `/v2/naver/sa-performance/daily` 래퍼.
+- 응답 `items[]`는 `(logdate, campaign_name, nvr_media_type)` 단위 행 — 클라이언트에서
+  `(campaign_name, nvr_media_type)`로 그룹핑해 MTD 기간 합산한다:
+  - `campaign` ← `campaign_name`
+  - `channel`("네이버 광고 채널명") ← `nvr_media_type` (PLINK/NVSHOP/BRS 그대로, null이면 "-")
+  - `revenue` ← `sum(gross_conv_amnt)`, `ad_cost` ← `sum(cost_exc_vat)`
+  - `roas` ← `revenue / ad_cost` (0으로 나누면 0), `impressions` ← `sum(imp)`, `clicks` ← `sum(click)`
+  - `ctr` ← `clicks / impressions`, `cpc` ← `ad_cost / clicks` (0으로 나누면 0)
+  - `purchases` ← `sum(gross_conv_cnt)`, `avg_price` ← `revenue / purchases` (0으로 나누면 0)
+- 정렬은 `(-roas, -ad_cost, -revenue, campaign asc, channel asc)` (report-backend와 동일한
+  결정적 정렬 기준)
+
 ## 필요 데이터 (MCP)
 - `campaign_performance`: 캠페인 배열
   ```json
