@@ -6,7 +6,7 @@ description: >
   "WoW 보고서", "render as report", "성과 분석 보고서", or wants MCP data formatted as a
   structured monthly/weekly performance report matching the Laighthouse style.
 metadata:
-  version: "0.4.0"
+  version: "0.5.0"
 ---
 
 > ⚡ **thinking 지침**: 이 스킬 실행 시 thinking(추론)은 최대한 짧게 유지한다. 불필요한 단계 반복, 장황한 계획 수립 없이 바로 MCP 호출 → 데이터 수신 → 렌더링 순서로 진행한다.
@@ -45,6 +45,9 @@ MCP 데이터를 받아 **라이트하우스 스타일 월간/주간 성과 보�
    `mcp__dify__*` 도구에 전달하여 분석 텍스트를 가져온다.
    - dify 응답은 `executive_summary` key로 반환됨
    - dify 응답 실패 시 수치 기반으로 AI가 직접 생성
+   - **`report_type`이 `mtd`인 경우**, 동일한 `mcp__dify__*` 호출(또는 동일 페이로드의 추가 호출)에서
+     `performance_overview`, `product_analysis`, `ad_group_analysis` 3개 key도 함께 가져온다.
+     각각 mtd-section-1/3/6에서 사용하며, 실패 시 해당 섹션 수치 기반으로 AI가 직접 생성한다.
 5. **포함 섹션** 목록을 확인하고 해당하는 섹션 스킬만 import하여 HTML을 조합한다.
 6. 아래 **보고서 골격**에 섹션들을 삽입해 `mcp__visualize__show_widget`으로 렌더링한다.
 
@@ -92,6 +95,43 @@ AI가 직접 생성하는 방식으로 폴백).
 | `일일 카테고리별` | `@import sections/section-6-daily-chart.md` |
 | `제품 판매 트렌드` | `@import sections/section-7-trend-analysis.md` |
 | `매체별 성과` | `@import sections/section-8-media-performance.md` |
+
+> `제품 판매 트렌드`는 mtd-section-3(제품 판매 성과의 심층 분석)이 더 상세한 대체 콘텐츠를 항상
+> 제공하므로, mtd 보고서에서는 함께 지정하지 않는 것을 권장한다 (강제 제외는 아님).
+
+#### report_type: `mtd` 전용 추가 섹션 (키워드 조건 없이 항상 포함)
+
+`report_type`이 `mtd`일 때는 위 공용 섹션 외에 아래 9개 섹션을 **daily처럼 항상** 렌더링한다.
+파일 번호는 mtd 보고서 내 실제 렌더링 순서와 1:1로 맞춰져 있다.
+
+| 순서 | 섹션 | Import 경로 |
+|-----|------|------------|
+| 4-b | 성과에 대한 개괄 | `@import sections/mtd/mtd-section-1-performance-overview.md` |
+| 5-b | 상품별 누적 판매액 | `@import sections/mtd/mtd-section-2-product-cumulative-sales.md` |
+| 7-b | 제품 판매 성과의 심층 분석 | `@import sections/mtd/mtd-section-3-product-deep-dive.md` |
+| 8 | 매체별 예산 소진 현황 | `@import sections/mtd/mtd-section-4-media-budget-progress.md` |
+| 9 | 캠페인별 성과 | `@import sections/mtd/mtd-section-5-campaign-performance.md` |
+| 10 | 광고 그룹별 심층 분석 | `@import sections/mtd/mtd-section-6-ad-group-deep-dive.md` |
+| 11 | 그룹별 성과 | `@import sections/mtd/mtd-section-7-group-performance.md` |
+| 12 | 키워드별 성과 | `@import sections/mtd/mtd-section-8-keyword-performance.md` |
+| 13 | 일별 광고기여 매출 분석 | `@import sections/mtd/mtd-section-9-daily-attributed-sales.md` |
+
+mtd 보고서의 전체 렌더링 순서(공용 섹션 + mtd 전용 섹션 인터리빙):
+
+1. 월 목표 카드 (`월 목표` 키워드 시 section-1)
+2. 목표 달성 현황 (`목표 달성` 키워드 시 section-2, sales + branding 보조)
+3. Executive Summary (`Executive Summary` 키워드 시 section-4)
+4. **성과에 대한 개괄** (mtd-section-1)
+5. 월별 광고 성과 차트 (`월별 광고 성과` 키워드 시 section-3)
+6. **상품별 누적 판매액** (mtd-section-2)
+7. 일일 카테고리별 매출 현황 차트 (`일일 카테고리별` 키워드 시 section-6)
+8. **제품 판매 성과의 심층 분석** (mtd-section-3)
+9. **매체별 예산 소진 현황** (mtd-section-4)
+10. **캠페인별 성과** (mtd-section-5)
+11. **광고 그룹별 심층 분석** (mtd-section-6)
+12. **그룹별 성과** (mtd-section-7)
+13. **키워드별 성과** (mtd-section-8)
+14. **일별 광고기여 매출 분석** (mtd-section-9)
 
 ---
 
