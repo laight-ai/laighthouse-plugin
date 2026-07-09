@@ -2,11 +2,11 @@
   "mcpServers": {
     "lighthouse": {
       "type": "http",
-      "url": "https://concerned-hazards-beaches-rebel.trycloudflare.com/api/mcp"
+      "url": "https://classifieds-willow-resumes-donations.trycloudflare.com/api/mcp"
     },
     "ag_dify": {
       "type": "http",
-      "url": "https://dify.laightai.com/mcp/server/Mpp3wIRBMeniCB1N/mcp"
+      "url": "https://dify.laightai.com/mcp/server/fHsbrWFN2c4k9Img/mcp"
     }
   }
 }
