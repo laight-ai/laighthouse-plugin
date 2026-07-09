@@ -2,15 +2,20 @@
 
 **report_type:** `mtd` (항상 포함)
 
-## MCP 도구 호출: `get_ad_performance_monthly_table`
+## MCP 도구 호출: `get_naver_sa_performance_daily`
 
 ```json
-{ "brand_name": "...", "start_month": "당월", "end_month": "당월", "group_by": "ad", "media": "naver", "day_offset": "target_date.day", "limit": 500 }
+{ "brand_name": "...", "group_by": "keyword", "start_date": "월초", "end_date": "target_date", "limit": 50000 }
 ```
-- `group_by="ad"` (naver의 ad_name=검색 키워드/term), `media="naver"`, `day_offset`으로 MTD 컷오프
-- 반환은 마크다운 표 문자열 — 파싱해 아래 배열로 재구성 (`ad_name`→keyword, `cost`→ad_cost,
-  `purchase_amount`→revenue, `purchase_count`→purchases, `impression`/`click`/`ctr`/`cpc`/`cpm`/`roas` 그대로)
-- 키워드 수가 매우 많을 수 있어 `limit` 파라미터로 상위 N개(권장 500)로 절단 요청 권장
+- naver 전용 MCP 도구 (`laighthouse-prism/src/mcp_server/tools_naver.py`). report-backend의
+  `_mtd_components.py::build_keywords_table`이 쓰는 것과 동일한 `/v2/naver/sa-performance/daily` 래퍼
+  (`term != "-"`인 행만 사용, report-backend와 동일).
+- 응답 `items[]`를 `term`(키워드)으로 그룹핑해 MTD 기간 합산:
+  - `keyword` ← `term`, `impressions` ← `sum(imp)`, `clicks` ← `sum(click)`, `ad_cost` ← `sum(cost_exc_vat)`
+  - `cpc` ← `ad_cost/clicks`, `ctr` ← `clicks/impressions`, `cpm` ← `1000*ad_cost/impressions` (모두 0으로 나누면 0)
+  - `purchases` ← `sum(gross_conv_cnt)`, `revenue` ← `sum(gross_conv_amnt)`, `roas` ← `revenue/ad_cost` (0으로 나누면 0)
+- 정렬은 `(-roas, -ad_cost, -revenue, keyword asc)` (report-backend와 동일)
+- 키워드 수가 매우 많을 수 있어 도구의 `limit`(최대 50,000, 페이지네이션은 `offset`)로 전체를 가져온다
 
 ## 필요 데이터 (MCP)
 - `keyword_performance`: 키워드 배열

@@ -2,12 +2,21 @@
 
 **report_type:** `mtd` (항상 포함)
 
-## MCP 도구 호출: ⚠️ 매칭되는 generic 도구 없음 (section-5/6과 동일한 갭)
+## MCP 도구 호출: `get_naver_item_sales_daily`
 
-`sales`/`discount_rate`/`refund_rate`/`mom`을 카테고리 단위로 제공하는 generic MCP 도구가 없다.
-prism의 `/v2/naver/item-sales`가 category-1st/2nd group-by와 refund 필드를 갖고 있지만
-naver 전용 endpoint라 MCP tool로 노출하지 않는다(지침: naver 전용 MCP 도구 생성 금지). 게다가
-`discount_rate`는 item-sales 스키마에도 없는 필드다. → 이 섹션은 "데이터 준비 중" 카드로 대체한다.
+```json
+{ "brand_name": "...", "group_by": "category-3rd", "start_date": "월초", "end_date": "target_date" }
+```
+- naver 전용 MCP 도구 (`laighthouse-prism/src/mcp_server/tools_naver.py`). report-backend의
+  `_mtd_components.py::build_items_table`이 쓰는 것과 동일한 `/v2/naver/item-sales/daily` 래퍼.
+- 응답 `items[]`는 `(logdate, product_category_3rd, ...)` 단위 행 — `product_category_3rd`로
+  그룹핑해 MTD 기간 합산한다:
+  - `category` ← `product_category_3rd`
+  - `sales` ← `sum(sales_amount)`
+  - `discount_rate` ← `1 - sum(sales_amount) / sum(full_sales_amount)` (0으로 나누면 0)
+  - `refund_rate` ← `sum(refund_amount) / sum(sales_amount)` (0으로 나누면 0)
+  - `mom` ← 전월 동일 계산과 비교한 `(당월 sales - 전월 sales) / 전월 sales` (전월 호출을 별도로 1회 더 수행)
+- `sales` 내림차순 정렬
 
 ## 필요 데이터 (MCP)
 - `product_cumulative_sales`: 카테고리 배열

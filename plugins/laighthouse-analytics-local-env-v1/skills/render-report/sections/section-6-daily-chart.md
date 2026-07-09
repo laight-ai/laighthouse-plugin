@@ -2,11 +2,14 @@
 
 **트리거 키워드:** `일일 카테고리별`
 
-## MCP 도구 호출: ⚠️ 매칭되는 generic 도구 없음 (section-5와 동일한 갭)
+## MCP 도구 호출: `get_naver_item_sales_daily`
 
-일별 카테고리별 매출 시계열도 section-5와 같은 이유로 매칭되는 generic MCP 도구가 없다
-(`/v2/naver/item-sales/daily`는 naver 전용 endpoint라 MCP tool로 노출하지 않음).
-→ "데이터 준비 중" 카드로 대체한다.
+```json
+{ "brand_name": "...", "group_by": "category-3rd", "start_date": "당월초", "end_date": "target_date" }
+```
+- naver 전용 MCP 도구 (`laighthouse-prism/src/mcp_server/tools_naver.py`, `/v2/naver/item-sales/daily` 래퍼)
+- section-5/mtd-section-2와 동일 호출 결과를 재사용 — `items[]`를 `(logdate, product_category_3rd)`로
+  그룹핑해 `sum(sales_amount)`, 매출 상위 5개 카테고리만 시리즈로 렌더링
 
 ## 필요 데이터 (MCP)
 - `daily_sales.labels`: 날짜 배열 (예: ['2026-04-01', ..., '2026-04-30'])

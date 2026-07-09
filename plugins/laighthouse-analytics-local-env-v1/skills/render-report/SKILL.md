@@ -6,7 +6,7 @@ description: >
   "WoW 보고서", "render as report", "성과 분석 보고서", or wants MCP data formatted as a
   structured monthly/weekly performance report matching the Laighthouse style.
 metadata:
-  version: "0.5.0"
+  version: "0.6.0"
 ---
 
 > ⚡ **thinking 지침**: 이 스킬 실행 시 thinking(추론)은 최대한 짧게 유지한다. 불필요한 단계 반복, 장황한 계획 수립 없이 바로 MCP 호출 → 데이터 수신 → 렌더링 순서로 진행한다.
@@ -45,19 +45,25 @@ MCP 데이터를 받아 **라이트하우스 스타일 월간/주간 성과 보�
    - `daily` → `{ "campaign_type": "sales" }` 1회
    - `weekly` / `mtd` / `monthly` → `{ "campaign_type": "sales" }` + `{ "campaign_type": "branding" }` 2회
    - 세부 계산·데이터 갭(브랜딩 impression/CPM 목표 없음)은 `sections/section-2-achievement.md` 참고
-3. 나머지 `mcp__lighthouse__*` 도구(`get_ad_performance_daily_table` / `get_ad_performance_monthly_table` /
-   `get_ad_performance_weekly_table` / `get_sku_sales_daily` / `get_sku_sales_monthly` 등, 각 섹션 파일에
-   명시된 정확한 tool명 참고)를 호출해 각 섹션 수치 데이터를 가져온다.
-   - naver 브랜드는 위 generic 도구들의 `media="naver"` 필터로 커버한다 — **naver 전용 MCP 도구는
-     새로 만들지 않는다.** 이 generic 도구로 채울 수 없는 섹션(카테고리별 매출/할인율/환불율 등,
-     `sections/section-5-category-sales.md` 등에 명시)은 "데이터 준비 중"으로 남긴다.
+3. 나머지 `mcp__lighthouse__*` 도구를 호출해 각 섹션 수치 데이터를 가져온다 (각 섹션 파일에 명시된
+   정확한 tool명 참고). 두 종류가 있다:
+   - **generic 도구** (`get_ad_performance_daily_table` / `get_ad_performance_monthly_table` /
+     `get_ad_performance_weekly_table` / `get_sku_sales_daily` / `get_sku_sales_monthly` 등) — 여러
+     매체(google/meta/tiktok/naver)를 `media` 파라미터로 다루며, naver는 채널(BRS/PLINK/NVSHOP/GFA)
+     구분 없이 하나로 통합된다.
+   - **naver 전용 도구** (`get_naver_sa_performance_daily` / `get_naver_item_sales_daily` /
+     `get_naver_channel_progression`, `laighthouse-prism/src/mcp_server/tools_naver.py`) — naver
+     채널 구분(캠페인별 성과의 "네이버 광고 채널명"), 카테고리별 매출/할인율/환불율, 채널별 예산
+     목표처럼 generic 도구로는 낼 수 없는 데이터를 제공한다. report-backend의
+     `report_generator/default/mtd`가 실제로 의존하는 3개 endpoint만 wrapping했으므로, 이 3개
+     외의 naver 전용 필요가 생기면 먼저 그 생성기가 실제로 그 데이터를 쓰는지 확인한다.
 4. **포함 섹션에 `Executive Summary`가 포함된 경우** (daily는 항상 포함), 수집한 수치 데이터를
    `mcp__df_dify__<workflow-tool-name>` 도구(`.mcp.json` 서버 키는 `df_dify`; 실제 tool명은 브랜드에
    연결된 Dify 워크플로에 맞게 확인)에 전달하여 분석 텍스트를 가져온다.
    - dify 응답은 `executive_summary` key로 반환됨
    - dify 응답 실패 시 수치 기반으로 AI가 직접 생성 (단, 근거 수치 자체가 데이터 갭이면 생성하지 않음)
    - **`report_type`이 `mtd`인 경우**, 동일한 `mcp__df_dify__*` 호출(또는 동일 페이로드의 추가 호출)에서
-     `performance_overview`, `product_analysis`, `ad_group_analysis` 3개 key도 함께 가져온다.
+     `performance_overview`, `analysis_of_ad_performance`, `analysis_by_ad_group` 3개 key도 함께 가져온다.
      각각 mtd-section-1/3/6에서 사용하며, 실패 시 해당 섹션 수치 기반으로 AI가 직접 생성한다.
 5. **포함 섹션** 목록을 확인하고 해당하는 섹션 스킬만 import하여 HTML을 조합한다.
 6. 아래 **보고서 골격**에 섹션들을 삽입해 `mcp__visualize__show_widget`으로 렌더링한다.
@@ -89,8 +95,8 @@ Daily report는 포함 섹션 조건 없이 전체 섹션을 항상 렌더링한
 Performance by Asset group).
 
 Executive Summary는 weekly/mtd/monthly와 동일하게 `sections/section-4-executive-summary.md`를
-공용으로 사용하며, `mcp__dify__*` 호출 로직도 동일하게 적용한다 (dify 응답 실패 시 daily 수치 기반으로
-AI가 직접 생성하는 방식으로 폴백).
+공용으로 사용하며, `mcp__df_dify__<workflow-tool-name>` 호출 로직도 동일하게 적용한다 (dify 응답
+실패 시 daily 수치 기반으로 AI가 직접 생성하는 방식으로 폴백).
 
 ### report_type: `weekly` / `mtd` / `monthly`
 

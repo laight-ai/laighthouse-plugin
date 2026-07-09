@@ -2,16 +2,15 @@
 
 **트리거 키워드:** `제품 판매 트렌드`
 
-## MCP 도구 호출: `df_dify` 서버의 분석 tool (텍스트 생성만, 수치 소스는 section-5/6)
+## MCP 도구 호출: `df_dify` 서버의 분석 tool (텍스트만; 수치 소스는 section-5/6 — `get_naver_item_sales_daily`)
 
-텍스트는 `mcp__df_dify__<workflow-tool-name>`으로 생성한다. 다만 section-5/6이 데이터 갭으로
-"데이터 준비 중" 상태라면, 이 섹션도 근거 수치가 없으므로 함께 생략하거나 "데이터 준비 중"으로
-대체한다 (없는 수치로 AI가 텍스트를 지어내지 않도록).
+텍스트는 `mcp__df_dify__<workflow-tool-name>`으로 생성한다. section-5/6에서 이미 수집한
+`get_naver_item_sales_daily` 결과를 payload로 전달한다.
 
 ## 필요 데이터 (MCP)
 - `trend_analysis.period`: 분석 기간 레이블 (예: '2026년 4월')
 - `trend_analysis.items`: 분석 텍스트 배열 (카테고리별 불릿 항목)
-  - MCP에서 받은 텍스트가 없으면 섹션 5~6 데이터 기반으로 AI가 생성 (섹션 5~6 데이터 자체가 없으면 생성하지 않음)
+  - MCP에서 받은 텍스트가 없으면 섹션 5~6 데이터 기반으로 AI가 직접 생성
 
 ## HTML
 

@@ -4,20 +4,19 @@
 
 ---
 
-## MCP 도구 호출: `df_dify` 서버의 분석 tool (텍스트만; 수치 소스는 section-5/6 — 현재 데이터 갭)
+## MCP 도구 호출: `df_dify` 서버의 분석 tool (텍스트만; 수치 소스는 section-5/6 — `get_naver_item_sales_daily`)
 
 `mcp__df_dify__<workflow-tool-name>`으로 분석 텍스트를 가져온다. 응답에서 `analysis_of_ad_performance` key의 값을 사용한다.
 
 ```
 호출 순서:
-1. section-5(카테고리별 매출액)/section-6(일일 카테고리별 매출) 수치 재사용
+1. section-5(카테고리별 매출액)/section-6(일일 카테고리별 매출)이 이미 호출한
+   get_naver_item_sales_daily(group_by="category-3rd") 결과 재사용
 2. mcp__df_dify__<workflow-tool-name> 으로 분석 요청 (1의 수치 데이터 전달)
 3. 응답의 analysis_of_ad_performance 값을 렌더링
 ```
 
-⚠️ section-5/6은 카테고리 단위 매출 데이터를 채울 generic MCP 도구가 없어 현재 데이터 갭 상태다
-(naver 전용 MCP 도구를 만들지 않기로 했으므로). 근거 수치가 없으면 dify 실패 시 폴백도 하지 않고
-이 섹션 전체를 "데이터 준비 중"으로 대체한다 — 없는 수치로 AI가 텍스트를 지어내지 않도록 한다.
+dify 응답 실패 시 section-5/6 수치 기반으로 AI가 직접 생성한다.
 
 ---
 
