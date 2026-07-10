@@ -11,7 +11,7 @@
 ```
 작성 순서:
 1. mtd-section-6(상품별 누적 판매액)/mtd-section-7(일일 카테고리별 매출)이 이미 호출한
-   get_naver_item_sales_daily(group_by="category-3rd") 결과 재사용
+   get_naver_item_sales_daily(group_by="category_3rd") 결과 재사용
 2. dify 호출 없이, 1의 수치 데이터를 근거로 AI가 analysis_of_ad_performance 텍스트를 직접 작성한다.
 ```
 
