@@ -1,6 +1,6 @@
 {
   "name": "laighthouse-analytics-local-env-v1",
-  "version": "0.7.0",
+  "version": "0.7.1",
   "description": "\ub77c\uc774\ud2b8\ud558\uc6b0\uc2a4 \ubd84\uc11d \ud50c\ub7ec\uadf8\uc778 \u2014 MCP \uc5f0\ub3d9 \ub370\uc774\ud130\ub97c \ud45c, \ucc28\ud2b8, Daily/MTD \uc131\uacfc \ubcf4\uace0\uc11c\ub85c \ub80c\ub354\ub9c1\ud569\ub2c8\ub2e4.",
   "author": {
     "name": "Laight"
