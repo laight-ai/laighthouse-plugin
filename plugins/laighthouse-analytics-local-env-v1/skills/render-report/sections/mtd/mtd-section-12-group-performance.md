@@ -128,7 +128,11 @@ if(!window._tableUtils){
       prev.onclick = () => { state.page = page - 1; window._tableState[tableId] = state; window.renderTablePage(tableId); };
       pgEl.appendChild(prev);
 
-      for(let i=1; i<=totalPages; i++){
+      const maxButtons = 6;
+      let startPage = Math.max(1, page - Math.floor(maxButtons / 2));
+      let endPage = Math.min(totalPages, startPage + maxButtons - 1);
+      startPage = Math.max(1, endPage - maxButtons + 1);
+      for(let i=startPage; i<=endPage; i++){
         const btn = document.createElement('button');
         btn.textContent = i;
         btn.style.cssText = `border:1px solid ${i===page?'#3b82f6':'#e2e8f0'};background:${i===page?'#3b82f6':'white'};color:${i===page?'white':'#374151'};padding:4px 10px;border-radius:4px;cursor:pointer;`;

@@ -5,7 +5,7 @@ description: >
   "Daily 보고서", "MTD 보고서", "라이트하우스 보고서", "성과 분석 보고서", or wants MCP data
   formatted as a structured daily/MTD performance report matching the Laighthouse style.
 metadata:
-  version: "0.7.0"
+  version: "0.8.4"
 ---
 
 > ⚡ **thinking 지침**: 이 스킬 실행 시 thinking(추론)은 최대한 짧게 유지한다. 불필요한 단계 반복, 장황한 계획 수립 없이 바로 MCP 호출 → 데이터 수신 → 렌더링 순서로 진행한다.
@@ -28,13 +28,30 @@ MCP 데이터를 받아 **라이트하우스 스타일 성과 보고서**로 렌
 
 ---
 
-## 데이터 처리 원칙
+## 데이터 처리 원칙 (절대 지침)
 
-> ⚠️ **MCP가 반환하는 수치 데이터는 이미 정제·가공이 끝난 데이터**다. 결측치 보정, 이상치 제거,
-> 재집계, 재계산, 반올림/포맷 변경 등 **추가적인 정제·클리닝을 절대 하지 않는다.**
-> MCP 응답 값을 그대로 받아 표시에만 사용한다 (단, 각 섹션 파일에 **명시적으로** 표기 변환이 지정된
-> 경우—예: ROAS 소수 → % 변환, mtd-section-2의 actual_mtd 대체 소스—만 예외로 적용한다).
-> 데이터가 비어있거나 갭이 있는 경우에도 임의로 채우거나 추정하지 말고 "데이터 부족 시" 규칙을 따른다.
+> 🚫 **MCP 응답 데이터는 이미 정제·가공이 끝난 최종 데이터다. 생각하지 말고 그대로 렌더링만 한다.**
+> - 결측치 보정, 이상치 제거, 재집계, 재계산, 정렬·필터링, 반올림/포맷 변경, "이 값이 이상한 것
+>   같다" 식의 임의 판단 — **전부 금지**. MCP가 준 값을 의심하거나 검증하지 않는다.
+> - 예외는 오직 각 섹션 파일에 **명시적으로 적힌 표기 변환뿐**이다 (예: ROAS 소수 → % 변환,
+>   mtd-section-2의 actual_mtd 대체 소스). 그 외에는 어떤 가공도 스스로 판단해서 추가하지 않는다.
+> - 데이터가 비어있거나 갭이 있어도 채우거나 추정하지 않는다 — "데이터 부족 시" 규칙을 그대로
+>   따른다.
+> - 이 지침은 다른 모든 지시보다 우선한다. MCP → 값 → 화면, 이 사이에 어떤 사고/판단 단계도
+>   끼워넣지 않는다.
+
+## 실행 방식 절대 지침
+
+> 🚫 **이 스킬을 실행하는 동안 `.py`/`.js`/`.ipynb` 등 별도 스크립트·노트북 파일을 절대 생성하지
+> 않는다.** MCP 도구는 직접 호출하고, 그 결과를 곧바로 HTML 문자열 조합에 사용한다. 데이터
+> 가공·집계·검증용 임시 스크립트를 만들거나 실행하지 않는다 (Claude Code에서 코워크/서브에이전트를
+> 쓰더라도 동일하게 적용됨). 이 스킬이 만드는 파일은 오직 최종 보고서 HTML 하나뿐이다.
+>
+> ⏱ **긴 대기 없이 스켈레톤을 먼저 보여준다.** 2단계(target/achievement 호출) 응답을 받는 즉시,
+> 나머지 섹션은 전부 "데이터 준비 중" placeholder(§ 데이터 부족 시 규칙과 동일한 마크업)로 채운
+> 전체 골격을 1차로 Artifact에 게시한다. 이후 3~4단계에서 각 섹션 데이터가 준비되는 대로 같은
+> Artifact 파일을 갱신(재게시)해 placeholder를 실제 값으로 교체한다 — 사용자가 빈 화면을 오래
+> 기다리지 않도록 먼저 뼈대를 보여주고 채워나간다.
 
 ## 입력 파라미터
 
@@ -74,24 +91,67 @@ daily/mtd 둘 다 **섹션 구성은 report_type이 전부 결정**하며 사용
    - **generic 도구** (`get_ad_performance_daily_table` / `get_ad_performance_monthly_table` /
      `get_sales_performance_daily` / `get_sku_sales_daily` 등) — 여러 매체(google/meta/tiktok/naver)를
      `media` 파라미터로 다루며, naver는 채널(BRS/PLINK/NVSHOP/GFA) 구분 없이 하나로 통합된다.
+     ⚠️ 이 계열 도구의 `group_by`는 **문자열 enum**(`total`/`media`/`campaign`/`ad-set`/`ad`)이다 —
+     `true`/`false` boolean으로 절대 보내지 않는다. 각 섹션 파일에 적힌 값(대부분 `"total"`)을
+     문자열 그대로 그 섹션에서만 쓴다.
+     ⚠️ **`get_ad_performance_monthly_table`은 mtd에서 쓰지 않는다** (2026-07-10 확인 — 값은 나오지만
+     실제 수치가 report-backend와 안 맞았다). 이 도구는 report-backend가 실제로 호출하는 API가 아닌
+     별개의 범용 파이프라인(`_query_nv_monthly`)을 탄다. mtd-section-4(월별 광고 성과)는
+     `get_naver_channel_progression`을 월별로 반복 호출하는 전용 도구 `get_naver_monthly_ad_performance`
+     를 쓴다 (아래 naver 전용 도구 목록 참고) — 이게 report-backend
+     `default/_prism_data.py::_build_13m_channel_frames`와 동일한 API 호출 패턴이다.
    - **naver 전용 도구** (`get_naver_sa_performance_daily` / `get_naver_item_sales_daily` /
-     `get_naver_channel_progression` / `get_naver_target_progress`, `laighthouse-prism/src/
-     mcp_server/tools_naver.py`) — mtd 보고서에서만 쓴다. naver 채널 구분, 카테고리별 매출/할인율/
-     환불율, 채널별 예산 목표, naver 전용 target/achievement(2단계에서 이미 호출)처럼 generic
-     도구로는 낼 수 없는 데이터를 제공한다.
-4. Executive Summary는 daily/mtd 둘 다 항상 포함된다. 수집한 수치 데이터를
-   `mcp__df_dify__<workflow-tool-name>` 도구(`.mcp.json` 서버 키는 `df_dify`; 실제 tool명은 브랜드에
-   연결된 Dify 워크플로에 맞게 확인)에 전달하여 분석 텍스트를 가져온다.
-   - dify 응답은 `executive_summary` key로 반환됨
-   - dify 응답 실패 시 수치 기반으로 AI가 직접 생성 (단, 근거 수치 자체가 데이터 갭이면 생성하지 않음)
-   - **`mtd`인 경우**, 동일한 `mcp__df_dify__*` 호출(또는 동일 페이로드의 추가 호출)에서
-     `performance_overview`, `analysis_of_ad_performance`, `analysis_by_ad_group` 3개 key도 함께 가져온다.
-     각각 mtd-section-5/8/11에서 사용하며, 실패 시 해당 섹션 수치 기반으로 AI가 직접 생성한다.
+     `get_naver_channel_progression` / `get_naver_target_progress` /
+     `get_naver_monthly_ad_performance`, `laighthouse-prism/src/mcp_server/tools_naver.py`) — mtd
+     보고서에서만 쓴다. naver 채널 구분, 카테고리별 매출/할인율/환불율, 채널별 예산 목표, naver
+     전용 target/achievement(2단계에서 이미 호출), naver 전용 월별 광고비/매출/ROAS(mtd-section-4)처럼
+     generic 도구로는 깔끔하게 낼 수 없는 데이터를 제공한다.
+4. Executive Summary는 daily/mtd 둘 다 항상 포함된다.
+   - ⚠️ **`df_dify` MCP 서버는 현재 호출하지 않는다** (연결 불안정으로 타임아웃 시 빈 응답이 돌아옴).
+     `mcp__df_dify__*` 도구를 호출하지 말고, 이미 수집한 수치 데이터를 근거로 AI가 분석 텍스트를
+     직접 작성한다 (단, 근거 수치 자체가 데이터 갭이면 생성하지 않음).
+   - **`mtd`인 경우**, `performance_overview`, `analysis_of_ad_performance`, `analysis_by_ad_group`
+     3개 텍스트도 동일하게 AI가 각 섹션(mtd-section-5/8/11) 수치 기반으로 직접 작성한다.
 5. `report_type`에 대응하는 아래 표의 파일을 **순서대로 전부** import해 HTML을 조합한다.
 6. 이 스킬 폴더의 `assets/chart.umd.min.js` 파일을 읽어 그 내용 전체를 `{CHART_JS_INLINE}` 자리에
    그대로 삽입한다 (CDN `<script src>` 절대 사용 금지 — 아래 보고서 골격의 경고 참고).
-7. 아래 **보고서 골격**에 섹션들을 삽입해 렌더링한다 — Claude Code(Artifact)에서 실행 중이면 Artifact
-   도구로 게시하고, `mcp__visualize__show_widget`이 있는 호스트에서는 그걸 쓴다.
+7. 아래 **보고서 골격**에 섹션들을 삽입해 렌더링한다. 완성된 HTML은 아래 **두 곳에 동시에** 낸다 —
+   하나만 하고 끝내지 않는다:
+   - **채팅 내부 표시**: Claude Code(Artifact)에서 실행 중이면 Artifact 도구로 게시(위 스켈레톤과
+     같은 파일을 갱신). `mcp__visualize__show_widget`이 있는 호스트에서는 그걸 쓴다.
+   - **파일로 저장**: 동일한 최종 HTML을 `~/Downloads/laighthouse-reports/{brand_name}_{report_type}_
+     {기준_일자}.html` 경로에 그대로 저장한다 (디렉터리가 없으면 새로 만든다). 파일명 예:
+     `다형식품_mtd_2026-05-15.html`.
+8. 렌더링 후 사용자에게 보내는 완료 메시지는 아래 **완료 메시지 형식**을 그대로 따른다 — 매번 다른
+   문구로 즉석 요약하지 않는다. 저장된 파일 경로를 완료 메시지 마지막 줄에 덧붙인다.
+
+---
+
+## 완료 메시지 형식
+
+렌더링이 끝나면 아래 고정 템플릿으로만 응답한다 (MCP/dify 호출 성공·실패 여부, 섹션 개수, 데이터
+출처 등 기술적 디테일은 언급하지 않는다):
+
+```
+{brand_name} {report_type 한글명}({기준_일자}) 생성 완료.
+가장 인상적인 부분: {한 문장 하이라이트}.
+— by LaightAI
+📁 {저장된 html 파일 경로}
+```
+
+- `{report_type 한글명}`: `daily` → "Daily 보고서", `mtd` → "MTD 보고서"
+- `{기준_일자}`: 사용자가 지정한 기준 일자 (예: 2026-05-15)
+- `{한 문장 하이라이트}`: 렌더링된 수치 중 가장 눈에 띄는 지표 한 가지만 골라 한 문장으로 (예: "ROAS 목표
+  대비 118% 초과 달성", "다이어트 단백질 카테고리 매출 전월 대비 32% 증가"). 여러 개 나열하지 않는다.
+- `{저장된 html 파일 경로}`: 7단계에서 저장한 `.html` 파일의 전체 경로.
+
+예시:
+```
+다형식품 MTD 보고서(2026-05-15) 생성 완료.
+가장 인상적인 부분: ROAS가 목표 대비 118% 달성되며 예산 소진 속도를 크게 앞섰습니다.
+— by LaightAI
+📁 C:\Users\minhyeok\Downloads\laighthouse-reports\다형식품_mtd_2026-05-15.html
+```
 
 ---
 

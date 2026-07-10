@@ -4,19 +4,16 @@
 
 ---
 
-## MCP 도구 호출: `df_dify` 서버의 분석 tool (텍스트만; 수치 소스는 mtd-section-6/7 — `get_naver_item_sales_daily`)
+## 텍스트 생성: AI가 직접 작성 (`df_dify` MCP 호출 안 함); 수치 소스는 mtd-section-6/7 — `get_naver_item_sales_daily`
 
-`mcp__df_dify__<workflow-tool-name>`으로 분석 텍스트를 가져온다. 응답에서 `analysis_of_ad_performance` key의 값을 사용한다.
+⚠️ **`df_dify` MCP 서버는 현재 호출하지 않는다** (연결 불안정으로 타임아웃 시 빈 응답이 돌아옴).
 
 ```
-호출 순서:
+작성 순서:
 1. mtd-section-6(상품별 누적 판매액)/mtd-section-7(일일 카테고리별 매출)이 이미 호출한
    get_naver_item_sales_daily(group_by="category-3rd") 결과 재사용
-2. mcp__df_dify__<workflow-tool-name> 으로 분석 요청 (1의 수치 데이터 전달)
-3. 응답의 analysis_of_ad_performance 값을 렌더링
+2. dify 호출 없이, 1의 수치 데이터를 근거로 AI가 analysis_of_ad_performance 텍스트를 직접 작성한다.
 ```
-
-dify 응답 실패 시 mtd-section-6/7 수치 기반으로 AI가 직접 생성한다.
 
 ---
 

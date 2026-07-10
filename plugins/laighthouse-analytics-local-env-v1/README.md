@@ -42,7 +42,7 @@ MCP 서버가 인증을 요구하는 경우 `.mcp.json`의 `headers`에 토큰�
       "type": "http",
       "url": "https://alien-watching-jane-nextel.trycloudflare.com/api/mcp",
       "headers": {
-        "Authorization": "Bearer ${LIGHTHOUSE_API_TOKEN}"
+        "Authorization": "Bearer ${LAIGHTHOUSE_API_TOKEN}"
       }
     }
   }

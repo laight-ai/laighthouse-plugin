@@ -4,21 +4,17 @@
 
 ---
 
-## MCP 도구 호출: `df_dify` 서버의 분석 tool (텍스트), `get_naver_target_progress` (수치)
+## 텍스트 생성: AI가 직접 작성 (`df_dify` MCP 호출 안 함), 수치는 `get_naver_target_progress`
 
-`mcp__df_dify__<workflow-tool-name>`으로 분석 텍스트를 가져온다 (`.mcp.json`의 dify 서버 키는
-`df_dify`; 실제 tool명은 브랜드 워크플로에 맞게 확인). 응답에서 `performance_overview` key의 값을 사용한다.
+⚠️ **`df_dify` MCP 서버는 현재 호출하지 않는다** (연결 불안정으로 타임아웃 시 빈 응답이 돌아옴).
 
 ```
-호출 순서:
+작성 순서:
 1. `get_naver_target_progress`로 매출/예산/ROAS 수치 수집 — mtd-section-2(목표 달성 현황)와 동일한
    호출을 재사용한다 (범용 `target_progress`가 아님 — mtd-section-2의 버그 설명 참고).
-2. `mcp__df_dify__<workflow-tool-name>` 으로 분석 요청 (1의 수치 데이터 전달)
-3. 응답의 performance_overview 값을 렌더링
+2. dify 호출 없이, 1의 수치 데이터를 근거로 AI가 performance_overview 텍스트를 직접 작성한다
+   (매출 발생 현황 / 예산 소진 현황 / ROAS 현황 3개 하위 항목 구조를 유지).
 ```
-
-dify 응답 실패 시 수치 기반으로 AI가 직접 생성한다 (매출 발생 현황 / 예산 소진 현황 / ROAS 현황
-3개 하위 항목 구조를 유지).
 
 ---
 
@@ -64,4 +60,4 @@ dify 응답 실패 시 수치 기반으로 AI가 직접 생성한다 (매출 발
 ## 렌더링 규칙
 - `⚠`로 시작하는 문장은 `color:#d97706` (주황) 처리
 - 강조 수치는 `<strong>` 태그 사용
-- dify 응답이 없으면 섹션 2(목표 달성 현황)의 sales 수치를 근거로 동일한 3블록 구조를 AI가 생성
+- 섹션 2(목표 달성 현황)의 sales 수치를 근거로 동일한 3블록 구조를 AI가 생성
