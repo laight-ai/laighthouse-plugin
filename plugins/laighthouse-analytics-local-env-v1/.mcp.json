@@ -2,7 +2,7 @@
   "mcpServers": {
     "lighthouse": {
       "type": "http",
-      "url": "https://classifieds-willow-resumes-donations.trycloudflare.com/api/mcp"
+      "url": "https://rides-seats-recommendations-earthquake.trycloudflare.com/api/mcp"
     },
     "df_dify": {
       "type": "http",
