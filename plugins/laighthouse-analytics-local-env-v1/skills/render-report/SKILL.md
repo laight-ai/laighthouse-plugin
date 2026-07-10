@@ -100,12 +100,18 @@ daily/mtd 둘 다 **섹션 구성은 report_type이 전부 결정**하며 사용
      `get_naver_channel_progression`을 월별로 반복 호출하는 전용 도구 `get_naver_monthly_ad_performance`
      를 쓴다 (아래 naver 전용 도구 목록 참고) — 이게 report-backend
      `default/_prism_data.py::_build_13m_channel_frames`와 동일한 API 호출 패턴이다.
+     ⚠️ **`get_ad_performance_daily_table`도 mtd에서 쓰지 않는다** (2026-07-11 확인 — `group_by`
+     파라미터가 서버에 `null`로 도착하는 호출 오류가 있었다). mtd-section-14(일별 광고기여 매출 분석)는
+     전용 도구 `get_naver_daily_attributed_sales`를 쓴다 — `media=naver`/`group_by=total`을 서버
+     사이드에 고정해 그 파라미터 자체를 노출하지 않는다 (SA+GFA 재계산은 하지 않는다 — report-backend가
+     그 재계산으로 없애는 오차는 하루 최대 2원 수준이라 이 보고서 규모에선 무의미해서 뺐다).
    - **naver 전용 도구** (`get_naver_sa_performance_daily` / `get_naver_item_sales_daily` /
      `get_naver_channel_progression` / `get_naver_target_progress` /
-     `get_naver_monthly_ad_performance`, `laighthouse-prism/src/mcp_server/tools_naver.py`) — mtd
-     보고서에서만 쓴다. naver 채널 구분, 카테고리별 매출/할인율/환불율, 채널별 예산 목표, naver
-     전용 target/achievement(2단계에서 이미 호출), naver 전용 월별 광고비/매출/ROAS(mtd-section-4)처럼
-     generic 도구로는 깔끔하게 낼 수 없는 데이터를 제공한다.
+     `get_naver_monthly_ad_performance` / `get_naver_daily_attributed_sales`,
+     `laighthouse-prism/src/mcp_server/tools_naver.py`) — mtd 보고서에서만 쓴다. naver 채널 구분,
+     카테고리별 매출/할인율/환불율, 채널별 예산 목표, naver 전용 target/achievement(2단계에서 이미
+     호출), naver 전용 월별 광고비/매출/ROAS(mtd-section-4), naver 전용 일별 광고기여 매출
+     (mtd-section-14)처럼 generic 도구로는 깔끔하게/정확하게 낼 수 없는 데이터를 제공한다.
 4. Executive Summary는 daily/mtd 둘 다 항상 포함된다.
    - ⚠️ **`df_dify` MCP 서버는 현재 호출하지 않는다** (연결 불안정으로 타임아웃 시 빈 응답이 돌아옴).
      `mcp__df_dify__*` 도구를 호출하지 말고, 이미 수집한 수치 데이터를 근거로 AI가 분석 텍스트를

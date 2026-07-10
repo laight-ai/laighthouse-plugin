@@ -2,14 +2,22 @@
 
 **report_type:** `mtd` (항상 포함)
 
-## MCP 도구 호출: `get_ad_performance_daily_table`
+## MCP 도구 호출: `get_naver_daily_attributed_sales`
 
 ```json
-{ "brand_name": "...", "start_date": "월초", "end_date": "target_date(MTD 마지막 날)", "group_by": "total", "media": "naver" }
+{ "brand_name": "...", "start_date": "월초", "end_date": "target_date(MTD 마지막 날)" }
 ```
-- `group_by="total"`, `media="naver"` → 날짜별 1행 (해당 월 1일부터 target_date까지)
-- 반환은 마크다운 표 문자열 — 파싱해 아래 배열로 재구성 (`logdate`→date, `cost`→ad_cost,
-  `purchase_amount`→revenue, `purchase_count`→purchases, `click`→clicks)
+
+> ⚠️ **`get_ad_performance_daily_table`을 여기 쓰지 않는다 (2026-07-11 확인된 문제 — `group_by`가
+> 서버에 `null`로 도착하는 호출 오류가 있었다).** `get_naver_daily_attributed_sales`는
+> `get_daily_ad_performance`를 `media=naver, group_by=total, campaign_type=None` 고정으로 감싼
+> naver 전용 MCP 도구다 — 이 세 파라미터를 아예 노출하지 않으므로(내부에서 고정) 그 파라미터 전달
+> 오류 자체가 발생할 수 없다. `laighthouse-prism/src/mcp_server/tools_naver.py`에 정의돼 있다.
+> (report-backend `default/_mtd_components.py::build_daily_contribution`은 이 endpoint의 cost
+> 필드 대신 SA+GFA 채널 데이터로 광고비를 다시 계산하는데, 이건 하루 최대 2원 수준의 VAT 반올림
+> 오차를 없애기 위한 것 — 이 보고서 규모에서는 무의미해서 이 도구는 그 재계산을 하지 않고
+> endpoint의 `cost` 필드를 그대로 쓴다.)
+> `start_date`/`end_date`는 31일 이내여야 한다 (MTD 범위는 항상 이 조건을 만족한다).
 
 ## 필요 데이터 (MCP)
 - `daily_attributed_sales`: 날짜별 배열
