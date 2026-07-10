@@ -31,7 +31,7 @@
 ## HTML
 
 ```html
-<!-- MTD SECTION 9: 일별 광고기여 매출 분석 -->
+<!-- MTD SECTION 14: 일별 광고기여 매출 분석 -->
 <div class="card" style="margin-bottom:16px;">
   <div class="section-title">일별 광고기여 매출 분석</div>
   <div style="overflow-x:auto;">

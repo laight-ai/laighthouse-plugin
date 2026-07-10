@@ -1,4 +1,4 @@
-# MTD Section 13: 키워드별 성과
+# MTD Section 13: 키워드 별 성과
 
 **report_type:** `mtd` (항상 포함)
 
@@ -29,10 +29,10 @@
 ## HTML
 
 ```html
-<!-- MTD SECTION 8: 키워드별 성과 -->
+<!-- MTD SECTION 13: 키워드 별 성과 -->
 <div class="card" style="margin-bottom:16px;">
   <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
-    <div class="section-title" style="margin-bottom:0;">키워드별 성과</div>
+    <div class="section-title" style="margin-bottom:0;">키워드 별 성과</div>
     <div style="display:flex; align-items:center; gap:8px;">
       <div style="display:flex; align-items:center; background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:6px 10px; gap:6px;">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
@@ -57,9 +57,9 @@
           <th style="text-align:right;">클릭</th>
           <th style="text-align:right;">광고비</th>
           <th style="text-align:right;">CPC</th>
-          <th style="text-align:right;">클릭률</th>
+          <th style="text-align:right;">클릭율</th>
           <th style="text-align:right;">CPM</th>
-          <th style="text-align:right;">구매수</th>
+          <th style="text-align:right;">구매건수</th>
           <th style="text-align:right;">매출</th>
           <th style="text-align:right;">ROAS</th>
         </tr>
@@ -176,6 +176,7 @@ window.initTable('mtdKeywordTable');
 
 ## 렌더링 규칙
 - 금액/노출/클릭 필드는 `toLocaleString()` 천 단위 콤마 포맷
-- MCP가 반환하는 키워드 수가 매우 많을 수 있음(PDF 기준 130페이지 규모) — 클라이언트 페이지네이션으로
-  처리하되, MCP 응답 자체가 너무 크면 상위 N개(예: 500개)로 절단해 요청하는 것을 권장
+- 반환 키워드 수가 매우 많을 수 있음(PDF 기준 130페이지 규모) — `get_naver_keyword_performance`는
+  절단 파라미터가 없고 합산·정렬된 전체 키워드를 반환하므로, 전부 받아 클라이언트 페이지네이션으로
+  처리한다 (report-backend `build_keywords_table`도 상위 N 컷 없이 전체를 낸다)
 - 노출/클릭/구매가 모두 0인 키워드도 그대로 표시 (성과 없음 상태 확인 목적)

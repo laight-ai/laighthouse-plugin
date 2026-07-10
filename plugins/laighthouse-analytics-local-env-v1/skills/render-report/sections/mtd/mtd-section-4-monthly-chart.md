@@ -33,7 +33,7 @@
 ## HTML
 
 ```html
-<!-- SECTION 3: 월별 광고 성과 차트 -->
+<!-- SECTION 4: 월별 광고 성과 차트 -->
 <div class="card" style="margin-bottom:16px;">
   <div class="section-title">월별 광고 성과</div>
   <div style="position:relative; height:320px;">
@@ -45,7 +45,7 @@
 ## Script
 
 ```javascript
-// Section 3: 월별 광고 성과 혼합 차트
+// Section 4: 월별 광고 성과 혼합 차트
 (function(){
   const ctx = document.getElementById('monthlyChart');
   if(!ctx) return;
@@ -66,7 +66,7 @@
       responsive:true, maintainAspectRatio:false,
       plugins:{ legend:{ position:'top' } },
       scales:{
-        y:  { position:'left',  ticks:{ callback: v => fmtUSD(v) } },
+        y:  { position:'left',  ticks:{ callback: v => Number(v).toLocaleString() } },
         y2: { position:'right', grid:{ drawOnChartArea:false },
               ticks:{ callback: v => v+'%' } }
       }

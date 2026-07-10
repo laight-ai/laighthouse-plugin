@@ -27,7 +27,7 @@
 ## HTML
 
 ```html
-<!-- SECTION 6: 일일 카테고리별 매출 현황 -->
+<!-- SECTION 7: 일일 카테고리별 매출 현황 -->
 <div class="card" style="margin-bottom:16px;">
   <div class="section-title">일일 카테고리별 매출 현황</div>
   <div style="position:relative; height:300px;">
@@ -39,7 +39,7 @@
 ## Script
 
 ```javascript
-// Section 6: 일일 카테고리별 매출 멀티라인 차트
+// Section 7: 일일 카테고리별 매출 멀티라인 차트
 (function(){
   const ctx = document.getElementById('dailyChart');
   if(!ctx) return;
@@ -60,10 +60,10 @@
         legend:{ position:'top' },
         tooltip:{
           mode:'index', intersect:false,
-          callbacks:{ label: c => c.dataset.label+': '+fmtUSD(c.raw) }
+          callbacks:{ label: c => c.dataset.label+': '+Number(c.raw).toLocaleString() }
         }
       },
-      scales:{ y:{ ticks:{ callback: v => fmtUSD(v) } } }
+      scales:{ y:{ ticks:{ callback: v => Number(v).toLocaleString() } } }
     }
   });
 })();

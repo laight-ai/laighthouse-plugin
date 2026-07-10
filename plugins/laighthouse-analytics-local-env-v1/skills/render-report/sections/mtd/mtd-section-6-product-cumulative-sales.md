@@ -29,7 +29,7 @@
 ## HTML
 
 ```html
-<!-- MTD SECTION 2: 상품별 누적 판매액 -->
+<!-- MTD SECTION 6: 상품별 누적 판매액 -->
 <div class="card" style="margin-bottom:16px;">
   <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
     <div class="section-title" style="margin-bottom:0;">상품별 누적 판매액</div>
@@ -52,7 +52,7 @@
     <table id="productSalesTable">
       <thead>
         <tr>
-          <th>상품 카테고리 (s)</th>
+          <th>상품 카테고리 (소)</th>
           <th style="text-align:right;">판매액</th>
           <th style="text-align:right;">할인율</th>
           <th style="text-align:right;">환불금액 비율</th>

@@ -5,7 +5,7 @@ description: >
   "Daily 보고서", "MTD 보고서", "라이트하우스 보고서", "성과 분석 보고서", or wants MCP data
   formatted as a structured daily/MTD performance report matching the Laighthouse style.
 metadata:
-  version: "0.8.4"
+  version: "0.8.5"
 ---
 
 > ⚡ **thinking 지침**: 이 스킬 실행 시 thinking(추론)은 최대한 짧게 유지한다. 불필요한 단계 반복, 장황한 계획 수립 없이 바로 MCP 호출 → 데이터 수신 → 렌더링 순서로 진행한다.
@@ -180,10 +180,19 @@ daily/mtd 둘 다 **섹션 구성은 report_type이 전부 결정**하며 사용
 
 ### report_type: `mtd` (naver 기반 default 브랜드 전용 — 다형식품 등, 항상 포함)
 
-**총 14개 섹션.** report-backend `default/_report_mtd.py::organize_report_artifacts`의
-`ordered_names`(12개 데이터 컴포넌트) + "목표 달성 현황" 컴포넌트가 프론트엔드에서 2개 시각 블록
-(월 목표 카드 + 목표 달성 현황 카드)으로 렌더링되는 것 = 14개 카드. 2026-05-15 다형식품 실제 MTD
-PDF와 대조해 순서/구성을 확정했다.
+**총 14개 섹션 = DATA 섹션 + ANALYSIS 섹션.** report-backend `default/_report_mtd.py`의 MTD
+리포트는 두 종류로 나뉜다:
+- **DATA 섹션** — `_mtd_components.build_mtd_report`가 prism 데이터로 만드는 컴포넌트(목표 달성 현황
+  / 월별 광고 성과 / 상품별 누적 판매액 / 일일 카테고리별 매출 현황 / 매체 별 예산 소진 현황 /
+  캠페인 별 성과 / 그룹 별 성과 / 키워드 별 성과 / 일별 광고기여 매출 분석). "목표 달성 현황"만
+  프론트엔드가 2개 시각 블록(월 목표 카드 + 목표 달성 현황)으로 나눠 그린다.
+- **ANALYSIS 섹션** — report-backend가 prism이 아니라 **dify 워크플로**로 생성해 붙이는 텍스트
+  (`_run_dify_analysis` + `_build_mtd_analysis_result_components`): Executive Summary / 성과에 대한
+  개괄 / 제품 판매 성과의 심층 분석 / 광고 그룹별 심층 분석. 이 스킬에서는 dify 대신 실행 LLM이 그
+  역할을 하며, 해당 DATA 섹션과 동일한 근거 수치(각 MCP 도구 결과)를 바탕으로 텍스트를 직접 작성한다
+  — 새 수치를 지어내지 않는다.
+
+2026-05-15 다형식품 실제 MTD PDF와 대조해 순서/구성을 확정했다.
 
 | 순서 | 섹션 | Import 경로 |
 |-----|------|------------|
@@ -195,11 +204,11 @@ PDF와 대조해 순서/구성을 확정했다.
 | 6 | 상품별 누적 판매액 | `@import sections/mtd/mtd-section-6-product-cumulative-sales.md` |
 | 7 | 일일 카테고리별 매출 현황 | `@import sections/mtd/mtd-section-7-daily-category-chart.md` |
 | 8 | 제품 판매 성과의 심층 분석 | `@import sections/mtd/mtd-section-8-product-deep-dive.md` |
-| 9 | 매체별 예산 소진 현황 | `@import sections/mtd/mtd-section-9-media-budget-progress.md` |
-| 10 | 캠페인별 성과 | `@import sections/mtd/mtd-section-10-campaign-performance.md` |
+| 9 | 매체 별 예산 소진 현황 | `@import sections/mtd/mtd-section-9-media-budget-progress.md` |
+| 10 | 캠페인 별 성과 | `@import sections/mtd/mtd-section-10-campaign-performance.md` |
 | 11 | 광고 그룹별 심층 분석 | `@import sections/mtd/mtd-section-11-ad-group-deep-dive.md` |
-| 12 | 그룹별 성과 | `@import sections/mtd/mtd-section-12-group-performance.md` |
-| 13 | 키워드별 성과 | `@import sections/mtd/mtd-section-13-keyword-performance.md` |
+| 12 | 그룹 별 성과 | `@import sections/mtd/mtd-section-12-group-performance.md` |
+| 13 | 키워드 별 성과 | `@import sections/mtd/mtd-section-13-keyword-performance.md` |
 | 14 | 일별 광고기여 매출 분석 | `@import sections/mtd/mtd-section-14-daily-attributed-sales.md` |
 
 순서 1(월 목표 카드)과 2(목표 달성 현황)는 **항상 붙어서** 렌더링한다 — 둘 다 같은 `target_progress`

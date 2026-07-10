@@ -1,4 +1,4 @@
-# MTD Section 10: 캠페인별 성과
+# MTD Section 10: 캠페인 별 성과
 
 **report_type:** `mtd` (항상 포함)
 
@@ -27,10 +27,10 @@
 ## HTML
 
 ```html
-<!-- MTD SECTION 5: 캠페인별 성과 -->
+<!-- MTD SECTION 10: 캠페인 별 성과 -->
 <div class="card" style="margin-bottom:16px;">
   <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
-    <div class="section-title" style="margin-bottom:0;">캠페인별 성과</div>
+    <div class="section-title" style="margin-bottom:0;">캠페인 별 성과</div>
     <div style="display:flex; align-items:center; gap:8px;">
       <div style="display:flex; align-items:center; background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:6px 10px; gap:6px;">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>

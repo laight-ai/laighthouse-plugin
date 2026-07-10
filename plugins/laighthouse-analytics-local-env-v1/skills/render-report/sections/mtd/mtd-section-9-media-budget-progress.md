@@ -1,4 +1,4 @@
-# MTD Section 9: 매체별 예산 소진 현황
+# MTD Section 9: 매체 별 예산 소진 현황
 
 **report_type:** `mtd` (항상 포함)
 
@@ -18,8 +18,8 @@
 - `media_budget_progress.rows`: 매체별 배열
   ```json
   [
-    { "media": "네이버 브랜드검색", "spent_rate": 55.9, "budget_goal": 19099909, "spent": 9237537, "daily_budget": 10669754, "daily_spent": 8421155 },
-    { "media": "네이버 파워링크", "spent_rate": 50.4, "budget_goal": 4909091, "spent": 2375367, "daily_budget": 2473472, "daily_spent": 2435419 }
+    { "channel": "네이버 브랜드검색", "spent_rate": 55.9, "budget_goal": 19099909, "spent": 9237537, "daily_budget": 10669754, "daily_spent_avg": 8421155 },
+    { "channel": "네이버 파워링크", "spent_rate": 50.4, "budget_goal": 4909091, "spent": 2375367, "daily_budget": 2473472, "daily_spent_avg": 2435419 }
   ]
   ```
 - `media_budget_progress.total`: 합계 행 (동일 필드 구조, `media` 없음)
@@ -27,9 +27,9 @@
 ## HTML
 
 ```html
-<!-- MTD SECTION 4: 매체별 예산 소진 현황 -->
+<!-- MTD SECTION 9: 매체 별 예산 소진 현황 -->
 <div class="card" style="margin-bottom:16px;">
-  <div class="section-title">매체별 예산 소진 현황</div>
+  <div class="section-title">매체 별 예산 소진 현황</div>
   <div style="font-size:12px; color:#64748b; font-weight:600; margin-bottom:10px;">{media_budget_progress.channel_group}</div>
 
   <div style="overflow-x:auto;">
@@ -41,13 +41,13 @@
           <th style="text-align:right;">목표 소진</th>
           <th style="text-align:right;">예산 소진</th>
           <th style="text-align:right;">일 소진예산</th>
-          <th style="text-align:right;">일 소진액과</th>
+          <th style="text-align:right;">일 평균 소진액</th>
         </tr>
       </thead>
       <tbody>
         <!-- media_budget_progress.rows 배열을 순회하며 아래 행 반복 -->
         <tr>
-          <td>{media}</td>
+          <td>{channel}</td>
           <td>
             <div style="display:flex; align-items:center; gap:8px;">
               <div style="flex:1; height:8px; background:#e2e8f0; border-radius:4px; overflow:hidden;">
@@ -59,7 +59,7 @@
           <td style="text-align:right;">{budget_goal_fmt}</td>
           <td style="text-align:right;">{spent_fmt}</td>
           <td style="text-align:right;">{daily_budget_fmt}</td>
-          <td style="text-align:right;">{daily_spent_fmt}</td>
+          <td style="text-align:right;">{daily_spent_avg_fmt}</td>
         </tr>
         <!-- 반복 끝 -->
 
@@ -77,7 +77,7 @@
           <td style="text-align:right;">{total.budget_goal_fmt}</td>
           <td style="text-align:right;">{total.spent_fmt}</td>
           <td style="text-align:right;">{total.daily_budget_fmt}</td>
-          <td style="text-align:right;">{total.daily_spent_fmt}</td>
+          <td style="text-align:right;">{total.daily_spent_avg_fmt}</td>
         </tr>
       </tbody>
     </table>
