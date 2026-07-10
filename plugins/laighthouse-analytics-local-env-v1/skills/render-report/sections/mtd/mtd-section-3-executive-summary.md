@@ -1,19 +1,20 @@
-# Section 4: Executive Summary
+# MTD Section 3: Executive Summary
 
-**트리거 키워드:** `Executive Summary`
+**report_type:** `mtd` (항상 포함) — naver 기반 default generator 브랜드 전용(다형식품 등).
 
 ---
 
 ## MCP 도구 호출: `df_dify` 서버의 분석 tool (브랜드/워크플로별 tool명 확인 필요)
 
 `.mcp.json`에 등록된 dify MCP 서버 키는 `df_dify`이다 (예: `mcp__df_dify__<workflow-tool-name>`).
-실제 tool명은 브랜드마다 연결된 Dify 워크플로에 따라 다르다(예: AquaGlow는 `AG_Daily_V1_01`) —
-이 naver 브랜드에 연결된 워크플로 tool명을 확인 후 고정한다. 텍스트 분석은 dify 워크플로 tool을
-그대로 재사용하면 되므로 **naver 전용 MCP 도구를 새로 만들 필요는 없다**.
+실제 tool명은 브랜드마다 연결된 Dify 워크플로에 따라 다르다 — 이 naver 브랜드에 연결된 워크플로
+tool명을 확인 후 고정한다. 텍스트 분석은 dify 워크플로 tool을 그대로 재사용하면 되므로 **naver
+전용 MCP 도구를 새로 만들 필요는 없다**.
 
 ```
 호출 순서:
-1. `target_progress`(campaign_type="sales", section-2와 동일 호출)로 수치 데이터 수집
+1. `target_progress`로 수치 데이터 수집 — mtd-section-2(목표 달성 현황)와 동일한 호출을 재사용한다
+   (campaign_type 미지정, 전체 합산 응답).
 2. `mcp__df_dify__<workflow-tool-name>` 으로 분석 요청 (1의 수치 데이터를 payload로 전달)
 3. 응답의 executive_summary 값을 렌더링
 ```

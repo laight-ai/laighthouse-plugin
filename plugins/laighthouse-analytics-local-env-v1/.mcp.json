@@ -1,6 +1,6 @@
 {
   "mcpServers": {
-    "lighthouse": {
+    "laighthouse": {
       "type": "http",
       "url": "https://rides-seats-recommendations-earthquake.trycloudflare.com/api/mcp"
     },

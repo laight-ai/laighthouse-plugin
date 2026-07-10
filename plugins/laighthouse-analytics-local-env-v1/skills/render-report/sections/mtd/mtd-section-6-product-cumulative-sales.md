@@ -1,43 +1,45 @@
-# MTD Section 5: 캠페인별 성과
+# MTD Section 6: 상품별 누적 판매액
 
 **report_type:** `mtd` (항상 포함)
 
-## MCP 도구 호출: `get_naver_campaign_performance`
+## MCP 도구 호출: `get_naver_category_sales`
 
 ```json
-{ "brand_name": "...", "start_date": "월초", "end_date": "target_date" }
+{
+  "brand_name": "...", "start_date": "월초", "end_date": "target_date",
+  "prev_start_date": "전월 동일구간 시작", "prev_end_date": "전월 동일구간 끝"
+}
 ```
-- naver 전용 MCP 도구 (`laighthouse-prism/src/mcp_server/tools_naver.py`). 캠페인×채널 단위 groupby/합산/
-  roas·ctr·cpc·avg_price 계산과 정렬(`-roas,-ad_cost,-revenue,campaign,channel`)을 **서버에서 이미
-  끝낸 상태**로 반환한다 — LLM이 raw row를 그룹핑하거나 비율을 계산할 필요가 없다.
-- 응답 `items[]`가 곧 `campaign_performance` 배열이다 (`campaign`/`channel`/`revenue`/`ad_cost`/
-  `roas`/`impressions`/`clicks`/`ctr`/`cpc`/`purchases`/`avg_price` 필드 그대로 사용, 그대로 렌더링).
+- naver 전용 MCP 도구 (`laighthouse-prism/src/mcp_server/tools_naver.py`). `product_category_3rd`
+  단위 groupby/합산, `discount_rate`/`refund_rate`/`mom` 계산, `sales` 내림차순 정렬까지
+  **서버에서 이미 끝낸 상태**로 반환한다 (`prev_start_date`/`prev_end_date`를 주면 `mom`까지 계산됨).
+- 응답 `items[]`가 곧 `product_cumulative_sales` 배열이다 (`category`/`sales`/`discount_rate`/
+  `refund_rate`/`mom` 필드 그대로 사용; `mom`은 전월 데이터가 없으면 `null`).
 
 ## 필요 데이터 (MCP)
-- `campaign_performance`: 캠페인 배열
+- `product_cumulative_sales`: 카테고리 배열
   ```json
   [
-    { "campaign": "05_GT케이(SPBR)_MO", "channel": "NVSHOP", "revenue": 1320543, "ad_cost": 129801,
-      "roas": 1017, "impressions": 12778, "clicks": 53, "ctr": 0.41, "cpc": 2449.08,
-      "purchases": 17, "avg_price": 77679 }
+    { "category": "국내분유", "sales": 64295126, "discount_rate": 91.75, "refund_rate": 41.86, "mom": 49.19 },
+    { "category": "커피", "sales": 44081771, "discount_rate": 92.80, "refund_rate": 19.78, "mom": 47.20 }
   ]
   ```
-- `roas`, `ctr`는 % 단위 숫자, `cpc`/`avg_price`는 원 단위
+- `sales`, `discount_rate`(할인율 %), `refund_rate`(환불금액 비율 %), `mom`(MoM % 증감, 음수 가능)
 
 ## HTML
 
 ```html
-<!-- MTD SECTION 5: 캠페인별 성과 -->
+<!-- MTD SECTION 2: 상품별 누적 판매액 -->
 <div class="card" style="margin-bottom:16px;">
   <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
-    <div class="section-title" style="margin-bottom:0;">캠페인별 성과</div>
+    <div class="section-title" style="margin-bottom:0;">상품별 누적 판매액</div>
     <div style="display:flex; align-items:center; gap:8px;">
       <div style="display:flex; align-items:center; background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:6px 10px; gap:6px;">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-        <input type="text" placeholder="검색" oninput="filterTable('mtdCampaignTable', this.value)"
+        <input id="productSalesSearch" type="text" placeholder="검색" oninput="filterTable('productSalesTable', this.value)"
           style="border:none; background:transparent; font-size:13px; color:#374151; outline:none; width:100px;">
       </div>
-      <select onchange="changePageSize('mtdCampaignTable', this.value)"
+      <select onchange="changePageSize('productSalesTable', this.value)"
         style="border:1px solid #e2e8f0; border-radius:6px; padding:6px 10px; font-size:13px; color:#374151; background:#f8fafc;">
         <option value="10">10개</option>
         <option value="20">20개</option>
@@ -47,42 +49,30 @@
   </div>
 
   <div style="overflow-x:auto;">
-    <table id="mtdCampaignTable">
+    <table id="productSalesTable">
       <thead>
         <tr>
-          <th>캠페인</th>
-          <th>네이버 광고 채널명</th>
-          <th style="text-align:right;">매출</th>
-          <th style="text-align:right;">광고비</th>
-          <th style="text-align:right;">ROAS</th>
-          <th style="text-align:right;">노출</th>
-          <th style="text-align:right;">클릭</th>
-          <th style="text-align:right;">CTR</th>
-          <th style="text-align:right;">CPC</th>
-          <th style="text-align:right;">구매</th>
-          <th style="text-align:right;">평균단가</th>
+          <th>상품 카테고리 (s)</th>
+          <th style="text-align:right;">판매액</th>
+          <th style="text-align:right;">할인율</th>
+          <th style="text-align:right;">환불금액 비율</th>
+          <th style="text-align:right;">MoM(%)</th>
         </tr>
       </thead>
-      <tbody id="mtdCampaignTableBody">
-        <!-- campaign_performance 배열을 순회하며 아래 행 반복 -->
+      <tbody id="productSalesTableBody">
+        <!-- product_cumulative_sales 배열을 순회하며 아래 행 반복 -->
         <tr>
-          <td>{campaign}</td>
-          <td>{channel}</td>
-          <td style="text-align:right;">{revenue_fmt}</td>
-          <td style="text-align:right;">{ad_cost_fmt}</td>
-          <td style="text-align:right;">{roas}%</td>
-          <td style="text-align:right;">{impressions_fmt}</td>
-          <td style="text-align:right;">{clicks_fmt}</td>
-          <td style="text-align:right;">{ctr}%</td>
-          <td style="text-align:right;">{cpc_fmt}</td>
-          <td style="text-align:right;">{purchases}</td>
-          <td style="text-align:right;">{avg_price_fmt}</td>
+          <td>{category}</td>
+          <td style="text-align:right;">{sales_fmt}</td>
+          <td style="text-align:right;">{discount_rate}%</td>
+          <td style="text-align:right;">{refund_rate}%</td>
+          <td style="text-align:right; color:{mom_color};">{mom_label}</td>
         </tr>
       </tbody>
     </table>
   </div>
 
-  <div id="mtdCampaignTablePagination" style="display:flex; justify-content:center; align-items:center; gap:8px; margin-top:14px; font-size:13px; color:#64748b;"></div>
+  <div id="productSalesTablePagination" style="display:flex; justify-content:center; align-items:center; gap:8px; margin-top:14px; font-size:13px; color:#64748b;"></div>
 </div>
 ```
 
@@ -166,10 +156,11 @@ if(!window._tableUtils){
   };
 }
 
-// 캠페인별 성과 테이블 초기화
-window.initTable('mtdCampaignTable');
+// 상품별 누적 판매액 테이블 초기화
+window.initTable('productSalesTable');
 ```
 
 ## 렌더링 규칙
-- 금액/노출/클릭 필드는 `toLocaleString()` 천 단위 콤마 포맷
-- 데이터 건수가 많으므로 기본 페이지 크기 10개로 시작
+- `sales`는 `toLocaleString()`으로 천 단위 콤마 포맷 (원 단위, 접미사 없음)
+- `mom`이 양수면 `#16a34a`(초록) + `▲ +{mom}%`, 음수면 `#dc2626`(빨강) + `▼ {mom}%`
+- 데이터가 없으면 "데이터 준비 중" 카드로 대체

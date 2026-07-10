@@ -1,45 +1,45 @@
-# MTD Section 2: 상품별 누적 판매액
+# MTD Section 13: 키워드별 성과
 
 **report_type:** `mtd` (항상 포함)
 
-## MCP 도구 호출: `get_naver_category_sales`
+## MCP 도구 호출: `get_naver_keyword_performance`
 
 ```json
-{
-  "brand_name": "...", "start_date": "월초", "end_date": "target_date",
-  "prev_start_date": "전월 동일구간 시작", "prev_end_date": "전월 동일구간 끝"
-}
+{ "brand_name": "...", "start_date": "월초", "end_date": "target_date" }
 ```
-- naver 전용 MCP 도구 (`laighthouse-prism/src/mcp_server/tools_naver.py`). `product_category_3rd`
-  단위 groupby/합산, `discount_rate`/`refund_rate`/`mom` 계산, `sales` 내림차순 정렬까지
-  **서버에서 이미 끝낸 상태**로 반환한다 (`prev_start_date`/`prev_end_date`를 주면 `mom`까지 계산됨).
-- 응답 `items[]`가 곧 `product_cumulative_sales` 배열이다 (`category`/`sales`/`discount_rate`/
-  `refund_rate`/`mom` 필드 그대로 사용; `mom`은 전월 데이터가 없으면 `null`).
+- naver 전용 MCP 도구 (`laighthouse-prism/src/mcp_server/tools_naver.py`). 도구 내부가 페이지네이션을
+  자동으로 다 돌며 raw row를 가져오고, `term`(키워드)별 groupby/합산/cpc·ctr·cpm·roas 계산과
+  정렬(`-roas,-ad_cost,-revenue,keyword`)까지 **서버에서 이미 끝낸 상태**로 반환한다
+  (`term == "-"`인 행은 서버에서 이미 제외됨).
+- 응답 `items[]`가 곧 `keyword_performance` 배열이다 (`keyword`/`impressions`/`clicks`/`ad_cost`/
+  `cpc`/`ctr`/`cpm`/`purchases`/`revenue`/`roas` 필드 그대로 사용).
+- 키워드 수가 매우 많을 수 있으나(수백~수천 건) 이미 합산된 최종 행 목록이므로 다시 집계하지 않는다.
 
 ## 필요 데이터 (MCP)
-- `product_cumulative_sales`: 카테고리 배열
+- `keyword_performance`: 키워드 배열
   ```json
   [
-    { "category": "국내분유", "sales": 64295126, "discount_rate": 91.75, "refund_rate": 41.86, "mom": 49.19 },
-    { "category": "커피", "sales": 44081771, "discount_rate": 92.80, "refund_rate": 19.78, "mom": 47.20 }
+    { "keyword": "알파카리그린티라떼", "impressions": 9076, "clicks": 659, "ad_cost": 353722,
+      "cpc": 536.76, "ctr": 7.26, "cpm": 38973.34, "purchases": 183, "revenue": 8057615, "roas": 2278 },
+    { "keyword": "경부단백질", "impressions": 556, "clicks": 0, "ad_cost": 0,
+      "cpc": 0, "ctr": 0, "cpm": 0, "purchases": 0, "revenue": 0, "roas": 0 }
   ]
   ```
-- `sales`, `discount_rate`(할인율 %), `refund_rate`(환불금액 비율 %), `mom`(MoM % 증감, 음수 가능)
 
 ## HTML
 
 ```html
-<!-- MTD SECTION 2: 상품별 누적 판매액 -->
+<!-- MTD SECTION 8: 키워드별 성과 -->
 <div class="card" style="margin-bottom:16px;">
   <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
-    <div class="section-title" style="margin-bottom:0;">상품별 누적 판매액</div>
+    <div class="section-title" style="margin-bottom:0;">키워드별 성과</div>
     <div style="display:flex; align-items:center; gap:8px;">
       <div style="display:flex; align-items:center; background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:6px 10px; gap:6px;">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-        <input id="productSalesSearch" type="text" placeholder="검색" oninput="filterTable('productSalesTable', this.value)"
+        <input type="text" placeholder="검색" oninput="filterTable('mtdKeywordTable', this.value)"
           style="border:none; background:transparent; font-size:13px; color:#374151; outline:none; width:100px;">
       </div>
-      <select onchange="changePageSize('productSalesTable', this.value)"
+      <select onchange="changePageSize('mtdKeywordTable', this.value)"
         style="border:1px solid #e2e8f0; border-radius:6px; padding:6px 10px; font-size:13px; color:#374151; background:#f8fafc;">
         <option value="10">10개</option>
         <option value="20">20개</option>
@@ -49,30 +49,40 @@
   </div>
 
   <div style="overflow-x:auto;">
-    <table id="productSalesTable">
+    <table id="mtdKeywordTable">
       <thead>
         <tr>
-          <th>상품 카테고리 (s)</th>
-          <th style="text-align:right;">판매액</th>
-          <th style="text-align:right;">할인율</th>
-          <th style="text-align:right;">환불금액 비율</th>
-          <th style="text-align:right;">MoM(%)</th>
+          <th>키워드</th>
+          <th style="text-align:right;">노출</th>
+          <th style="text-align:right;">클릭</th>
+          <th style="text-align:right;">광고비</th>
+          <th style="text-align:right;">CPC</th>
+          <th style="text-align:right;">클릭률</th>
+          <th style="text-align:right;">CPM</th>
+          <th style="text-align:right;">구매수</th>
+          <th style="text-align:right;">매출</th>
+          <th style="text-align:right;">ROAS</th>
         </tr>
       </thead>
-      <tbody id="productSalesTableBody">
-        <!-- product_cumulative_sales 배열을 순회하며 아래 행 반복 -->
+      <tbody id="mtdKeywordTableBody">
+        <!-- keyword_performance 배열을 순회하며 아래 행 반복 -->
         <tr>
-          <td>{category}</td>
-          <td style="text-align:right;">{sales_fmt}</td>
-          <td style="text-align:right;">{discount_rate}%</td>
-          <td style="text-align:right;">{refund_rate}%</td>
-          <td style="text-align:right; color:{mom_color};">{mom_label}</td>
+          <td>{keyword}</td>
+          <td style="text-align:right;">{impressions_fmt}</td>
+          <td style="text-align:right;">{clicks_fmt}</td>
+          <td style="text-align:right;">{ad_cost_fmt}</td>
+          <td style="text-align:right;">{cpc_fmt}</td>
+          <td style="text-align:right;">{ctr}%</td>
+          <td style="text-align:right;">{cpm_fmt}</td>
+          <td style="text-align:right;">{purchases}</td>
+          <td style="text-align:right;">{revenue_fmt}</td>
+          <td style="text-align:right;">{roas}%</td>
         </tr>
       </tbody>
     </table>
   </div>
 
-  <div id="productSalesTablePagination" style="display:flex; justify-content:center; align-items:center; gap:8px; margin-top:14px; font-size:13px; color:#64748b;"></div>
+  <div id="mtdKeywordTablePagination" style="display:flex; justify-content:center; align-items:center; gap:8px; margin-top:14px; font-size:13px; color:#64748b;"></div>
 </div>
 ```
 
@@ -156,11 +166,12 @@ if(!window._tableUtils){
   };
 }
 
-// 상품별 누적 판매액 테이블 초기화
-window.initTable('productSalesTable');
+// 키워드별 성과 테이블 초기화
+window.initTable('mtdKeywordTable');
 ```
 
 ## 렌더링 규칙
-- `sales`는 `toLocaleString()`으로 천 단위 콤마 포맷 (원 단위, 접미사 없음)
-- `mom`이 양수면 `#16a34a`(초록) + `▲ +{mom}%`, 음수면 `#dc2626`(빨강) + `▼ {mom}%`
-- 데이터가 없으면 "데이터 준비 중" 카드로 대체
+- 금액/노출/클릭 필드는 `toLocaleString()` 천 단위 콤마 포맷
+- MCP가 반환하는 키워드 수가 매우 많을 수 있음(PDF 기준 130페이지 규모) — 클라이언트 페이지네이션으로
+  처리하되, MCP 응답 자체가 너무 크면 상위 N개(예: 500개)로 절단해 요청하는 것을 권장
+- 노출/클릭/구매가 모두 0인 키워드도 그대로 표시 (성과 없음 상태 확인 목적)

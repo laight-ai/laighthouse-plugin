@@ -1,4 +1,4 @@
-# MTD Section 7: 그룹별 성과
+# MTD Section 12: 그룹별 성과
 
 **report_type:** `mtd` (항상 포함)
 
@@ -11,7 +11,7 @@
   합산/cpc·roas 계산과 정렬(`-roas,-ad_cost,-revenue,group`)을 **서버에서 이미 끝낸 상태**로 반환한다.
 - 응답 `items[]`가 곧 `group_performance` 배열이다 (`group`/`impressions`/`clicks`/`cpc`/`ad_cost`/
   `revenue`/`roas` 필드 그대로 사용).
-- mtd-section-6(광고 그룹별 심층 분석)이 동일 호출 결과를 재사용한다 (중복 호출 방지)
+- mtd-section-11(광고 그룹별 심층 분석)이 동일 호출 결과를 재사용한다 (중복 호출 방지)
 
 ## 필요 데이터 (MCP)
 - `group_performance`: 광고그룹 배열

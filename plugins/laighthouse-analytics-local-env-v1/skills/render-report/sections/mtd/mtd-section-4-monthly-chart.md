@@ -1,6 +1,6 @@
-# Section 3: 월별 광고 성과 차트
+# MTD Section 4: 월별 광고 성과 차트
 
-**트리거 키워드:** `월별 광고 성과`
+**report_type:** `mtd` (항상 포함) — naver 기반 default generator 브랜드 전용(다형식품 등).
 
 ## MCP 도구 호출: `get_ad_performance_monthly_table`
 

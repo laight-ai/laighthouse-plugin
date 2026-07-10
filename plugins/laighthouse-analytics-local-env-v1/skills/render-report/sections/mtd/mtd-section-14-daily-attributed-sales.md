@@ -1,4 +1,4 @@
-# MTD Section 9: 일별 광고기여 매출 분석
+# MTD Section 14: 일별 광고기여 매출 분석
 
 **report_type:** `mtd` (항상 포함)
 

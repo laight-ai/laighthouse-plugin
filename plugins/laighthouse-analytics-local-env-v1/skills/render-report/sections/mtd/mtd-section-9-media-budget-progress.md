@@ -1,4 +1,4 @@
-# MTD Section 4: 매체별 예산 소진 현황
+# MTD Section 9: 매체별 예산 소진 현황
 
 **report_type:** `mtd` (항상 포함)
 

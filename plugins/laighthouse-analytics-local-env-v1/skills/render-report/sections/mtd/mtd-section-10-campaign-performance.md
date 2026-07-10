@@ -1,45 +1,43 @@
-# MTD Section 8: 키워드별 성과
+# MTD Section 10: 캠페인별 성과
 
 **report_type:** `mtd` (항상 포함)
 
-## MCP 도구 호출: `get_naver_keyword_performance`
+## MCP 도구 호출: `get_naver_campaign_performance`
 
 ```json
 { "brand_name": "...", "start_date": "월초", "end_date": "target_date" }
 ```
-- naver 전용 MCP 도구 (`laighthouse-prism/src/mcp_server/tools_naver.py`). 도구 내부가 페이지네이션을
-  자동으로 다 돌며 raw row를 가져오고, `term`(키워드)별 groupby/합산/cpc·ctr·cpm·roas 계산과
-  정렬(`-roas,-ad_cost,-revenue,keyword`)까지 **서버에서 이미 끝낸 상태**로 반환한다
-  (`term == "-"`인 행은 서버에서 이미 제외됨).
-- 응답 `items[]`가 곧 `keyword_performance` 배열이다 (`keyword`/`impressions`/`clicks`/`ad_cost`/
-  `cpc`/`ctr`/`cpm`/`purchases`/`revenue`/`roas` 필드 그대로 사용).
-- 키워드 수가 매우 많을 수 있으나(수백~수천 건) 이미 합산된 최종 행 목록이므로 다시 집계하지 않는다.
+- naver 전용 MCP 도구 (`laighthouse-prism/src/mcp_server/tools_naver.py`). 캠페인×채널 단위 groupby/합산/
+  roas·ctr·cpc·avg_price 계산과 정렬(`-roas,-ad_cost,-revenue,campaign,channel`)을 **서버에서 이미
+  끝낸 상태**로 반환한다 — LLM이 raw row를 그룹핑하거나 비율을 계산할 필요가 없다.
+- 응답 `items[]`가 곧 `campaign_performance` 배열이다 (`campaign`/`channel`/`revenue`/`ad_cost`/
+  `roas`/`impressions`/`clicks`/`ctr`/`cpc`/`purchases`/`avg_price` 필드 그대로 사용, 그대로 렌더링).
 
 ## 필요 데이터 (MCP)
-- `keyword_performance`: 키워드 배열
+- `campaign_performance`: 캠페인 배열
   ```json
   [
-    { "keyword": "알파카리그린티라떼", "impressions": 9076, "clicks": 659, "ad_cost": 353722,
-      "cpc": 536.76, "ctr": 7.26, "cpm": 38973.34, "purchases": 183, "revenue": 8057615, "roas": 2278 },
-    { "keyword": "경부단백질", "impressions": 556, "clicks": 0, "ad_cost": 0,
-      "cpc": 0, "ctr": 0, "cpm": 0, "purchases": 0, "revenue": 0, "roas": 0 }
+    { "campaign": "05_GT케이(SPBR)_MO", "channel": "NVSHOP", "revenue": 1320543, "ad_cost": 129801,
+      "roas": 1017, "impressions": 12778, "clicks": 53, "ctr": 0.41, "cpc": 2449.08,
+      "purchases": 17, "avg_price": 77679 }
   ]
   ```
+- `roas`, `ctr`는 % 단위 숫자, `cpc`/`avg_price`는 원 단위
 
 ## HTML
 
 ```html
-<!-- MTD SECTION 8: 키워드별 성과 -->
+<!-- MTD SECTION 5: 캠페인별 성과 -->
 <div class="card" style="margin-bottom:16px;">
   <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
-    <div class="section-title" style="margin-bottom:0;">키워드별 성과</div>
+    <div class="section-title" style="margin-bottom:0;">캠페인별 성과</div>
     <div style="display:flex; align-items:center; gap:8px;">
       <div style="display:flex; align-items:center; background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:6px 10px; gap:6px;">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-        <input type="text" placeholder="검색" oninput="filterTable('mtdKeywordTable', this.value)"
+        <input type="text" placeholder="검색" oninput="filterTable('mtdCampaignTable', this.value)"
           style="border:none; background:transparent; font-size:13px; color:#374151; outline:none; width:100px;">
       </div>
-      <select onchange="changePageSize('mtdKeywordTable', this.value)"
+      <select onchange="changePageSize('mtdCampaignTable', this.value)"
         style="border:1px solid #e2e8f0; border-radius:6px; padding:6px 10px; font-size:13px; color:#374151; background:#f8fafc;">
         <option value="10">10개</option>
         <option value="20">20개</option>
@@ -49,40 +47,42 @@
   </div>
 
   <div style="overflow-x:auto;">
-    <table id="mtdKeywordTable">
+    <table id="mtdCampaignTable">
       <thead>
         <tr>
-          <th>키워드</th>
+          <th>캠페인</th>
+          <th>네이버 광고 채널명</th>
+          <th style="text-align:right;">매출</th>
+          <th style="text-align:right;">광고비</th>
+          <th style="text-align:right;">ROAS</th>
           <th style="text-align:right;">노출</th>
           <th style="text-align:right;">클릭</th>
-          <th style="text-align:right;">광고비</th>
+          <th style="text-align:right;">CTR</th>
           <th style="text-align:right;">CPC</th>
-          <th style="text-align:right;">클릭률</th>
-          <th style="text-align:right;">CPM</th>
-          <th style="text-align:right;">구매수</th>
-          <th style="text-align:right;">매출</th>
-          <th style="text-align:right;">ROAS</th>
+          <th style="text-align:right;">구매</th>
+          <th style="text-align:right;">평균단가</th>
         </tr>
       </thead>
-      <tbody id="mtdKeywordTableBody">
-        <!-- keyword_performance 배열을 순회하며 아래 행 반복 -->
+      <tbody id="mtdCampaignTableBody">
+        <!-- campaign_performance 배열을 순회하며 아래 행 반복 -->
         <tr>
-          <td>{keyword}</td>
+          <td>{campaign}</td>
+          <td>{channel}</td>
+          <td style="text-align:right;">{revenue_fmt}</td>
+          <td style="text-align:right;">{ad_cost_fmt}</td>
+          <td style="text-align:right;">{roas}%</td>
           <td style="text-align:right;">{impressions_fmt}</td>
           <td style="text-align:right;">{clicks_fmt}</td>
-          <td style="text-align:right;">{ad_cost_fmt}</td>
-          <td style="text-align:right;">{cpc_fmt}</td>
           <td style="text-align:right;">{ctr}%</td>
-          <td style="text-align:right;">{cpm_fmt}</td>
+          <td style="text-align:right;">{cpc_fmt}</td>
           <td style="text-align:right;">{purchases}</td>
-          <td style="text-align:right;">{revenue_fmt}</td>
-          <td style="text-align:right;">{roas}%</td>
+          <td style="text-align:right;">{avg_price_fmt}</td>
         </tr>
       </tbody>
     </table>
   </div>
 
-  <div id="mtdKeywordTablePagination" style="display:flex; justify-content:center; align-items:center; gap:8px; margin-top:14px; font-size:13px; color:#64748b;"></div>
+  <div id="mtdCampaignTablePagination" style="display:flex; justify-content:center; align-items:center; gap:8px; margin-top:14px; font-size:13px; color:#64748b;"></div>
 </div>
 ```
 
@@ -166,12 +166,10 @@ if(!window._tableUtils){
   };
 }
 
-// 키워드별 성과 테이블 초기화
-window.initTable('mtdKeywordTable');
+// 캠페인별 성과 테이블 초기화
+window.initTable('mtdCampaignTable');
 ```
 
 ## 렌더링 규칙
 - 금액/노출/클릭 필드는 `toLocaleString()` 천 단위 콤마 포맷
-- MCP가 반환하는 키워드 수가 매우 많을 수 있음(PDF 기준 130페이지 규모) — 클라이언트 페이지네이션으로
-  처리하되, MCP 응답 자체가 너무 크면 상위 N개(예: 500개)로 절단해 요청하는 것을 권장
-- 노출/클릭/구매가 모두 0인 키워드도 그대로 표시 (성과 없음 상태 확인 목적)
+- 데이터 건수가 많으므로 기본 페이지 크기 10개로 시작

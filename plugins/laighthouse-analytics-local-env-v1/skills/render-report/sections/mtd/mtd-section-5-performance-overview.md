@@ -1,4 +1,4 @@
-# MTD Section 1: 성과에 대한 개괄
+# MTD Section 5: 성과에 대한 개괄
 
 **report_type:** `mtd` (항상 포함)
 
@@ -11,7 +11,9 @@
 
 ```
 호출 순서:
-1. `target_progress`(campaign_type="sales", section-2/목표 달성 현황과 동일 호출)로 매출/예산/ROAS 수치 수집
+1. `target_progress`로 매출/예산/ROAS 수치 수집 — section-2(목표 달성 현황)와 동일한 호출을 재사용한다.
+   Meta/Google 브랜드(Saturday Skin, Aqua Glow)면 campaign_type="sales" 응답을, 그 외 브랜드는
+   campaign_type 미지정(전체 합산) 응답을 사용한다 (section-2의 브랜드별 분기 참고).
 2. `mcp__df_dify__<workflow-tool-name>` 으로 분석 요청 (1의 수치 데이터 전달)
 3. 응답의 performance_overview 값을 렌더링
 ```

@@ -1,22 +1,22 @@
-# MTD Section 3: 제품 판매 성과의 심층 분석
+# MTD Section 8: 제품 판매 성과의 심층 분석
 
 **report_type:** `mtd` (항상 포함)
 
 ---
 
-## MCP 도구 호출: `df_dify` 서버의 분석 tool (텍스트만; 수치 소스는 section-5/6 — `get_naver_item_sales_daily`)
+## MCP 도구 호출: `df_dify` 서버의 분석 tool (텍스트만; 수치 소스는 mtd-section-6/7 — `get_naver_item_sales_daily`)
 
 `mcp__df_dify__<workflow-tool-name>`으로 분석 텍스트를 가져온다. 응답에서 `analysis_of_ad_performance` key의 값을 사용한다.
 
 ```
 호출 순서:
-1. section-5(카테고리별 매출액)/section-6(일일 카테고리별 매출)이 이미 호출한
+1. mtd-section-6(상품별 누적 판매액)/mtd-section-7(일일 카테고리별 매출)이 이미 호출한
    get_naver_item_sales_daily(group_by="category-3rd") 결과 재사용
 2. mcp__df_dify__<workflow-tool-name> 으로 분석 요청 (1의 수치 데이터 전달)
 3. 응답의 analysis_of_ad_performance 값을 렌더링
 ```
 
-dify 응답 실패 시 section-5/6 수치 기반으로 AI가 직접 생성한다.
+dify 응답 실패 시 mtd-section-6/7 수치 기반으로 AI가 직접 생성한다.
 
 ---
 
@@ -30,14 +30,14 @@ dify 응답 실패 시 section-5/6 수치 기반으로 AI가 직접 생성한다
 
 - `analysis_of_ad_performance`는 `\n\n`으로 구분된 블록으로 구성
 - 각 블록의 첫 줄이 `Overview` 또는 카테고리명(예: `국내분유`, `커피`)이면 `<h4>` 소제목으로 렌더링
-- 나머지 문장은 `<p>`로 렌더링 (section-7 트렌드 분석보다 더 긴 서술형)
+- 나머지 문장은 `<p>`로 렌더링
 
 ---
 
 ## HTML
 
 ```html
-<!-- MTD SECTION 3: 제품 판매 성과의 심층 분석 -->
+<!-- MTD SECTION 8: 제품 판매 성과의 심층 분석 -->
 <div class="card" style="margin-bottom:16px;">
   <div class="section-title">제품 판매 성과의 심층 분석</div>
   <div style="font-size:13px; color:#374151; line-height:1.8;">
@@ -60,5 +60,3 @@ dify 응답 실패 시 section-5/6 수치 기반으로 AI가 직접 생성한다
 ## 렌더링 규칙
 - 첫 블록(`Overview`)은 `margin-top:0`
 - 강조 수치는 `<strong>` 태그 사용
-- section-7(제품 판매 트렌드 분석)과 동시에 포함 섹션 키워드를 지정하지 않는 것을 권장
-  (mtd-section-3이 더 상세한 대체 콘텐츠이므로 중복 방지)

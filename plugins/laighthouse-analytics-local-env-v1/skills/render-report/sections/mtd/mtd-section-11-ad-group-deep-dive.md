@@ -1,22 +1,22 @@
-# MTD Section 6: 광고 그룹별 심층 분석
+# MTD Section 11: 광고 그룹별 심층 분석
 
 **report_type:** `mtd` (항상 포함)
 
 ---
 
-## MCP 도구 호출: `df_dify` 서버의 분석 tool (텍스트), `get_naver_group_performance` (수치, mtd-section-7과 동일 호출)
+## MCP 도구 호출: `df_dify` 서버의 분석 tool (텍스트), `get_naver_group_performance` (수치, mtd-section-12와 동일 호출)
 
 `mcp__df_dify__<workflow-tool-name>`으로 분석 텍스트를 가져온다. 응답에서 `analysis_by_ad_group` key의 값을 사용한다.
 
 ```
 호출 순서:
 1. `get_naver_group_performance`(start_date=월초, end_date=target_date)로 광고그룹별 성과 수치 데이터
-   수집 (mtd-section-7 그룹별 성과 호출과 동일, 데이터 재사용 — 이미 그룹별로 합산/정렬된 최종 값)
+   수집 (mtd-section-12 그룹별 성과 호출과 동일, 데이터 재사용 — 이미 그룹별로 합산/정렬된 최종 값)
 2. mcp__df_dify__<workflow-tool-name> 으로 분석 요청 (1의 수치 데이터 전달)
 3. 응답의 analysis_by_ad_group 값을 렌더링
 ```
 
-dify 응답 실패 시 mtd-section-7(그룹별 성과) 수치 기반으로 AI가 직접 생성한다.
+dify 응답 실패 시 mtd-section-12(그룹별 성과) 수치 기반으로 AI가 직접 생성한다.
 
 ---
 
@@ -37,7 +37,7 @@ dify 응답 실패 시 mtd-section-7(그룹별 성과) 수치 기반으로 AI가
 ## HTML
 
 ```html
-<!-- MTD SECTION 6: 광고 그룹별 심층 분석 -->
+<!-- MTD SECTION 11: 광고 그룹별 심층 분석 -->
 <div class="card" style="margin-bottom:16px;">
   <div class="section-title">광고 그룹별 심층 분석</div>
   <div style="font-size:13px; color:#374151; line-height:1.8;">
