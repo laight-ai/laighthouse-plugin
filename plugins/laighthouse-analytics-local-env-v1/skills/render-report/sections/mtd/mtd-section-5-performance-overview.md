@@ -4,16 +4,15 @@
 
 ---
 
-## MCP 도구 호출: `df_dify` 서버의 분석 tool (텍스트), `target_progress` (수치)
+## MCP 도구 호출: `df_dify` 서버의 분석 tool (텍스트), `get_naver_target_progress` (수치)
 
 `mcp__df_dify__<workflow-tool-name>`으로 분석 텍스트를 가져온다 (`.mcp.json`의 dify 서버 키는
 `df_dify`; 실제 tool명은 브랜드 워크플로에 맞게 확인). 응답에서 `performance_overview` key의 값을 사용한다.
 
 ```
 호출 순서:
-1. `target_progress`로 매출/예산/ROAS 수치 수집 — section-2(목표 달성 현황)와 동일한 호출을 재사용한다.
-   Meta/Google 브랜드(Saturday Skin, Aqua Glow)면 campaign_type="sales" 응답을, 그 외 브랜드는
-   campaign_type 미지정(전체 합산) 응답을 사용한다 (section-2의 브랜드별 분기 참고).
+1. `get_naver_target_progress`로 매출/예산/ROAS 수치 수집 — mtd-section-2(목표 달성 현황)와 동일한
+   호출을 재사용한다 (범용 `target_progress`가 아님 — mtd-section-2의 버그 설명 참고).
 2. `mcp__df_dify__<workflow-tool-name>` 으로 분석 요청 (1의 수치 데이터 전달)
 3. 응답의 performance_overview 값을 렌더링
 ```

@@ -13,8 +13,8 @@ tool명을 확인 후 고정한다. 텍스트 분석은 dify 워크플로 tool�
 
 ```
 호출 순서:
-1. `target_progress`로 수치 데이터 수집 — mtd-section-2(목표 달성 현황)와 동일한 호출을 재사용한다
-   (campaign_type 미지정, 전체 합산 응답).
+1. `get_naver_target_progress`로 수치 데이터 수집 — mtd-section-2(목표 달성 현황)와 동일한 호출을
+   재사용한다 (범용 `target_progress`가 아님 — mtd-section-2의 버그 설명 참고).
 2. `mcp__df_dify__<workflow-tool-name>` 으로 분석 요청 (1의 수치 데이터를 payload로 전달)
 3. 응답의 executive_summary 값을 렌더링
 ```

@@ -55,25 +55,30 @@ daily/mtd 둘 다 **섹션 구성은 report_type이 전부 결정**하며 사용
 ## 실행 순서
 
 1. 파라미터를 파싱하고 report_type을 확정한다 (`daily` 또는 `mtd`만 유효).
-2. `mcp__laighthouse__target_progress` 호출 (`.mcp.json` 서버 키는 `laighthouse`, 실제 tool명
-   `target_progress`):
-   - `daily` (Meta/Google 브랜드) → `{ "campaign_type": "sales" }` 1회. `saturdayskin/_components.py`가
-     `metric.actual_mtd`를 그대로 신뢰하므로 응답을 그대로 사용한다.
-   - `mtd` (naver 브랜드) → `campaign_type` **미지정** 1회 (`default/_mtd_components.py::
-     build_target_progression`과 동일 기준, 전체 캠페인 합산). `target_full_month`(목표)만 신뢰하고,
-     실적(actual)은 `get_ad_performance_daily_table`로 별도 계산한다 — `sections/mtd/
-     mtd-section-2-achievement.md`의 "actual_mtd 데이터 소스 검증" 참고.
-   - ⚠️ `monthly_roas` 항목(`items[metric=monthly_roas]`)의 수치는 소수(예: 2.2, 0.87)로 반환되므로
-     반드시 × 100 후 표시한다 (2.2 → 220%, 0.87 → 87%).
+2. target/achievement 수치를 호출한다 — **report_type에 따라 쓰는 도구가 다르다, 절대 섞지 않는다**:
+   - `daily` (Meta/Google 브랜드) → `mcp__laighthouse__target_progress`(범용 v1 도구)에
+     `{ "campaign_type": "sales" }` 1회. `saturdayskin/_components.py`가 `metric.actual_mtd`를 그대로
+     신뢰하므로 응답을 그대로 사용한다.
+   - `mtd` (naver 브랜드) → `mcp__laighthouse__get_naver_target_progress`(v2 전용 도구)에
+     `{ "brand_name": "...", "month": "YYYY-MM", "as_of_date": "target_date" }` 1회.
+     ⚠️ **범용 `target_progress`를 mtd에 쓰면 안 된다** — v1은 `aw_compiled`/`fb_compiled`(Google/Meta)
+     실적 테이블만 보므로 naver 전용 브랜드는 매출/ROAS 목표·실적이 전부 0으로 나온다 (2026-07-10
+     확인, `laighthouse-prism`에 `get_naver_target_progress` 툴을 새로 등록해 해결함). 이 도구는
+     target(`target_cost`/`target_revenue`/`target_roas`)과 actual(`actual_cost`/`actual_revenue`/
+     `actual_roas`)을 한 번에 반환하므로 별도 합산이 필요 없다 — `sections/mtd/
+     mtd-section-2-achievement.md` 참고.
+   - ⚠️ ROAS 관련 수치(`target_roas`/`actual_roas`, v1의 `monthly_roas.target_full_month` 등)는
+     비율값(예: 0.87, 5.06)으로 반환되므로 반드시 × 100 후 표시한다 (0.87 → 87%, 5.06 → 506%).
 3. 나머지 `mcp__laighthouse__*` 도구를 호출해 각 섹션 수치 데이터를 가져온다 (각 섹션 파일에 명시된
    정확한 tool명 참고). 두 종류가 있다:
    - **generic 도구** (`get_ad_performance_daily_table` / `get_ad_performance_monthly_table` /
      `get_sales_performance_daily` / `get_sku_sales_daily` 등) — 여러 매체(google/meta/tiktok/naver)를
      `media` 파라미터로 다루며, naver는 채널(BRS/PLINK/NVSHOP/GFA) 구분 없이 하나로 통합된다.
    - **naver 전용 도구** (`get_naver_sa_performance_daily` / `get_naver_item_sales_daily` /
-     `get_naver_channel_progression`, `laighthouse-prism/src/mcp_server/tools_naver.py`) — mtd
-     보고서에서만 쓴다. naver 채널 구분, 카테고리별 매출/할인율/환불율, 채널별 예산 목표처럼
-     generic 도구로는 낼 수 없는 데이터를 제공한다.
+     `get_naver_channel_progression` / `get_naver_target_progress`, `laighthouse-prism/src/
+     mcp_server/tools_naver.py`) — mtd 보고서에서만 쓴다. naver 채널 구분, 카테고리별 매출/할인율/
+     환불율, 채널별 예산 목표, naver 전용 target/achievement(2단계에서 이미 호출)처럼 generic
+     도구로는 낼 수 없는 데이터를 제공한다.
 4. Executive Summary는 daily/mtd 둘 다 항상 포함된다. 수집한 수치 데이터를
    `mcp__df_dify__<workflow-tool-name>` 도구(`.mcp.json` 서버 키는 `df_dify`; 실제 tool명은 브랜드에
    연결된 Dify 워크플로에 맞게 확인)에 전달하여 분석 텍스트를 가져온다.
@@ -83,7 +88,10 @@ daily/mtd 둘 다 **섹션 구성은 report_type이 전부 결정**하며 사용
      `performance_overview`, `analysis_of_ad_performance`, `analysis_by_ad_group` 3개 key도 함께 가져온다.
      각각 mtd-section-5/8/11에서 사용하며, 실패 시 해당 섹션 수치 기반으로 AI가 직접 생성한다.
 5. `report_type`에 대응하는 아래 표의 파일을 **순서대로 전부** import해 HTML을 조합한다.
-6. 아래 **보고서 골격**에 섹션들을 삽입해 `mcp__visualize__show_widget`으로 렌더링한다.
+6. 이 스킬 폴더의 `assets/chart.umd.min.js` 파일을 읽어 그 내용 전체를 `{CHART_JS_INLINE}` 자리에
+   그대로 삽입한다 (CDN `<script src>` 절대 사용 금지 — 아래 보고서 골격의 경고 참고).
+7. 아래 **보고서 골격**에 섹션들을 삽입해 렌더링한다 — Claude Code(Artifact)에서 실행 중이면 Artifact
+   도구로 게시하고, `mcp__visualize__show_widget`이 있는 호스트에서는 그걸 쓴다.
 
 ---
 
@@ -140,12 +148,21 @@ PDF와 대조해 순서/구성을 확정했다.
 
 각 섹션 HTML을 `{SECTIONS}` 자리에 순서대로 삽입한다.
 
+> ⚠️ **Chart.js는 CDN `<script src>`로 절대 불러오지 않는다.** Artifact(claude.ai 아티팩트)의 CSP는
+> 외부 호스트로 나가는 스크립트 요청을 전부 차단하므로, `<script src="https://cdn.jsdelivr.net/...">`
+> 로 로드하면 스크립트 자체가 실행되지 않아 모든 차트가 빈 캔버스로 남는다 (실제로 발생했던 버그).
+> 대신 이 스킬 폴더의 `assets/chart.umd.min.js`(Chart.js v4 UMD 빌드, MIT license, 오프라인 자산)를
+> 읽어서 **그 파일 내용 전체를 `<script>...</script>` 태그 안에 그대로 붙여넣는다** (src 속성 없이,
+> 인라인 텍스트로). `{CHART_JS_INLINE}` 자리표시자가 그 자리다 — 절대 CDN URL로 되돌리지 않는다.
+
 ```html
 <!DOCTYPE html>
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+{CHART_JS_INLINE}
+</script>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans KR', sans-serif;
