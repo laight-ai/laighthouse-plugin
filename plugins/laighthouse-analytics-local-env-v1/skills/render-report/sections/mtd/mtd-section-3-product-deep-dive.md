@@ -11,7 +11,7 @@
 ```
 호출 순서:
 1. section-5(카테고리별 매출액)/section-6(일일 카테고리별 매출)이 이미 호출한
-   get_naver_item_sales_daily(group_by="category_3rd") 결과 재사용
+   get_naver_item_sales_daily() 결과 재사용 (group_by 파라미터 없음 — 서버가 항상 category_3rd로 반환)
 2. mcp__df_dify__<workflow-tool-name> 으로 분석 요청 (1의 수치 데이터 전달)
 3. 응답의 analysis_of_ad_performance 값을 렌더링
 ```

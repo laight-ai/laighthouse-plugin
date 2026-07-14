@@ -5,7 +5,7 @@ description: >
   "Daily 보고서", "MTD 보고서", "라이트하우스 보고서", "성과 분석 보고서", or wants MCP data
   formatted as a structured daily/MTD performance report matching the Laighthouse style.
 metadata:
-  version: "0.8.7"
+  version: "0.8.9"
 ---
 
 > ⚡ **thinking 지침**: 이 스킬 실행 시 thinking(추론)은 최대한 짧게 유지한다. 불필요한 단계 반복, 장황한 계획 수립 없이 바로 MCP 호출 → 데이터 수신 → 렌더링 순서로 진행한다.
@@ -95,10 +95,11 @@ daily/mtd 둘 다 **섹션 구성은 report_type이 전부 결정**하며 사용
      `true`/`false` boolean으로 절대 보내지 않는다. 각 섹션 파일에 적힌 값(대부분 `"total"`)을
      문자열 그대로 그 섹션에서만 쓴다.
      ⚠️ **모든 `group_by`류 enum 파라미터는 각 섹션 파일에 적힌 문자열 그대로 보낸다 — 절대 숫자/
-     불린으로 "해석"하지 않는다.** 실제로 `get_naver_item_sales_daily`의 `"category-3rd"`를 서수로
-     오해해 `-3`(정수)으로 보낸 사례가 반복 재현되어, 이 도구는 언더스코어 표기(`"category_3rd"` 등,
-     `sections/mtd/mtd-section-7-daily-category-chart.md` 참고)로 바꿨다. `category_3rd`/`ad-set`
-     같은 값 안의 숫자·서수는 그냥 문자열의 일부일 뿐이며 계산/변환 대상이 아니다.
+     불린으로 "해석"하지 않는다.** `ad-set` 같은 값 안의 숫자·서수는 그냥 문자열의 일부일 뿐이며
+     계산/변환 대상이 아니다. `get_naver_item_sales_daily`는 `"category-3rd"`를 서수로 오해해
+     `-3`(정수)으로 보낸 오류가 토크나이저 레벨에서 반복 재현되어(언더스코어로 바꿔도 재발),
+     **`group_by` 파라미터 자체를 도구에서 제거**했다 — 항상 `category_3rd` 기준으로 반환하므로
+     호출 시 `group_by` 키를 넣지 않는다 (`sections/mtd/mtd-section-7-daily-category-chart.md` 참고).
      ⚠️ **`get_ad_performance_monthly_table`은 mtd에서 쓰지 않는다** (2026-07-10 확인 — 값은 나오지만
      실제 수치가 report-backend와 안 맞았다). 이 도구는 report-backend가 실제로 호출하는 API가 아닌
      별개의 범용 파이프라인(`_query_nv_monthly`)을 탄다. mtd-section-4(월별 광고 성과)는
