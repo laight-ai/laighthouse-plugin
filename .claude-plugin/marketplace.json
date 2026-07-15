@@ -7,11 +7,11 @@
   },
   "plugins": [
     {
-      "name": "laighthouse-analytics-local-env-v1",
+      "name": "laighthouse-analytics-prod",
       "displayName": "Laighthouse Analytics",
-      "source": "./plugins/laighthouse-analytics-local-env-v1",
+      "source": "./plugins/laighthouse-analytics-prod",
       "description": "라이트하우스 분석 플러그인 — MCP 연동 데이터를 표, 차트, Daily/MTD 성과 보고서로 렌더링합니다.",
-      "version": "0.9.2",
+      "version": "0.9.3",
       "author": {
         "name": "LaightAI",
         "email": "minhyeok.son@laight.ai"

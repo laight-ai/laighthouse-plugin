@@ -9,7 +9,7 @@ laighthouse-plugin/
 ├── .claude-plugin/
 │   └── marketplace.json          # 마켓플레이스 정의 (플러그인 목록/메타데이터)
 └── plugins/
-    └── laighthouse-analytics-local-env-v1/
+    └── laighthouse-analytics-prod/
         ├── .claude-plugin/plugin.json
         ├── .mcp.json              # laighthouse MCP 서버 연동 설정
         ├── README.md
@@ -22,7 +22,7 @@ laighthouse-plugin/
 
 ## 포함된 플러그인
 
-### laighthouse-analytics-local-env-v1
+### laighthouse-analytics-prod
 
 라이트하우스 MCP 연동 데이터를 표, 차트, 성과 보고서로 렌더링하는 플러그인입니다.
 
@@ -33,7 +33,7 @@ laighthouse-plugin/
 | `render-report` | MCP 결과를 라이트하우스 스타일 일간/주간/MTD/월간 성과 보고서로 렌더링 |
 
 
-자세한 사용법은 [플러그인 README](plugins/laighthouse-analytics-local-env-v1/README.md)를 참고하세요.
+자세한 사용법은 [플러그인 README](plugins/laighthouse-analytics-prod/README.md)를 참고하세요.
 
 ## 사용법 예시
 
@@ -43,4 +43,4 @@ laighthouse-plugin/
 
 ## 마켓플레이스 등록
 
-Claude Code에서 이 저장소를 마켓플레이스로 추가하면 `laighthouse-analytics-local-env-v1` 플러그인을 설치할 수 있습니다.
+Claude Code에서 이 저장소를 마켓플레이스로 추가하면 `laighthouse-analytics-prod` 플러그인을 설치할 수 있습니다.
