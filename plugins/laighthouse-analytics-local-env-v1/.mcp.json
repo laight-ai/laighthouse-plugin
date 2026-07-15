@@ -2,11 +2,12 @@
   "mcpServers": {
     "laighthouse": {
       "type": "http",
-      "url": "https://troops-icq-introducing-workshop.trycloudflare.com/api/mcp"
+      "url": "https://app.laight.ai/data/mcp"
     },
     "df_dify": {
       "type": "http",
       "url": "https://dify.laightai.com/mcp/server/fHsbrWFN2c4k9Img/mcp"
     }
+    
   }
 }
