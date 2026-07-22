@@ -2,10 +2,11 @@
 name: render-report
 description: >
   This skill should be used when the user asks to "보고서로 만들어줘", "레포트 형식으로 보여줘",
-  "Daily 보고서", "MTD 보고서", "라이트하우스 보고서", "성과 분석 보고서", or wants MCP data
-  formatted as a structured daily/MTD performance report matching the Laighthouse style.
+  "Daily 보고서", "MTD 보고서", "Monthly 보고서", "라이트하우스 보고서", "성과 분석 보고서", or wants
+  MCP data formatted as a structured daily/MTD/monthly performance report matching the Laighthouse
+  style.
 metadata:
-  version: "0.8.9"
+  version: "1.0.0"
 ---
 
 > ⚡ **thinking 지침**: 이 스킬 실행 시 thinking(추론)은 최대한 짧게 유지한다. 불필요한 단계 반복, 장황한 계획 수립 없이 바로 MCP 호출 → 데이터 수신 → 렌더링 순서로 진행한다.
@@ -13,18 +14,19 @@ metadata:
 ## 역할
 
 MCP 데이터를 받아 **라이트하우스 스타일 성과 보고서**로 렌더링하는 오케스트레이터. 지원하는
-`report_type`은 `daily`와 `mtd` 두 가지뿐이다. 각각 완전히 독립된 폴더(`sections/daily/`,
-`sections/mtd/`)에서 자기 완결적으로 섹션을 가져온다 — 폴더 간 import는 없다.
+`report_type`은 `daily`/`mtd`/`monthly` 세 가지다. 각각 완전히 독립된 폴더(`sections/daily/`,
+`sections/mtd(MK)/`, `sections/Monthly/`)에서 자기 완결적으로 섹션을 가져온다 — 폴더 간 import는
+없다.
 
 | report_type | 대상 브랜드군 | report-backend generator | 폴더 |
 |---|---|---|---|
 | `daily` | Meta/Google 브랜드 (Aqua Glow, Saturday Skin) | `saturdayskin` | `sections/daily/` |
-| `mtd` | naver 기반 브랜드 (다형식품 등) | `default` | `sections/mtd/` |
+| `mtd` | naver 기반 브랜드 (다형식품 등) | `default` | `sections/mtd(MK)/` |
+| `monthly` | naver 기반 브랜드 (남양유업 등) | `default` | `sections/Monthly/` |
 
-`monthly`/`weekly`는 이 스킬의 범위 밖이다 (monthly는 현재 제작 계획이 없고, weekly는
-`report-backend`의 `domain/report.py::ReportType`에 대응 값 자체가 없다 — `ABTEST`/`MTD`/`DAILY`/
-`MONTHLY`/`CALENDAR`/`DASHBOARD`만 존재). 사용자가 monthly/weekly 보고서를 요청하면, 아직 지원하지
-않는다고 알리고 daily/mtd 중 무엇을 원하는지 확인한다.
+`weekly`는 이 스킬의 범위 밖이다 (`report-backend`의 `domain/report.py::ReportType`에 대응 값 자체가
+없다 — `ABTEST`/`MTD`/`DAILY`/`MONTHLY`/`CALENDAR`/`DASHBOARD`만 존재). 사용자가 weekly 보고서를
+요청하면, 아직 지원하지 않는다고 알리고 daily/mtd/monthly 중 무엇을 원하는지 확인한다.
 
 ---
 
@@ -59,19 +61,19 @@ MCP 데이터를 받아 **라이트하우스 스타일 성과 보고서**로 렌
 
 | 파라미터 | 설명 | 예시 |
 |--------|------|------|
-| report_type | `daily` 또는 `mtd` | mtd |
+| report_type | `daily`, `mtd`, 또는 `monthly` | mtd |
 | 보고서 제목 | 보고서 상단 타이틀 | 다형식품 MTD 보고서 |
 | brand_name | MCP 호출용 브랜드명 (`get_brand_list` 응답과 정확히 일치) | 다형식품 |
 | 기준 일자 | 보고서 기준 날짜 (`target_date`) | 2026-05-15 |
 
-daily/mtd 둘 다 **섹션 구성은 report_type이 전부 결정**하며 사용자가 섹션을 골라 지정하는 개념이
-없다 — 아래 두 표에 있는 파일을 항상 전부 렌더링한다.
+daily/mtd/monthly 모두 **섹션 구성은 report_type이 전부 결정**하며 사용자가 섹션을 골라 지정하는
+개념이 없다 — 아래 세 표에 있는 파일을 항상 전부 렌더링한다.
 
 ---
 
 ## 실행 순서
 
-1. 파라미터를 파싱하고 report_type을 확정한다 (`daily` 또는 `mtd`만 유효).
+1. 파라미터를 파싱하고 report_type을 확정한다 (`daily`/`mtd`/`monthly`만 유효).
 2. target/achievement 수치를 호출한다 — **report_type에 따라 쓰는 도구가 다르다, 절대 섞지 않는다**:
    - `daily` (Meta/Google 브랜드) → `mcp__laighthouse__target_progress`(범용 v1 도구)에
      `{ "campaign_type": "sales" }` 1회. `saturdayskin/_components.py`가 `metric.actual_mtd`를 그대로
@@ -84,6 +86,11 @@ daily/mtd 둘 다 **섹션 구성은 report_type이 전부 결정**하며 사용
      target(`target_cost`/`target_revenue`/`target_roas`)과 actual(`actual_cost`/`actual_revenue`/
      `actual_roas`)을 한 번에 반환하므로 별도 합산이 필요 없다 — `sections/mtd/
      mtd-section-2-achievement.md` 참고.
+   - `monthly` (naver 브랜드, full month) → `mcp__laighthouse__get_naver_target_progress`(mtd와 동일
+     v2 도구)에 `{ "brand_name": "...", "month": "YYYY-MM", "as_of_date": "해당 월의 마지막 날" }`
+     1회. 도구/파라미터 형태는 mtd와 동일하며, 유일한 차이는 `as_of_date`를 항상 해당 월의 말일로
+     고정한다는 점이다 (mtd는 부분월 기준일을 그대로 씀) — `sections/Monthly/
+     monthly-section-1-kpi-goals.md` 참고.
    - ⚠️ ROAS 관련 수치(`target_roas`/`actual_roas`, v1의 `monthly_roas.target_full_month` 등)는
      비율값(예: 0.87, 5.06)으로 반환되므로 반드시 × 100 후 표시한다 (0.87 → 87%, 5.06 → 506%).
 3. 나머지 `mcp__laighthouse__*` 도구를 호출해 각 섹션 수치 데이터를 가져온다 (각 섹션 파일에 명시된
@@ -113,17 +120,26 @@ daily/mtd 둘 다 **섹션 구성은 report_type이 전부 결정**하며 사용
      그 재계산으로 없애는 오차는 하루 최대 2원 수준이라 이 보고서 규모에선 무의미해서 뺐다).
    - **naver 전용 도구** (`get_naver_sa_performance_daily` / `get_naver_item_sales_daily` /
      `get_naver_channel_progression` / `get_naver_target_progress` /
-     `get_naver_monthly_ad_performance` / `get_naver_daily_attributed_sales`,
-     `laighthouse-prism/src/mcp_server/tools_naver.py`) — mtd 보고서에서만 쓴다. naver 채널 구분,
-     카테고리별 매출/할인율/환불율, 채널별 예산 목표, naver 전용 target/achievement(2단계에서 이미
-     호출), naver 전용 월별 광고비/매출/ROAS(mtd-section-4), naver 전용 일별 광고기여 매출
-     (mtd-section-14)처럼 generic 도구로는 깔끔하게/정확하게 낼 수 없는 데이터를 제공한다.
-4. Executive Summary는 daily/mtd 둘 다 항상 포함된다.
+     `get_naver_monthly_ad_performance` / `get_naver_daily_attributed_sales` /
+     `get_naver_category_sales`, `laighthouse-prism/src/mcp_server/tools_naver.py`) — mtd/monthly
+     보고서에서만 쓴다. naver 채널 구분, 카테고리별 매출/할인율/환불율, 채널별 예산 목표, naver
+     전용 target/achievement(2단계에서 이미 호출), naver 전용 월별 광고비/매출/ROAS(mtd-section-4),
+     naver 전용 일별 광고기여 매출(mtd-section-14)처럼 generic 도구로는 깔끔하게/정확하게 낼 수
+     없는 데이터를 제공한다.
+   - **monthly 전용 가공** — mtd(MK)에는 없는 두 신규 섹션(카테고리별 월간 매출액 비교/매체별 성과
+     비교)은 위 naver 전용 도구를 이번 달·전월 두 번씩 호출해 이 스킬이 직접 상위 N/증감률/채널
+     합산을 가공한다 — 가공 규칙은 각 섹션 파일(`sections/Monthly/
+     monthly-section-6-category-monthly-comparison.md`,
+     `monthly-section-8-media-comparison-table.md`)에 명시되어 있다.
+4. Executive Summary는 daily/mtd/monthly 모두 항상 포함된다.
    - ⚠️ **`df_dify` MCP 서버는 현재 호출하지 않는다** (연결 불안정으로 타임아웃 시 빈 응답이 돌아옴).
      `mcp__df_dify__*` 도구를 호출하지 말고, 이미 수집한 수치 데이터를 근거로 AI가 분석 텍스트를
      직접 작성한다 (단, 근거 수치 자체가 데이터 갭이면 생성하지 않음).
    - **`mtd`인 경우**, `performance_overview`, `analysis_of_ad_performance`, `analysis_by_ad_group`
      3개 텍스트도 동일하게 AI가 각 섹션(mtd-section-5/8/11) 수치 기반으로 직접 작성한다.
+   - **`monthly`인 경우**, `analysis_of_category_performance` 텍스트를 동일하게 AI가 각 섹션
+     (monthly-section-5/6/7) 수치 기반으로 직접 작성한다 — mtd보다 하이레벨/회고 톤을 쓴다
+     (`sections/Monthly/monthly-section-3-executive-summary.md`, `monthly-section-5-*.md` 참고).
 5. `report_type`에 대응하는 아래 표의 파일을 **순서대로 전부** import해 HTML을 조합한다.
 6. 이 스킬 폴더의 `assets/chart.umd.min.js` 파일을 읽어 그 내용 전체를 `{CHART_JS_INLINE}` 자리에
    그대로 삽입한다 (CDN `<script src>` 절대 사용 금지 — 아래 보고서 골격의 경고 참고).
@@ -151,7 +167,7 @@ daily/mtd 둘 다 **섹션 구성은 report_type이 전부 결정**하며 사용
 📁 {저장된 html 파일 경로}
 ```
 
-- `{report_type 한글명}`: `daily` → "Daily 보고서", `mtd` → "MTD 보고서"
+- `{report_type 한글명}`: `daily` → "Daily 보고서", `mtd` → "MTD 보고서", `monthly` → "Monthly 보고서"
 - `{기준_일자}`: 사용자가 지정한 기준 일자 (예: 2026-05-15)
 - `{한 문장 하이라이트}`: 렌더링된 수치 중 가장 눈에 띄는 지표 한 가지만 골라 한 문장으로 (예: "ROAS 목표
   대비 118% 초과 달성", "다이어트 단백질 카테고리 매출 전월 대비 32% 증가"). 여러 개 나열하지 않는다.
@@ -202,25 +218,46 @@ daily/mtd 둘 다 **섹션 구성은 report_type이 전부 결정**하며 사용
 
 | 순서 | 섹션 | Import 경로 |
 |-----|------|------------|
-| 1 | 월 목표 카드 | `@import sections/mtd/mtd-section-1-kpi-goals.md` |
-| 2 | 목표 달성 현황 | `@import sections/mtd/mtd-section-2-achievement.md` |
-| 3 | Executive Summary | `@import sections/mtd/mtd-section-3-executive-summary.md` |
-| 4 | 월별 광고 성과 | `@import sections/mtd/mtd-section-4-monthly-chart.md` |
-| 5 | 성과에 대한 개괄 | `@import sections/mtd/mtd-section-5-performance-overview.md` |
-| 6 | 상품별 누적 판매액 | `@import sections/mtd/mtd-section-6-product-cumulative-sales.md` |
-| 7 | 일일 카테고리별 매출 현황 | `@import sections/mtd/mtd-section-7-daily-category-chart.md` |
-| 8 | 제품 판매 성과의 심층 분석 | `@import sections/mtd/mtd-section-8-product-deep-dive.md` |
-| 9 | 매체 별 예산 소진 현황 | `@import sections/mtd/mtd-section-9-media-budget-progress.md` |
-| 10 | 캠페인 별 성과 | `@import sections/mtd/mtd-section-10-campaign-performance.md` |
-| 11 | 광고 그룹별 심층 분석 | `@import sections/mtd/mtd-section-11-ad-group-deep-dive.md` |
-| 12 | 그룹 별 성과 | `@import sections/mtd/mtd-section-12-group-performance.md` |
-| 13 | 키워드 별 성과 | `@import sections/mtd/mtd-section-13-keyword-performance.md` |
-| 14 | 일별 광고기여 매출 분석 | `@import sections/mtd/mtd-section-14-daily-attributed-sales.md` |
+| 1 | 월 목표 카드 | `@import sections/mtd(MK)/mtd-section-1-kpi-goals.md` |
+| 2 | 목표 달성 현황 | `@import sections/mtd(MK)/mtd-section-2-achievement.md` |
+| 3 | Executive Summary | `@import sections/mtd(MK)/mtd-section-3-executive-summary.md` |
+| 4 | 월별 광고 성과 차트 | `@import sections/mtd(MK)/mtd-section-4-monthly-chart.md` |
+| 5 | 제품 판매 성과의 심층 분석 | `@import sections/mtd(MK)/mtd-section-5-product-deep-dive.md` |
+| 6 | 일일 카테고리별 매출 현황 | `@import sections/mtd(MK)/mtd-section-6-daily-category-chart.md` |
+| 7 | 매체별 예산 소진 현황 | `@import sections/mtd(MK)/mtd-section-7-media-budget-progress.md` |
+| 8 | 캠페인별 성과 심층 분석 | `@import sections/mtd(MK)/mtd-section-8-campaign-deep-dive.md` |
+| 9 | 캠페인별 성과 | `@import sections/mtd(MK)/mtd-section-9-campaign-performance.md` |
+| 10 | 광고그룹별 성과 | `@import sections/mtd(MK)/mtd-section-10-group-performance.md` |
+| 11 | 키워드별 성과 | `@import sections/mtd(MK)/mtd-section-11-keyword-performance.md` |
 
 순서 1(월 목표 카드)과 2(목표 달성 현황)는 **항상 붙어서** 렌더링한다 — 둘 다 같은 `target_progress`
 응답을 재사용하며, 별도 재호출 없음 (`sections/mtd/mtd-section-1-kpi-goals.md` 참고).
 
-`sections/mtd/` 폴더의 파일은 전부 naver 기반 default generator 브랜드 기준으로 작성되어 있고,
+`sections/mtd(MK)/` 폴더의 파일은 전부 naver 기반 default generator 브랜드 기준으로 작성되어 있고,
+다른 폴더를 import하지 않는다.
+
+### report_type: `monthly` (naver 기반 default 브랜드 전용 — 남양유업 등, 항상 포함)
+
+**총 8개 섹션.** mtd(MK)와 동일한 naver 기반 default generator를 쓰되, 항상 해당 월 전체(월초~말일)
+실적을 다룬다는 점이 다르다 (mtd는 월초~기준일까지의 부분월/MTD). mtd(MK)에는 없는 두 개의 신규
+섹션(카테고리별 월간 매출액 비교, 매체별 성과 비교)이 포함된다.
+
+| 순서 | 섹션 | Import 경로 |
+|-----|------|------------|
+| 1 | 월 목표 카드 | `@import sections/Monthly/monthly-section-1-kpi-goals.md` |
+| 2 | 목표 달성 현황 | `@import sections/Monthly/monthly-section-2-achievement.md` |
+| 3 | Executive Summary | `@import sections/Monthly/monthly-section-3-executive-summary.md` |
+| 4 | 월별 광고 성과 차트 | `@import sections/Monthly/monthly-section-4-ad-performance-chart.md` |
+| 5 | 제품 판매 트렌드 분석 | `@import sections/Monthly/monthly-section-5-product-deep-dive.md` |
+| 6 | 카테고리별 월간 매출액 비교 | `@import sections/Monthly/monthly-section-6-category-monthly-comparison.md` |
+| 7 | 일일 카테고리별 매출 현황 | `@import sections/Monthly/monthly-section-7-daily-category-chart.md` |
+| 8 | 매체별 성과 비교 | `@import sections/Monthly/monthly-section-8-media-comparison-table.md` |
+
+순서 1(월 목표 카드)과 2(목표 달성 현황)는 **항상 붙어서** 렌더링한다 — 둘 다 같은
+`get_naver_target_progress` 응답(as_of_date=해당 월 말일)을 재사용하며, 별도 재호출 없음
+(`sections/Monthly/monthly-section-1-kpi-goals.md` 참고).
+
+`sections/Monthly/` 폴더의 파일은 전부 naver 기반 default generator 브랜드 기준으로 작성되어 있고,
 다른 폴더를 import하지 않는다.
 
 ---
@@ -395,4 +432,4 @@ function downloadReport(){
 ## 데이터 부족 시
 
 - 해당 섹션은 `<div class="card"><p style="color:#94a3b8;font-size:13px;">데이터 준비 중</p></div>` 로 대체
-- 섹션을 임의로 생략하지 않는다 — daily는 7개, mtd는 14개 전부 항상 렌더링한다.
+- 섹션을 임의로 생략하지 않는다 — daily는 7개, mtd는 11개, monthly는 8개 전부 항상 렌더링한다.
