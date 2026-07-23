@@ -35,19 +35,19 @@
       "label": "Monthly Budget Utilization",
       "value": "{sales.budget_utilization_pct}% ({sales.budget_utilization_diff}%p)",
       "diff": "Target ${sales.budget_goal} · Current ${sales.budget_spent}",
-      "diff_value": "{sales.budget_utilization_diff}"
+      "diff_value": {sales.budget_utilization_diff}
     },
     {
       "label": "Monthly Revenue Achievement",
       "value": "{sales.revenue_achievement_pct}% ({sales.revenue_achievement_diff}%p)",
       "diff": "Target ${sales.revenue_goal} · Current ${sales.revenue_actual}",
-      "diff_value": "{sales.revenue_achievement_diff}"
+      "diff_value": {sales.revenue_achievement_diff}
     },
     {
       "label": "Monthly ROAS Achievement",
       "value": "{sales.roas_achievement_pct}% ({sales.roas_achievement_diff}%p)",
       "diff": "Target {sales.roas_goal}% · Current {sales.roas_actual}%",
-      "diff_value": "{sales.roas_achievement_diff}"
+      "diff_value": {sales.roas_achievement_diff}
     }
   ]
 }
@@ -61,8 +61,12 @@
 - 나머지 세 카드는 원본 HTML의 "목표 대비 diff%p"를 `value` 문자열 안에 괄호로 이미 포함시켜
   텍스트로 보이게 하고, 그와 별개로 **부호 판정 색칠 전용**인 `diff_value`에는 같은 값을 `%p`
   접미사 없는 순수 숫자로 한 번 더 넣는다(`build.py::_diff_color`가 `diff_value > 0`처럼 숫자
-  비교를 하므로 문자열이 아니라 실제 JSON 숫자 타입이어야 한다). "Target/Current" 두 값 병기는
-  `diff` 문자열로 별도로 담는다.
+  비교를 하므로 문자열이 아니라 실제 JSON 숫자 타입이어야 한다). ⚠️ **위 JSON에서
+  `"diff_value": {sales.budget_utilization_diff}`처럼 `diff_value` 자리의 플레이스홀더는 일부러
+  따옴표 없이 적었다** — 실제 렌더링 시 그 자리에 숫자 리터럴(예: `-7.1`)을 그대로 채워 넣어야
+  하며, `"{sales.budget_utilization_diff}"`처럼 따옴표로 감싸서 문자열로 만들면 안 된다(그렇게
+  하면 `build.py`가 `TypeError`를 낸다). "Target/Current" 두 값 병기는 `diff` 문자열로 별도로
+  담는다.
 - `diff_color(v)`: v < 0 → 빨강, v > 0 → 초록, 0 → 회색 — 렌더러가 `diff_value`(순수 숫자)의
   부호를 보고 값 전체 텍스트에 색을 적용한다.
 - **Monthly ROAS Achievement 메인 수치**: `actual_mtd × 100`
@@ -128,19 +132,19 @@ mtd(MK)의 `mtd-section-2-achievement.md`와 **거의 동일한 포맷**이지�
       "label": "월 예산대비 소진율",
       "value": "{overview.budget_spent_rate}% ({overview.budget_spent_diff}%p)",
       "diff": "목표 ₩{overview.budget_goal} · 소진비용 ₩{overview.budget_spent}",
-      "diff_value": "{overview.budget_spent_diff}"
+      "diff_value": {overview.budget_spent_diff}
     },
     {
       "label": "월 목표 매출 대비 달성률",
       "value": "{overview.revenue_achievement_rate}% ({overview.revenue_achievement_diff}%p)",
       "diff": "목표 ₩{overview.revenue_goal} · 매출 ₩{overview.revenue_actual}",
-      "diff_value": "{overview.revenue_achievement_diff}"
+      "diff_value": {overview.revenue_achievement_diff}
     },
     {
       "label": "월 누적 ROAS",
       "value": "{overview.roas_actual}% ({overview.roas_diff}%p)",
       "diff": "목표 {overview.roas_goal}%",
-      "diff_value": "{overview.roas_diff}"
+      "diff_value": {overview.roas_diff}
     }
   ]
 }
@@ -153,7 +157,10 @@ mtd(MK)의 `mtd-section-2-achievement.md`와 **거의 동일한 포맷**이지�
 - 나머지 세 카드는 분기 A와 동일하게 "목표 대비 diff%p"를 `value` 문자열 괄호 안에 텍스트로
   넣고, 부호 판정 색칠 전용인 `diff_value`에는 같은 값을 `%p` 접미사 없는 순수 숫자로 한 번 더
   넣는다(`build.py::_diff_color`가 숫자 비교를 하므로 문자열이 아니라 실제 JSON 숫자 타입이어야
-  한다). "목표/실제" 두 값 병기는 `diff` 문자열로 별도로 담는다.
+  한다). ⚠️ **위 JSON에서 `"diff_value": {overview.budget_spent_diff}`처럼 `diff_value` 자리의
+  플레이스홀더는 일부러 따옴표 없이 적었다** — 실제 렌더링 시 그 자리에 숫자 리터럴(예: `-7.1`)을
+  그대로 채워 넣어야 하며, 따옴표로 감싸서 문자열로 만들면 안 된다(그렇게 하면 `build.py`가
+  `TypeError`를 낸다). "목표/실제" 두 값 병기는 `diff` 문자열로 별도로 담는다.
 - `diff_color(v)`: v < 0 → 빨강, v > 0 → 초록, 0 → 회색 — 렌더러가 `diff_value`(순수 숫자)의
   부호를 보고 값 전체 텍스트에 색을 적용한다.
 - diff 값은 항상 부호 포함 표시 (예: `-7.1%p`, `+3.3%p`)
