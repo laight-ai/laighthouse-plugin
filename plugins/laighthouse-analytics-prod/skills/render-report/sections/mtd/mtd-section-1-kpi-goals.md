@@ -35,25 +35,19 @@
 - `monthly_revenue_goal` ← `target_revenue`
 - `monthly_roas_goal` ← `target_roas × 100` (비율 → %, 예: 5.06 → 506%)
 
-## HTML
+## DOCX 섹션
 
-```html
-<!-- SECTION 1: 월 목표 카드 -->
-<div style="display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:16px;">
-  <div class="card">
-    <div style="font-size:12px; color:#64748b; margin-bottom:8px;">월 예산 목표</div>
-    <div style="font-size:22px; font-weight:700; color:#1e293b;">{monthly_budget_goal}</div>
-  </div>
-  <div class="card">
-    <div style="font-size:12px; color:#64748b; margin-bottom:8px;">월 매출 목표</div>
-    <div style="font-size:22px; font-weight:700; color:#1e293b;">{monthly_revenue_goal}</div>
-  </div>
-  <div class="card">
-    <div style="font-size:12px; color:#64748b; margin-bottom:8px;">월 ROAS 목표</div>
-    <div style="font-size:22px; font-weight:700; color:#1e293b;">{monthly_roas_goal}%</div>
-  </div>
-</div>
+```json
+{
+  "type": "kpi_cards",
+  "cards": [
+    { "label": "월 예산 목표", "value": "{monthly_budget_goal}" },
+    { "label": "월 매출 목표", "value": "{monthly_revenue_goal}" },
+    { "label": "월 ROAS 목표", "value": "{monthly_roas_goal}%" }
+  ]
+}
 ```
 
-## Script
-없음 (정적 카드)
+- 이 세 카드는 목표값만 표시하는 정적 카드이므로 `diff`/`diff_value`는 넣지 않는다.
+- 금액 필드(`monthly_budget_goal`/`monthly_revenue_goal`)는 `toLocaleString()` 스타일 천 단위
+  콤마 포맷 문자열로 만들어 넣는다.

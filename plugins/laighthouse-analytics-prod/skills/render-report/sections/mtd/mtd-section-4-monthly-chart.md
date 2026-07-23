@@ -30,47 +30,25 @@
   `_get_ad_performance_values_by_month`와 동일하게 이미 `sales/cost×100`으로 퍼센트 스케일로 반환한다
   — `get_naver_target_progress`의 `target_roas`/`actual_roas`와 달리 ×100 변환이 필요 없다)
 
-## HTML
+## DOCX 섹션
 
-```html
-<!-- SECTION 4: 월별 광고 성과 차트 -->
-<div class="card" style="margin-bottom:16px;">
-  <div class="section-title">월별 광고 성과</div>
-  <div style="position:relative; height:320px;">
-    <canvas id="monthlyChart"></canvas>
-  </div>
-</div>
+```json
+{
+  "type": "chart",
+  "heading": "월별 광고 성과",
+  "categories": "{monthly_chart.labels}",
+  "bar_series": [
+    { "name": "광고비", "values": "{monthly_chart.ad_cost}" },
+    { "name": "매출", "values": "{monthly_chart.revenue}" }
+  ],
+  "line_series": { "name": "ROAS", "values": "{monthly_chart.roas}" }
+}
 ```
 
-## Script
-
-```javascript
-// Section 4: 월별 광고 성과 혼합 차트
-(function(){
-  const ctx = document.getElementById('monthlyChart');
-  if(!ctx) return;
-  const d = {MONTHLY_CHART_DATA}; // MCP 데이터 JSON 치환
-  // d = { labels:[...], ad_cost:[...], revenue:[...], roas:[...] }
-  new Chart(ctx, {
-    data: {
-      labels: d.labels,
-      datasets: [
-        { type:'bar',  label:'광고비', data:d.ad_cost,  backgroundColor:'#93c5fd', yAxisID:'y', order:2 },
-        { type:'bar',  label:'매출',   data:d.revenue,  backgroundColor:'#94a3b8', yAxisID:'y', order:2 },
-        { type:'line', label:'ROAS',   data:d.roas,
-          borderColor:'#ef4444', backgroundColor:'transparent',
-          pointBackgroundColor:'#ef4444', tension:0.3, yAxisID:'y2', order:1 }
-      ]
-    },
-    options: {
-      responsive:true, maintainAspectRatio:false,
-      plugins:{ legend:{ position:'top' } },
-      scales:{
-        y:  { position:'left',  ticks:{ callback: v => Number(v).toLocaleString() } },
-        y2: { position:'right', grid:{ drawOnChartArea:false },
-              ticks:{ callback: v => v+'%' } }
-      }
-    }
-  });
-})();
-```
+- `categories`는 `monthly_chart.labels`(연월 레이블 배열, 예: `["25년 11월", ..., "26년 4월"]`)를
+  그대로 넣는다.
+- `bar_series`는 광고비(`monthly_chart.ad_cost`)와 매출(`monthly_chart.revenue`) 두 시리즈,
+  `line_series`는 ROAS(`monthly_chart.roas`) 한 시리즈다 — 원본 Chart.js 혼합 차트(막대 2개 +
+  꺾은선 1개)와 동일 구성.
+- 위 JSON의 문자열 자리(`"{monthly_chart.labels}"` 등)는 실제 렌더링 시 그 배열/리스트 값으로
+  그대로 치환한다(문자열이 아니라 JSON 배열이 들어간다).

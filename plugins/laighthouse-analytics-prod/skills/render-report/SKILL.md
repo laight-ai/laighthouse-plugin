@@ -58,15 +58,12 @@ daily-section-1-kpi-goals.md`의 분기 규칙 참고).
 ## 실행 방식 절대 지침
 
 > 🚫 **이 스킬을 실행하는 동안 `.py`/`.js`/`.ipynb` 등 별도 스크립트·노트북 파일을 절대 생성하지
-> 않는다.** MCP 도구는 직접 호출하고, 그 결과를 곧바로 HTML 문자열 조합에 사용한다. 데이터
+> 않는다.** 유일한 예외는 이 스킬 폴더에 이미 있는 재사용 스크립트
+> `assets/docx_report/build.py`뿐이다 — 이건 새로 만드는 게 아니라 그대로 호출만 하는 고정
+> 산출물 생성기다. MCP 도구는 직접 호출하고, 그 결과를 곧바로 섹션 JSON 조합에 사용한다. 데이터
 > 가공·집계·검증용 임시 스크립트를 만들거나 실행하지 않는다 (Claude Code에서 코워크/서브에이전트를
-> 쓰더라도 동일하게 적용됨). 이 스킬이 만드는 파일은 오직 최종 보고서 HTML 하나뿐이다.
->
-> ⏱ **긴 대기 없이 스켈레톤을 먼저 보여준다.** 2단계(target/achievement 호출) 응답을 받는 즉시,
-> 나머지 섹션은 전부 "데이터 준비 중" placeholder(§ 데이터 부족 시 규칙과 동일한 마크업)로 채운
-> 전체 골격을 1차로 Artifact에 게시한다. 이후 3~4단계에서 각 섹션 데이터가 준비되는 대로 같은
-> Artifact 파일을 갱신(재게시)해 placeholder를 실제 값으로 교체한다 — 사용자가 빈 화면을 오래
-> 기다리지 않도록 먼저 뼈대를 보여주고 채워나간다.
+> 쓰더라도 동일하게 적용됨). 이 스킬이 만드는 파일은 오직 최종 보고서 `.docx` 하나뿐이다(중간
+> JSON 데이터 파일은 `build.py` 호출을 위한 임시 입력일 뿐이다).
 
 ## 입력 파라미터
 
@@ -176,16 +173,18 @@ daily/mtd/monthly/executive-mtd 모두 **섹션 구성은 report_type이 전부 
      1/2/4/5) 수치 기반으로 직접 작성한다 — mtd보다 짧게(3~5문장), "무엇이 움직였는지 + 왜
      신경 써야 하는지"의 임원 관점으로 쓰고, 특이사항이 없는 항목은 억지로 채우지 않는다
      (`sections/executive-mtd/executive-mtd-section-3-executive-summary.md` 참고).
-5. `report_type`에 대응하는 아래 표의 파일을 **순서대로 전부** import해 HTML을 조합한다.
-6. 이 스킬 폴더의 `assets/chart.umd.min.js` 파일을 읽어 그 내용 전체를 `{CHART_JS_INLINE}` 자리에
-   그대로 삽입한다 (CDN `<script src>` 절대 사용 금지 — 아래 보고서 골격의 경고 참고).
-7. 아래 **보고서 골격**에 섹션들을 삽입해 렌더링한다. 완성된 HTML은 아래 **두 곳에 동시에** 낸다 —
-   하나만 하고 끝내지 않는다:
-   - **채팅 내부 표시**: Claude Code(Artifact)에서 실행 중이면 Artifact 도구로 게시(위 스켈레톤과
-     같은 파일을 갱신). `mcp__visualize__show_widget`이 있는 호스트에서는 그걸 쓴다.
-   - **파일로 저장**: 동일한 최종 HTML을 `~/Downloads/laighthouse-reports/{brand_name}_{report_type}_
-     {기준_일자}.html` 경로에 그대로 저장한다 (디렉터리가 없으면 새로 만든다). 파일명 예:
-     `다형식품_mtd_2026-05-15.html`.
+5. `report_type`에 대응하는 아래 표의 파일을 **순서대로 전부** import해, 각 파일의 `## DOCX 섹션`
+   블록에 있는 JSON 섹션 오브젝트(파일에 따라 1개 또는 여러 개)를 문서 순서 그대로 이어붙여
+   하나의 `sections` 배열을 만든다.
+6. `{ "title": "{보고서_제목}", "period": "{기간}", "sections": [...] }` 형태의 JSON 오브젝트
+   하나를 만들어 임시 파일(예: 스크래치패드 디렉터리의 `report_data.json`)에 쓴다. 그 다음 아래
+   명령을 그대로 실행한다:
+   ```
+   python "<스킬 폴더 경로>/assets/docx_report/build.py" --data <임시.json> --out "~/Downloads/laighthouse-reports/{brand_name}_{report_type}_{기준_일자}.docx"
+   ```
+   (디렉터리가 없으면 `build.py`가 자동으로 만든다). 파일명 예: `다형식품_mtd_2026-05-15.docx`.
+7. 이 스킬의 유일한 산출물은 6단계에서 저장한 `.docx` 파일이다 — docx는 Artifact로 게시할 수
+   없으므로 별도의 채팅 내 게시 단계는 없다.
 8. 렌더링 후 사용자에게 보내는 완료 메시지는 아래 **완료 메시지 형식**을 그대로 따른다 — 매번 다른
    문구로 즉석 요약하지 않는다. 저장된 파일 경로를 완료 메시지 마지막 줄에 덧붙인다.
 
@@ -200,21 +199,21 @@ daily/mtd/monthly/executive-mtd 모두 **섹션 구성은 report_type이 전부 
 {brand_name} {report_type 한글명}({기준_일자}) 생성 완료.
 가장 인상적인 부분: {한 문장 하이라이트}.
 — by LaightAI
-📁 {저장된 html 파일 경로}
+📁 {저장된 docx 파일 경로}
 ```
 
 - `{report_type 한글명}`: `daily` → "Daily 보고서", `mtd` → "MTD 보고서", `monthly` → "Monthly 보고서", `executive-mtd` → "Executive MTD 보고서"
 - `{기준_일자}`: 사용자가 지정한 기준 일자 (예: 2026-05-15)
 - `{한 문장 하이라이트}`: 렌더링된 수치 중 가장 눈에 띄는 지표 한 가지만 골라 한 문장으로 (예: "ROAS 목표
   대비 118% 초과 달성", "다이어트 단백질 카테고리 매출 전월 대비 32% 증가"). 여러 개 나열하지 않는다.
-- `{저장된 html 파일 경로}`: 7단계에서 저장한 `.html` 파일의 전체 경로.
+- `{저장된 docx 파일 경로}`: 6단계에서 저장한 `.docx` 파일의 전체 경로.
 
 예시:
 ```
 다형식품 MTD 보고서(2026-05-15) 생성 완료.
 가장 인상적인 부분: ROAS가 목표 대비 118% 달성되며 예산 소진 속도를 크게 앞섰습니다.
 — by LaightAI
-📁 C:\Users\minhyeok\Downloads\laighthouse-reports\다형식품_mtd_2026-05-15.html
+📁 C:\Users\minhyeok\Downloads\laighthouse-reports\다형식품_mtd_2026-05-15.docx
 ```
 
 ---
@@ -328,174 +327,41 @@ brand_name의 report-backend generator로 판단한 분기 쪽 마크업만 렌�
 
 ---
 
-## 보고서 골격 (Scaffold)
+## 보고서 조립 (docx assembly)
 
-각 섹션 HTML을 `{SECTIONS}` 자리에 순서대로 삽입한다.
+각 섹션 파일의 `## DOCX 섹션` 블록에 있는 JSON 오브젝트(파일에 따라 1개 또는 여러 개)를 **문서
+순서 그대로 이어붙여** 아래 형태의 JSON 오브젝트 하나를 만든다:
 
-> ⚠️ **Chart.js는 CDN `<script src>`로 절대 불러오지 않는다.** Artifact(claude.ai 아티팩트)의 CSP는
-> 외부 호스트로 나가는 스크립트 요청을 전부 차단하므로, `<script src="https://cdn.jsdelivr.net/...">`
-> 로 로드하면 스크립트 자체가 실행되지 않아 모든 차트가 빈 캔버스로 남는다 (실제로 발생했던 버그).
-> 대신 이 스킬 폴더의 `assets/chart.umd.min.js`(Chart.js v4 UMD 빌드, MIT license, 오프라인 자산)를
-> 읽어서 **그 파일 내용 전체를 `<script>...</script>` 태그 안에 그대로 붙여넣는다** (src 속성 없이,
-> 인라인 텍스트로). `{CHART_JS_INLINE}` 자리표시자가 그 자리다 — 절대 CDN URL로 되돌리지 않는다.
-
-```html
-<!DOCTYPE html>
-<html lang="ko">
-<head>
-<meta charset="UTF-8">
-<script>
-{CHART_JS_INLINE}
-</script>
-<style>
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans KR', sans-serif;
-         background: #f8fafc; color: #1e293b; padding: 24px; }
-  .report-wrap { max-width: 960px; margin: 0 auto; }
-  .card { background: white; border: 1px solid #e2e8f0; border-radius: 12px;
-          padding: 20px; margin-bottom: 16px; }
-  .section-title { font-size: 15px; font-weight: 700; color: #1e293b; margin-bottom: 16px; }
-  table { width: 100%; border-collapse: collapse; font-size: 13px; }
-  th { background: #f1f5f9; color: #475569; font-weight: 600; padding: 8px 12px;
-       text-align: left; border-bottom: 1px solid #e2e8f0; }
-  td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; color: #374151; }
-  @media print {
-    body { background: white; padding: 0; }
-    button { display: none !important; }
-    .card { box-shadow: none; border: 1px solid #e2e8f0; break-inside: avoid; }
-    canvas { max-width: 100%; }
-    @page { margin: 15mm; size: A4; }
-  }
-</style>
-</head>
-<body>
-<div class="report-wrap" id="report-content">
-
-  <!-- 헤더: 항상 포함 -->
-  <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:20px;">
-    <div>
-      <h1 style="font-size:20px; font-weight:700;">{보고서_제목}</h1>
-      <span style="font-size:13px; color:#64748b; margin-top:4px; display:block;">📅 {기간}</span>
-    </div>
-    <div style="display:flex; gap:8px;">
-      <!-- 구글 드라이브 저장 (비활성) -->
-      <button disabled
-        style="padding:8px 14px; background:#f1f5f9; border:1px solid #e2e8f0; border-radius:8px; font-size:13px; color:#94a3b8; cursor:not-allowed; display:flex; align-items:center; gap:6px;">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="#94a3b8"><path d="M6.5 20q-2.275 0-3.888-1.575Q1 16.85 1 14.575q0-1.95 1.175-3.475Q3.35 9.575 5.25 9.15q.625-2.3 2.5-3.725T12 4q2.925 0 4.963 2.037Q19 8.075 19 11q1.725.2 2.863 1.487Q23 13.775 23 15.5q0 1.875-1.312 3.188Q20.375 20 18.5 20Z"/></svg>
-        Google Drive
-      </button>
-      <!-- 메일 보내기 (HTML 클립보드 복사 → 붙여넣기) -->
-      <button onclick="sendMail()"
-        style="padding:8px 14px; background:white; border:1px solid #e2e8f0; border-radius:8px; font-size:13px; color:#374151; cursor:pointer; display:flex; align-items:center; gap:6px;">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#374151" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
-        메일 보내기
-      </button>
-      <!-- PDF 저장 -->
-      <button onclick="downloadReport()"
-        style="padding:8px 14px; background:#3b82f6; border:none; border-radius:8px; font-size:13px; color:white; cursor:pointer; display:flex; align-items:center; gap:6px;">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
-        PDF 저장
-      </button>
-    </div>
-  </div>
-
-  <!-- 섹션 HTML 삽입 위치 -->
-  {SECTIONS}
-
-  <!-- 푸터: 항상 포함 -->
-  <div style="text-align:center; font-size:12px; color:#94a3b8; padding:16px 0;">
-    Engineered by Laighthouse AI
-  </div>
-
-</div>
-
-<script>
-/* ── 공통 유틸 ── */
-function changeColor(v){ return v>0?'#16a34a':v<0?'#dc2626':'#6b7280'; }
-function changeLabel(v,s='%'){ return v>0?`▲ +${v.toFixed(1)}${s}`:v<0?`▼ ${v.toFixed(1)}${s}`:'-'; }
-function fmtUSD(v){ return '$'+Number(v).toLocaleString(); }
-
-/* ── 버튼 핸들러 ── */
-/* ── 메일 보내기 (보고서 HTML → 클립보드 복사 → 메일 본문 붙여넣기) ── */
-function sendMail(){
-  const reportEl = document.getElementById('report-content');
-  if(!reportEl) return;
-
-  // 버튼 임시 숨김 후 HTML 추출
-  const btns = reportEl.querySelectorAll('button');
-  btns.forEach(b => b.style.display = 'none');
-  const html = reportEl.innerHTML;
-  btns.forEach(b => b.style.display = '');
-
-  // ClipboardItem으로 HTML 서식 복사 (Gmail/Outlook에서 붙여넣기 시 서식 유지)
-  if(navigator.clipboard && window.ClipboardItem){
-    const blob = new Blob([html], { type: 'text/html' });
-    navigator.clipboard.write([new ClipboardItem({ 'text/html': blob })])
-      .then(() => alert('보고서가 클립보드에 복사되었습니다.\nGmail / Outlook 메일 본문에 Ctrl+V로 붙여넣기 하세요.'))
-      .catch(() => _fallbackCopy(html));
-  } else {
-    _fallbackCopy(html);
-  }
+```json
+{
+  "title": "{보고서_제목}",
+  "period": "{기간}",
+  "sections": [
+    { "type": "kpi_cards", "cards": [ ... ] },
+    { "type": "table", "heading": "...", "headers": [...], "rows": [...] },
+    { "type": "chart", "heading": "...", "categories": [...], "bar_series": [...], "line_series": {...} },
+    { "type": "text", "heading": "...", "body": "..." }
+  ]
 }
-
-function _fallbackCopy(html){
-  const el = document.createElement('div');
-  el.innerHTML = html;
-  el.style.cssText = 'position:fixed;left:-9999px;top:0;';
-  document.body.appendChild(el);
-  const range = document.createRange();
-  range.selectNodeContents(el);
-  const sel = window.getSelection();
-  sel.removeAllRanges();
-  sel.addRange(range);
-  try {
-    document.execCommand('copy');
-    alert('보고서가 클립보드에 복사되었습니다.\nGmail / Outlook 메일 본문에 Ctrl+V로 붙여넣기 하세요.');
-  } catch(e) {
-    alert('복사 실패: 브라우저 권한을 확인해주세요.');
-  }
-  sel.removeAllRanges();
-  document.body.removeChild(el);
-}
-
-/* ── PDF 저장 (차트 렌더링 완료 후 인쇄) ── */
-function downloadReport(){
-  // Chart.js 캔버스를 정적 이미지로 교체 후 인쇄 → 원복
-  const canvases = document.querySelectorAll('canvas');
-  const replacements = [];
-
-  canvases.forEach(canvas => {
-    const img = document.createElement('img');
-    img.src = canvas.toDataURL('image/png');
-    img.style.width = canvas.style.width || canvas.offsetWidth + 'px';
-    img.style.height = canvas.style.height || canvas.offsetHeight + 'px';
-    img.style.maxWidth = '100%';
-    canvas.parentNode.insertBefore(img, canvas);
-    canvas.style.display = 'none';
-    replacements.push({ canvas, img });
-  });
-
-  setTimeout(() => {
-    window.print();
-    // 인쇄 대화상자 닫힌 후 원복
-    setTimeout(() => {
-      replacements.forEach(({ canvas, img }) => {
-        canvas.style.display = '';
-        img.remove();
-      });
-    }, 1000);
-  }, 300);
-}
-
-/* ── 각 섹션 차트 초기화 스크립트 삽입 위치 ── */
-{SECTION_SCRIPTS}
-</script>
-</body></html>
 ```
+
+이 JSON을 임시 파일로 저장한 다음, 아래 명령을 그대로 실행해 `.docx`를 생성한다:
+
+```
+python "<스킬 폴더 경로>/assets/docx_report/build.py" --data <temp.json> --out "~/Downloads/laighthouse-reports/{brand_name}_{report_type}_{기준_일자}.docx"
+```
+
+- `build.py`는 이 스킬이 직접 실행하도록 허용된 유일한 재사용 스크립트다 (실행 방식 절대 지침
+  참고) — 새 스크립트를 만드는 게 아니라 그대로 호출만 한다.
+- 출력 디렉터리(`~/Downloads/laighthouse-reports/`)가 없으면 `build.py`가 자동으로 만든다.
+- 각 섹션 타입(`kpi_cards`/`table`/`chart`/`text`/`heading`)의 정확한 필드 스키마는 각 섹션 파일의
+  `## DOCX 섹션` 블록과 예시를 그대로 따른다 — 숫자 포맷(천 단위 콤마, `%`/`₩`/`$` 접미사)은
+  JSON을 쓰기 전에 이 스킬(LLM)이 전부 끝낸 문자열로 넣는다.
 
 ---
 
 ## 데이터 부족 시
 
-- 해당 섹션은 `<div class="card"><p style="color:#94a3b8;font-size:13px;">데이터 준비 중</p></div>` 로 대체
+- 해당 섹션은 `{ "type": "text", "heading": "...", "body": "데이터 준비 중" }` 형태의 텍스트
+  섹션으로 대체한다.
 - 섹션을 임의로 생략하지 않는다 — daily는 6개, mtd는 11개, monthly는 8개, executive-mtd는 5개 전부 항상 렌더링한다.
