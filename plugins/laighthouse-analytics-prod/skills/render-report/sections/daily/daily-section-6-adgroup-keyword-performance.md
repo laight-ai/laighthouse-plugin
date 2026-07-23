@@ -29,60 +29,25 @@ PMax는 키워드 타겟팅 자체가 없는 상품이라 "키워드" 열은 이
   ```
   ※ ROAS 컬럼 없음 (이미지 참조)
 
-### HTML
-```html
-<!-- DAILY SECTION 6 (Google/Meta): Performance by Asset group -->
-<div style="background:white; border:1px solid #e2e8f0; padding:20px 24px; margin-bottom:16px;">
-  <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
-    <div style="font-size:15px; font-weight:700; color:#1e293b;">Performance by Asset group</div>
-    <div style="display:flex; align-items:center; gap:8px;">
-      <div style="display:flex; align-items:center; background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:6px 10px; gap:6px;">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-        <input id="assetSearch" type="text" placeholder="검색" oninput="filterTable('assetTable', this.value)"
-          style="border:none; background:transparent; font-size:13px; color:#374151; outline:none; width:100px;">
-      </div>
-      <select id="assetPageSize" onchange="changePageSize('assetTable', this.value)"
-        style="border:1px solid #e2e8f0; border-radius:6px; padding:6px 10px; font-size:13px; color:#374151; background:#f8fafc;">
-        <option value="10">10개</option><option value="20">20개</option><option value="50">50개</option>
-      </select>
-    </div>
-  </div>
-  <div style="overflow-x:auto;">
-    <table id="assetTable" style="width:100%; border-collapse:collapse; font-size:13px;">
-      <thead>
-        <tr style="border-bottom:1px solid #e2e8f0;">
-          <th style="padding:10px 12px; text-align:left; color:#64748b; font-weight:500;">Media</th>
-          <th style="padding:10px 12px; text-align:left; color:#64748b; font-weight:500;">Campaign</th>
-          <th style="padding:10px 12px; text-align:left; color:#64748b; font-weight:500;">Asset Group</th>
-          <th style="padding:10px 12px; text-align:right; color:#64748b; font-weight:500;">Impression</th>
-          <th style="padding:10px 12px; text-align:right; color:#64748b; font-weight:500;">Click</th>
-          <th style="padding:10px 12px; text-align:right; color:#64748b; font-weight:500;">CTR (%)</th>
-          <th style="padding:10px 12px; text-align:right; color:#64748b; font-weight:500;">Cost ($)</th>
-          <th style="padding:10px 12px; text-align:right; color:#64748b; font-weight:500;">Revenue ($)</th>
-        </tr>
-      </thead>
-      <tbody id="assetTableBody">
-        <tr style="border-bottom:1px solid #f1f5f9;">
-          <td style="padding:10px 12px; color:#3b82f6; font-weight:500;">{media}</td>
-          <td style="padding:10px 12px; color:#3b82f6; max-width:240px;">{campaign}</td>
-          <td style="padding:10px 12px; color:#3b82f6;">{asset_group}</td>
-          <td style="padding:10px 12px; text-align:right;">{impression}</td>
-          <td style="padding:10px 12px; text-align:right;">{click}</td>
-          <td style="padding:10px 12px; text-align:right;">{ctr}</td>
-          <td style="padding:10px 12px; text-align:right;">{cost}</td>
-          <td style="padding:10px 12px; text-align:right;">{revenue}</td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
-  <div id="assetPagination" style="display:flex; justify-content:center; align-items:center; gap:8px; margin-top:14px; font-size:13px; color:#64748b;"></div>
-</div>
+### DOCX 섹션 (분기 A)
+
+```json
+{
+  "type": "table",
+  "heading": "Performance by Asset group",
+  "headers": ["Media", "Campaign", "Asset Group", "Impression", "Click", "CTR (%)", "Cost ($)", "Revenue ($)"],
+  "rows": [
+    ["{media}", "{campaign}", "{asset_group}", "{impression_fmt}", "{click_fmt}", "{ctr}", "{cost_fmt}", "{revenue_fmt}"]
+  ]
+}
 ```
 
-### Script
-```javascript
-window.initTable('assetTable');
-```
+`rows`에는 `sales_by_asset_group` 배열의 모든 항목을 위 필드 매핑대로 한 행씩 그대로 넣는다
+(검색창/페이지네이션은 정적 문서에 의미가 없으므로 제거 — 전체 행을 한 표에 다 낸다). ROAS
+컬럼은 원본 그대로 없음.
+
+### 렌더링 규칙 (분기 A)
+- 금액/노출/클릭 필드는 `toLocaleString()` 스타일 천 단위 콤마 포맷 문자열로 만들어 넣는다.
 
 ---
 
@@ -157,182 +122,36 @@ window.initTable('assetTable');
 }
 ```
 
-### HTML
+### DOCX 섹션 (분기 B)
 
-```html
-<!-- DAILY SECTION 6 (naver): 광고 그룹 및 키워드 성과 -->
-<div class="card" style="margin-bottom:16px;">
-  <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
-    <div class="section-title" style="margin-bottom:0;">광고 그룹 및 키워드 성과</div>
-    <div style="display:flex; align-items:center; gap:8px;">
-      <div style="display:flex; align-items:center; background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:6px 10px; gap:6px;">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-        <input type="text" placeholder="검색" oninput="filterHierarchyTable(this.value)"
-          style="border:none; background:transparent; font-size:13px; color:#374151; outline:none; width:100px;">
-      </div>
-      <select onchange="changeHierarchyPageSize(this.value)" style="border:1px solid #e2e8f0; border-radius:6px; padding:6px 10px; font-size:13px; color:#374151; background:#f8fafc;">
-        <option value="10">10개</option><option value="20">20개</option><option value="50">50개</option>
-      </select>
-    </div>
-  </div>
-
-  <div style="overflow-x:auto;">
-    <table id="hierarchyTable">
-      <thead>
-        <tr>
-          <th style="min-width:110px;">채널 / 캠페인</th>
-          <th style="min-width:160px;">광고그룹</th>
-          <th style="min-width:140px;">키워드</th>
-          <th style="text-align:right;">노출</th>
-          <th style="text-align:right;">클릭</th>
-          <th style="text-align:right;">광고비</th>
-          <th style="text-align:right;">CPC</th>
-          <th style="text-align:right;">CTR</th>
-          <th style="text-align:right;">CPM</th>
-          <th style="text-align:right;">구매건수</th>
-          <th style="text-align:right;">매출</th>
-          <th style="text-align:right;">ROAS</th>
-        </tr>
-      </thead>
-      <tbody id="hierarchyTableBody">
-        <!-- adgroup_hierarchy 배열을 순회하며 아래 2단계 행 패턴 반복 -->
-        <!-- 광고그룹 행 (기본 펼침 O, data-depth=0) -->
-        <tr class="h-row" data-depth="0" data-node-id="{group_node_id}" data-parent-id="">
-          <td style="color:#94a3b8; font-size:12px;">{channel_label} / {campaign}</td>
-          <td>
-            <span class="h-toggle" onclick="toggleHierarchyRow('{group_node_id}')" style="cursor:pointer; display:inline-block; width:16px;">▸</span>
-            {group}
-          </td>
-          <td style="color:#94a3b8;">전체</td>
-          <td style="text-align:right;">{impressions_fmt}</td>
-          <td style="text-align:right;">{clicks_fmt}</td>
-          <td style="text-align:right;">{ad_cost_fmt}</td>
-          <td style="text-align:right;">{cpc_fmt}</td>
-          <td style="text-align:right;">{ctr}%</td>
-          <td style="text-align:right;">{cpm_fmt}</td>
-          <td style="text-align:right;">{purchases}</td>
-          <td style="text-align:right;">{revenue_fmt}</td>
-          <td style="text-align:right;">{roas}%</td>
-        </tr>
-        <!-- 키워드 행 (기본 숨김, data-depth=1, data-parent-id=광고그룹 node id, 토글 아이콘 없음) -->
-        <tr class="h-row" data-depth="1" data-node-id="{keyword_node_id}" data-parent-id="{group_node_id}" style="display:none;">
-          <td></td>
-          <td></td>
-          <td>{keyword}</td>
-          <td style="text-align:right;">{impressions_fmt}</td>
-          <td style="text-align:right;">{clicks_fmt}</td>
-          <td style="text-align:right;">{ad_cost_fmt}</td>
-          <td style="text-align:right;">{cpc_fmt}</td>
-          <td style="text-align:right;">{ctr}%</td>
-          <td style="text-align:right;">{cpm_fmt}</td>
-          <td style="text-align:right;">{purchases}</td>
-          <td style="text-align:right;">{revenue_fmt}</td>
-          <td style="text-align:right;">{roas}%</td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
-  <div id="hierarchyPagination" style="display:flex; justify-content:center; align-items:center; gap:8px; margin-top:14px; font-size:13px; color:#64748b;"></div>
-</div>
+```json
+{
+  "type": "table",
+  "heading": "광고 그룹 및 키워드 성과",
+  "headers": ["채널 / 캠페인", "광고그룹", "키워드", "노출", "클릭", "광고비", "CPC", "CTR", "CPM", "구매건수", "매출", "ROAS"],
+  "rows": [
+    ["{channel_label} / {campaign}", "{group}", "전체", "{impressions_fmt}", "{clicks_fmt}", "{ad_cost_fmt}", "{cpc_fmt}", "{ctr}%", "{cpm_fmt}", "{purchases}", "{revenue_fmt}", "{roas}%"],
+    ["", "", "└ {keyword}", "{impressions_fmt}", "{clicks_fmt}", "{ad_cost_fmt}", "{cpc_fmt}", "{ctr}%", "{cpm_fmt}", "{purchases}", "{revenue_fmt}", "{roas}%"]
+  ]
+}
 ```
 
-### Script
-
-```javascript
-// 광고그룹(depth=0) 단위로 페이지네이션, 키워드(depth=1)는 그 안에서 펼치기/접기만 함
-window._hierarchyExpanded = window._hierarchyExpanded || {};
-window._hierarchyState = window._hierarchyState || { allGroupRows: [], page: 1, pageSize: 10, keyword: '' };
-
-window.toggleHierarchyRow = function(nodeId) {
-  const isExpanded = !!window._hierarchyExpanded[nodeId];
-  window._hierarchyExpanded[nodeId] = !isExpanded;
-  const icon = document.querySelector(`[data-node-id="${nodeId}"] .h-toggle`);
-  if (icon) icon.textContent = isExpanded ? '▸' : '▾';
-  document.querySelectorAll(`[data-parent-id="${nodeId}"]`).forEach(row => {
-    row.style.display = isExpanded ? 'none' : '';
-  });
-};
-
-window.collapseHierarchyChildren = function(nodeId) {
-  window._hierarchyExpanded[nodeId] = false;
-  const icon = document.querySelector(`[data-node-id="${nodeId}"] .h-toggle`);
-  if (icon) icon.textContent = '▸';
-  document.querySelectorAll(`[data-parent-id="${nodeId}"]`).forEach(row => { row.style.display = 'none'; });
-};
-
-window.filterHierarchyTable = function(keyword) {
-  const state = window._hierarchyState;
-  state.keyword = keyword.toLowerCase();
-  state.page = 1;
-  window.renderHierarchyPage();
-};
-
-window.changeHierarchyPageSize = function(size) {
-  const state = window._hierarchyState;
-  state.pageSize = parseInt(size);
-  state.page = 1;
-  window.renderHierarchyPage();
-};
-
-window.renderHierarchyPage = function() {
-  const state = window._hierarchyState;
-  const allGroups = state.allGroupRows || [];
-  const keyword = state.keyword || '';
-  const pageSize = state.pageSize || 10;
-  const page = state.page || 1;
-
-  // 검색은 광고그룹 행 자신의 텍스트(광고그룹명 + 채널/캠페인 참고 컬럼) 기준으로만 필터링한다
-  // (하위 키워드까지 검색하려면 해당 그룹을 직접 펼쳐서 확인한다)
-  const filtered = keyword ? allGroups.filter(g => g.textContent.toLowerCase().includes(keyword)) : allGroups;
-  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
-  const start = (page - 1) * pageSize;
-  const pageGroups = filtered.slice(start, start + pageSize);
-  const pageGroupIds = new Set(pageGroups.map(g => g.getAttribute('data-node-id')));
-
-  allGroups.forEach(g => {
-    const nodeId = g.getAttribute('data-node-id');
-    g.style.display = pageGroupIds.has(nodeId) ? '' : 'none';
-    // 페이지가 바뀔 때마다 모든 그룹은 접힌 상태로 리셋한다 (이전 페이지의 펼침 상태가 남지 않도록)
-    window.collapseHierarchyChildren(nodeId);
-  });
-
-  const pgEl = document.getElementById('hierarchyPagination');
-  if (pgEl) {
-    pgEl.innerHTML = '';
-    const prev = document.createElement('button');
-    prev.textContent = '‹'; prev.disabled = page <= 1;
-    prev.style.cssText = 'border:1px solid #e2e8f0;background:white;padding:4px 10px;border-radius:4px;cursor:pointer;';
-    prev.onclick = () => { state.page = page - 1; window.renderHierarchyPage(); };
-    pgEl.appendChild(prev);
-    const maxButtons = 6;
-    let startPage = Math.max(1, page - Math.floor(maxButtons / 2));
-    let endPage = Math.min(totalPages, startPage + maxButtons - 1);
-    startPage = Math.max(1, endPage - maxButtons + 1);
-    for (let i = startPage; i <= endPage; i++) {
-      const btn = document.createElement('button');
-      btn.textContent = i;
-      btn.style.cssText = `border:1px solid ${i===page?'#3b82f6':'#e2e8f0'};background:${i===page?'#3b82f6':'white'};color:${i===page?'white':'#374151'};padding:4px 10px;border-radius:4px;cursor:pointer;`;
-      btn.onclick = ((_i) => () => { state.page = _i; window.renderHierarchyPage(); })(i);
-      pgEl.appendChild(btn);
-    }
-    const next = document.createElement('button');
-    next.textContent = '›'; next.disabled = page >= totalPages;
-    next.style.cssText = 'border:1px solid #e2e8f0;background:white;padding:4px 10px;border-radius:4px;cursor:pointer;';
-    next.onclick = () => { state.page = page + 1; window.renderHierarchyPage(); };
-    pgEl.appendChild(next);
-  }
-};
-
-window.initHierarchyTable = function() {
-  const tbody = document.getElementById('hierarchyTableBody');
-  if (!tbody) return;
-  const groupRows = Array.from(tbody.querySelectorAll('.h-row[data-depth="0"]'));
-  window._hierarchyState = { allGroupRows: groupRows, page: 1, pageSize: 10, keyword: '' };
-  window.renderHierarchyPage();
-};
-
-window.initHierarchyTable();
-```
+- **판단 근거**: 원본 HTML은 접기/펼치기가 가능한 2단계 트리(광고그룹→키워드)였으나, `table`
+  섹션 스키마(`headers`/`rows`: 문자열 리스트의 리스트)에는 트리·펼침 상태 개념이 없다. 정적
+  문서에서는 애초에 펼치기 인터랙션이 불가능하므로, **광고그룹 행 바로 아래에 그 그룹의 모든
+  키워드 행을 이미 펼쳐진 상태로 이어 붙인 하나의 평평한(flat) 표**로 만든다.
+- 광고그룹 행: `채널 / 캠페인` 컬럼에 `{channel_label} / {campaign}`, `광고그룹` 컬럼에 그룹명,
+  `키워드` 컬럼에는 "전체"(원본에서 광고그룹 행의 키워드 셀에 표시되던 값 그대로) — `adgroup_hierarchy`
+  배열을 순회하며 만든다.
+- 키워드 행: `채널 / 캠페인`/`광고그룹` 컬럼은 빈 문자열로 비우고, `키워드` 컬럼에 `└ {keyword}`
+  (들여쓰기 표시용 접두사 — 원본의 자식 행 시각적 구분을 표에서도 유지하기 위한 판단)를 넣는다.
+  각 광고그룹의 `children`(키워드) 배열을 그 광고그룹 행 바로 다음 줄들에 순서대로 넣는다.
+- 키워드가 상위 20개로 잘린 경우, 그 뒤에 안내용 키워드 행 하나를 추가한다:
+  `["", "", "└ 외 {N}개 키워드", "", "", "", "", "", "", "", "", ""]`.
+- `cpc`가 `null`(클릭 0)이면 "-", `roas`가 `null`(광고비 0)이면 "-"로 표시한다.
+- 검색창/페이지네이션/펼치기 아이콘은 정적 문서에 의미가 없으므로 전부 제거하고, 전체 트리를
+  이미 펼쳐진 flat 표 하나로 낸다 (mtd 계열 표 섹션과 동일한 "전체 행을 한 표에" 판단을
+  트리 구조에 맞게 확장 적용).
 
 ## 렌더링 규칙 (분기 B)
 - 광고그룹 정렬: 매출 내림차순 (`-revenue`), 동률이면 광고비 내림차순. 키워드도 같은 그룹 안에서
@@ -346,18 +165,7 @@ window.initHierarchyTable();
   않음).
 - 이 섹션은 daily-section-5(캠페인 성과)와 같은 3개 SA 채널(브랜드검색/파워링크/쇼핑검색)만
   다룬다 — GFA 채널은 광고그룹/키워드 구조가 없다.
-- ⚠️ **페이지네이션 (2026-07-23 추가, 우측 상단 "↻ 새로고침" 버튼을 대체)**: 한 번에 표시되는
-  **광고그룹(depth=0) 행 개수**를 10/20/50개 중 선택하는 드롭다운을 검색창 옆에 둔다 (기본값
-  10개). daily-section-5(캠페인 성과)의 페이지네이션과 동일한 스타일/동작이다. 페이지네이션은
-  광고그룹 단위로만 동작한다 — 키워드(depth=1) 행은 페이지 계산에 포함되지 않고, 화면에 보이는
-  광고그룹을 펼칠 때만 그 아래에 추가로 나타난다.
-  - 전체 광고그룹 개수가 선택된 페이지 크기를 초과하면 표 하단에 페이지 번호를 표시한다
-    (초과하지 않으면 페이지네이션 영역을 비워둔다 — daily-section-5와 동일한 동작).
-  - 페이지를 전환하면 이전 페이지에서 펼쳐뒀던 광고그룹은 전부 다시 접힌 상태로 리셋된다.
-  - 검색은 **광고그룹 행 자신의 텍스트(광고그룹명 + 좌측 "채널 / 캠페인" 컬럼)만** 대상으로
-    한다 — 하위 키워드명까지는 검색하지 않는다(2026-07-23: 페이지네이션 도입으로 검색 로직을
-    daily-section-5와 통일하기 위해 단순화함). 특정 키워드를 찾으려면 해당 광고그룹을 직접
-    펼쳐서 확인해야 한다.
-  - ~~"↻ 새로고침" 버튼~~은 제거되었다 — 페이지네이션이 도입되면서 "전체 다시 보기"는 검색어를
-    지우고 1페이지로 돌아가는 것으로 대체된다.
+- (참고, HTML 시절 UI 사양 — 정적 문서에는 적용되지 않음) 원본 HTML에는 광고그룹 단위
+  페이지네이션(10/20/50개)과 광고그룹명/채널·캠페인 컬럼 기준 검색 기능이 있었으나, DOCX
+  섹션에서는 위 "DOCX 섹션 (분기 B)"의 판단대로 전체 트리를 flat 표 하나로 이미 펼쳐서 낸다.
 

@@ -14,46 +14,27 @@
 - `sales_daily.ad_spend`: 광고비 배열 ($)
 - `sales_daily.roas`: ROAS 배열 (%)
 
-### HTML
-```html
-<!-- DAILY SECTION 4 (Google/Meta): Sales Daily Chart -->
-<div style="background:white; border:1px solid #e2e8f0; padding:20px 24px; margin-bottom:16px;">
-  <div style="font-size:15px; font-weight:700; color:#1e293b; margin-bottom:16px;">
-    Sales campaign: Daily performance in the last 7 days
-  </div>
-  <div style="position:relative; height:300px;">
-    <canvas id="salesDailyChart"></canvas>
-  </div>
-</div>
+### DOCX 섹션 (분기 A)
+
+```json
+{
+  "type": "chart",
+  "heading": "Sales campaign: Daily performance in the last 7 days",
+  "categories": "{sales_daily.labels}",
+  "bar_series": [
+    { "name": "Revenue", "values": "{sales_daily.revenue}" },
+    { "name": "Ad Spend", "values": "{sales_daily.ad_spend}" }
+  ],
+  "line_series": { "name": "ROAS", "values": "{sales_daily.roas}" }
+}
 ```
 
-### Script
-```javascript
-(function(){
-  const ctx = document.getElementById('salesDailyChart');
-  if(!ctx) return;
-  const d = {SALES_DAILY_DATA};
-  new Chart(ctx, {
-    data: {
-      labels: d.labels,
-      datasets: [
-        { type: 'bar', label: 'Revenue', data: d.revenue, backgroundColor: '#94a3b8', yAxisID: 'y', order: 2 },
-        { type: 'bar', label: 'Ad Spend', data: d.ad_spend, backgroundColor: '#93c5fd', yAxisID: 'y', order: 3 },
-        { type: 'line', label: 'ROAS', data: d.roas, borderColor: '#ef4444', backgroundColor: 'transparent',
-          pointBackgroundColor: '#ef4444', pointRadius: 4, tension: 0.3, yAxisID: 'y2', order: 1 }
-      ]
-    },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: { legend: { position: 'top' } },
-      scales: {
-        y:  { position: 'left',  beginAtZero: true, ticks: { callback: v => '$'+v.toLocaleString() } },
-        y2: { position: 'right', beginAtZero: true, grid: { drawOnChartArea: false }, ticks: { callback: v => v+'%' } }
-      }
-    }
-  });
-})();
-```
+- `categories`는 `sales_daily.labels`(날짜 레이블 배열)를 그대로 넣는다.
+- `bar_series`는 매출(`sales_daily.revenue`)과 광고비(`sales_daily.ad_spend`) 두 시리즈,
+  `line_series`는 ROAS(`sales_daily.roas`) 한 시리즈다 — 원본 Chart.js 혼합 차트(막대 2개 + 꺾은선
+  1개)와 동일 구성(mtd-section-4 패턴과 동일).
+- 위 JSON의 문자열 자리(`"{sales_daily.labels}"` 등)는 실제 렌더링 시 그 배열/리스트 값으로 그대로
+  치환한다(문자열이 아니라 JSON 배열이 들어간다).
 
 ---
 
@@ -76,50 +57,27 @@
 - `sales_daily.ad_spend`: 광고비 배열 (원) ← `ad_cost`
 - `sales_daily.roas`: ROAS 배열 (%) ← `revenue / ad_cost × 100`
 
-### HTML
-```html
-<!-- DAILY SECTION 4 (naver): 최근 7일 성과 -->
-<div class="card" style="margin-bottom:16px;">
-  <div class="section-title">최근 7일 성과</div>
-  <div style="position:relative; height:300px;">
-    <canvas id="naverSalesDailyChart"></canvas>
-  </div>
+### DOCX 섹션 (분기 B)
 
-  <!-- 날짜 선택 탭 (스크린샷 Daily_1 하단 참고) — 순수 시각적 요소, 클릭 동작은 옵션 -->
-  <div style="display:grid; grid-template-columns:repeat(7,1fr); gap:1px; background:#e2e8f0; border:1px solid #e2e8f0; margin-top:14px; font-size:12px;">
-    <!-- sales_daily.labels 배열을 순회하며 아래 셀 반복 -->
-    <div style="background:{TAB_BG}; color:{TAB_COLOR}; text-align:center; padding:8px 4px;">{day_label}</div>
-  </div>
-</div>
+```json
+{
+  "type": "chart",
+  "heading": "최근 7일 성과",
+  "categories": "{sales_daily.labels}",
+  "bar_series": [
+    { "name": "매출", "values": "{sales_daily.revenue}" },
+    { "name": "광고비", "values": "{sales_daily.ad_spend}" }
+  ],
+  "line_series": { "name": "ROAS", "values": "{sales_daily.roas}" }
+}
 ```
 
-### Script
-```javascript
-(function(){
-  const ctx = document.getElementById('naverSalesDailyChart');
-  if(!ctx) return;
-  const d = {SALES_DAILY_DATA}; // { labels:[...], revenue:[...], ad_spend:[...], roas:[...] }
-  new Chart(ctx, {
-    data: {
-      labels: d.labels,
-      datasets: [
-        { type: 'bar', label: '매출', data: d.revenue, backgroundColor: '#94a3b8', yAxisID: 'y', order: 2 },
-        { type: 'bar', label: '광고비', data: d.ad_spend, backgroundColor: '#93c5fd', yAxisID: 'y', order: 3 },
-        { type: 'line', label: 'ROAS', data: d.roas, borderColor: '#ef4444', backgroundColor: 'transparent',
-          pointBackgroundColor: '#ef4444', pointRadius: 4, tension: 0.3, yAxisID: 'y2', order: 1 }
-      ]
-    },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: { legend: { position: 'top' } },
-      scales: {
-        y:  { position: 'left',  beginAtZero: true, ticks: { callback: v => '₩'+v.toLocaleString() } },
-        y2: { position: 'right', beginAtZero: true, grid: { drawOnChartArea: false }, ticks: { callback: v => v+'%' } }
-      }
-    }
-  });
-})();
-```
+- `categories`/`bar_series`/`line_series` 매핑은 분기 A와 동일한 구조(라벨/매출/광고비/ROAS)다.
+- **날짜 선택 탭(원본 HTML의 target_date 강조 스트립)은 이 DOCX 섹션에 포함하지 않는다** —
+  스크린샷 시절부터 "순수 장식용" + "클릭 시 실제 동작 없음"으로 명시돼 있던 요소이고, 정적
+  문서에는 클릭 인터랙션이 존재하지 않으므로 굳이 표로 재현할 실익이 없다는 판단이다(값 자체는
+  이미 `categories`의 날짜 레이블에 전부 나타난다). 필요해지면 별도 요구사항으로 표/텍스트 형태를
+  추가한다.
 
 ### 렌더링 규칙 (분기 B)
 - 날짜 탭 셀: `target_date`에 해당하는 셀만 `TAB_BG=#fee2e2`(연한 빨강), `TAB_COLOR=#dc2626`
