@@ -1,10 +1,12 @@
-# Daily Section 3: Executive Summary
+# Daily Section 3: 성과요약 (Executive Summary)
 
-**report_type:** `daily` — Meta/Google 브랜드 전용(Aqua Glow, Saturday Skin).
+**report_type:** `daily` (항상 포함) — daily-section-1과 동일한 분기 규칙을 따른다.
 
 ---
 
-## MCP 도구 호출: `df_dify` 서버의 분석 tool (브랜드/워크플로별 tool명 확인 필요)
+## 분기 A: Google/Meta 브랜드
+
+**MCP 도구 호출: `df_dify` 서버의 분석 tool (브랜드/워크플로별 tool명 확인 필요)**
 
 `.mcp.json`에 등록된 dify MCP 서버 키는 `df_dify`이다 (예: `mcp__df_dify__<workflow-tool-name>`).
 실제 tool명은 브랜드마다 연결된 Dify 워크플로에 따라 다르다(예: Aqua Glow는 `AG_Daily_V1_01`) — 이
@@ -20,39 +22,147 @@
 
 dify 응답 실패 시 수치 기반으로 AI가 직접 생성한다.
 
----
+⚠️ **문장 종결은 항상 개조식(~함/~음/~임/~됨 등)으로 쓴다** — "~습니다/했습니다"체를 쓰지
+않는다 (2026-07-23 정정: 예전엔 "~습니다"체였으나 보고서용 개조식으로 통일함).
 
-## 응답 데이터 구조
-
+### 응답 데이터 구조
 ```json
-{
-  "executive_summary": "2026년 5월 15일 퍼포먼스 마케팅 성과는 좋았습니다. 광고비를 일 목표 대비..."
-}
+{ "executive_summary": "2026년 5월 15일 퍼포먼스 마케팅 성과는 좋았음. 광고비를 일 목표 대비..." }
 ```
-
 - `executive_summary` 값이 문자열이면 그대로 `<p>`로 렌더링
 - 줄바꿈(`\n`) 기준으로 분리하여 각 줄을 `<li>`로 렌더링
 
----
-
-## HTML
-
+### HTML
 ```html
-<!-- DAILY SECTION 3: Executive Summary -->
+<!-- DAILY SECTION 3 (Google/Meta): Executive Summary -->
 <div class="card" style="margin-bottom:16px;">
   <div class="section-title">Executive Summary</div>
   <ul style="padding-left:20px; line-height:1.9; font-size:13px; color:#374151;">
-    <!-- executive_summary를 줄바꿈 기준으로 분리하여 <li>로 렌더링 -->
     {EXECUTIVE_SUMMARY_ITEMS}
   </ul>
 </div>
 ```
 
-## Script
+---
+
+## 분기 B: naver 브랜드 ⭐ 신규
+
+스크린샷(Daily_1) 참고 — 이 섹션은 "{M}월 {D}일 광고 성과 요약"이라는 볼드 소제목 하나와 그
+아래 불릿 목록(때로는 중첩 목록)으로 구성된다. mtd(MK) Executive Summary보다 훨씬 더 캠페인/
+광고그룹 단위로 구체적이다 — **하루짜리 스냅샷 리포트이므로, "오늘 하루 무슨 일이 있었는지"를
+세밀하게 짚어주는 것이 목적**이다.
+
+⚠️ **2026-07-23 정정**: 예전엔 "{M}월 {D}일의 성과요약"이라는 상위 제목과 "{M}월 {D}일 광고
+성과 요약"이라는 소제목을 둘 다 렌더링했으나, 실제로는 같은 날짜를 가리키는 문구가 중복 표시되는
+문제가 있었다. **상위 제목(`daily_summary_heading`)은 더 이상 만들지 않고, 소제목
+(`daily_summary_subheading`) 하나만 이 섹션의 제목으로 렌더링한다.**
+
+### 데이터 수집 — 별도 재호출 없이 재사용 + 신규 호출
+
+1. **`get_naver_daily_attributed_sales`** (daily-section-4와 동일 호출 재사용) — 브랜드 전체
+   일별 `ad_cost`/`revenue`/`purchases` (target_date 포함 최근 7~14일)
+2. **`get_naver_sa_performance_daily`** (`group_by="campaign"`, `group_by="ad-group"`를 각각
+   호출) — target_date 당일 + 비교 기준 기간(아래 3번) 각각에 대해. daily-section-5(캠페인
+   성과)/daily-section-6(광고그룹 및 키워드 성과)와 동일 호출을 재사용할 수 있다 (날짜 범위를
+   넓게 잡아서 한 번에 가져온 뒤, 이 섹션과 daily-section-5/6이 필요한 부분만 각자 잘라 쓴다).
+3. **`list_promotions`** — `start_date`=target_date-21일, `end_date`=target_date로 호출해,
+   최근 3주 내 겹치는 프로모션이 있는지 확인한다.
+   - 프로모션이 있으면 `formatted_info`의 `[대상 카테고리 및 할인율]` 아래 항목들을 파싱해
+     "프로모션 대상 카테고리/캠페인" 목록을 만든다.
+   - **비교 구간을 3단계로 나눈다**: (a) 프로모션 기간(`date_begin`~`date_end`), (b) 프로모션
+     이전 7일(기준선), (c) 프로모션 종료 후 target_date까지(종료 후 추세). target_date가
+     프로모션 기간 안에 있으면 (c)는 생략한다.
+   - 프로모션이 없으면 단순히 **target_date 당일 vs 직전 7일 평균**으로 비교한다 (daily-section-4
+     데이터 재사용).
+4. `get_naver_item_sales_daily`(category_3rd 또는 product 단위)를 추가로 호출해, 프로모션
+   대상/비대상 카테고리의 매출 추이를 보조적으로 확인할 수 있다 (필요시).
+
+### 작성 원칙
+
+```
+1. 최상위 불릿(하나): "{M}월 {D}일의 전체 광고 성과는 광고비 약 {X}원, 매출 약 {Y}원, ROAS
+   {Z}%였음." + 비교 기준 기간 대비 어떻게 다른지 한 문장 (프로모션 유무에 따라 "직전 7일
+   평균과 비교" 또는 "프로모션 기간과 비교"). 프로모션이 최근에 있었다면 그 사실과 기간을
+   명시하고, "이 비교가 프로모션의 영향을 받을 수 있음"이라는 점을 짚어준다.
+2. "주요 캠페인에서 확인된 특이 사항은 아래와 같음" 소제목 + 중첩 불릿 1~3개:
+   - `get_naver_sa_performance_daily(group_by="campaign")` 데이터에서, target_date의 캠페인별
+     ROAS/전환율을 비교 기준 기간의 같은 캠페인 평균과 대조해 **가장 크게 벌어진 캠페인**을
+     골라 수치와 함께 기술한다.
+   - 그 캠페인이 프로모션 대상 카테고리에 해당하는지/아닌지를 반드시 짚어준다 (해당하면 "프로모션
+     종료 후 급락"류의 설명, 해당 안 하면 "프로모션 대상이 아님에도" 류의 설명).
+   - ⚠️ **역상관 관계 확인** (2026-07-23 추가): 같은 캠페인에서 한 지표는 개선되었으나 다른
+     지표는 악화되는 <역상관 관계가 확인된다면>(예: 전환율은 떨어졌지만 ROAS는 오히려 상회하는
+     경우), 이를 명시적으로 규명하고 데이터상 가능한 원인(예: "건당 구매금액이 커져 전환율
+     하락을 상쇄")까지 설명한다.
+3. "주요 광고그룹에서 확인된 특이 사항은 아래와 같음" 소제목 + 중첩 불릿 1~3개:
+   - `get_naver_sa_performance_daily(group_by="ad-group")` 데이터에서 동일한 방식으로 광고그룹
+     단위 특이사항을 찾는다 (전환율·CPC·ROAS 중 가장 뚜렷하게 변한 지표 기준).
+   - ⚠️ **역상관 관계 확인** (2026-07-23 추가): 2번과 동일하게, 광고그룹 단위에서도 지표 간
+     <역상관 관계가 확인된다면> 규명하고 가능한 원인을 설명한다.
+4. 새로운 수치를 지어내지 않는다 — 근거 없는 원인 추정(예: "경쟁사 때문일 것")은 쓰지 않고,
+   "수요가 수축하는 패턴이 데이터상 관찰됨", "가능성이 높음"처럼 데이터가 보여주는 패턴까지만
+   서술한다. 역상관 관계의 "가능한 원인"도 마찬가지로 데이터(다른 지표의 동반 변화)로 뒷받침되는
+   설명만 쓴다 — 데이터 밖의 추측(경쟁사, 날씨 등)은 쓰지 않는다.
+5. 전체 불릿 개수: 최상위 1개 + 하위 그룹 2개(캠페인/광고그룹) × 각 1~3개 항목. **각 불릿 항목의
+   문장은 최대 3개로 제한한다** (2026-07-23 추가 — 역상관 관계 설명이 추가되며 문장이 길어질 수
+   있어 상한을 명시함). 스크린샷보다 많아지지 않도록 한다 (하루짜리 리포트이므로 과도하게
+   길어지면 안 됨).
+6. ⚠️ **문장 종결은 항상 개조식(~함/~음/~임/~됨 등)으로 쓴다** — "~습니다/했습니다/합니다"체를
+   쓰지 않는다 (2026-07-23 정정). 예: "ROAS는 155%로 저조했습니다." (❌) → "ROAS는 155%로
+   저조함." (✅).
+```
+
+### 응답 데이터 구조
+
+```json
+{
+  "daily_summary_subheading": "4월 28일 광고 성과 요약",
+  "top_bullet": "4월 28일의 전체 광고 성과는 광고비 약 310만 원, 매출 약 1,540만 원, ROAS 496.6%였음. 직전 7일(4월 21일~27일)의 일평균 광고비 약 370만 원, 일평균 매출 약 2,310만 원, 일평균 ROAS 622.9%와 비교하면, 4월 28일은 매출과 ROAS 모두 낮은 수준임. 다만, 직전 7일은 4월 푸드페스타 프로모션 기간에 해당하여 전반적인 구매 활성화 효과가 반영된 기간임을 감안할 필요가 있음.",
+  "campaign_group_title": "주요 캠페인에서 확인된 특이 사항은 아래와 같음.",
+  "campaign_bullets": [
+    "브랜드검색 통합 캠페인(모바일)의 커피 광고그룹은 4월 28일 ROAS가 약 209%로, 프로모션 기간(4월 21일~27일) 7일 평균 약 1,052% 대비 약 843%p 급락하였음."
+  ],
+  "adgroup_group_title": "주요 광고그룹에서 확인된 특이 사항은 아래와 같음.",
+  "adgroup_bullets": [
+    "라떼 알파커피 광고그룹(쇼핑 커피 캠페인, 모바일)은 4월 28일 전환율이 17.78%로 프로모션 기간 평균 약 44.0% 대비 약 26.2%p 하락하였으나, ROAS는 약 1,457%로 프로모션 이전 7일(4월 14일~20일) 평균 약 1,063%를 상회함. 같은 기간 건당 구매금액이 함께 상승한 점으로 볼 때, 전환율 하락이 객단가 상승으로 상쇄된 것으로 판단됨."
+  ]
+}
+```
+
+### HTML
+
+```html
+<!-- DAILY SECTION 3 (naver): 성과요약 -->
+<div class="card" style="margin-bottom:16px;">
+  <div style="font-size:15px; font-weight:700; color:#1e293b; margin-bottom:12px;">{daily_summary_subheading}</div>
+  <ul style="padding-left:20px; line-height:1.9; font-size:13px; color:#374151; margin-bottom:12px;">
+    <li>{top_bullet}</li>
+  </ul>
+
+  <div style="font-size:13px; color:#374151; margin:10px 0 4px; padding-left:4px;">{campaign_group_title}</div>
+  <ul style="padding-left:36px; line-height:1.8; font-size:13px; color:#374151; margin-bottom:12px;">
+    <!-- campaign_bullets 배열을 순회하며 <li> 반복 -->
+    <li>{campaign_bullet}</li>
+  </ul>
+
+  <div style="font-size:13px; color:#374151; margin:10px 0 4px; padding-left:4px;">{adgroup_group_title}</div>
+  <ul style="padding-left:36px; line-height:1.8; font-size:13px; color:#374151;">
+    <!-- adgroup_bullets 배열을 순회하며 <li> 반복 -->
+    <li>{adgroup_bullet}</li>
+  </ul>
+</div>
+```
+
+## Script (두 분기 공통)
 없음 (정적 텍스트)
 
-## 렌더링 규칙
-- `executive_summary` 문자열을 `\n` 기준으로 split → 각 줄을 `<li>` 태그로 변환
-- 빈 줄은 건너뜀
-- `⚠`로 시작하는 항목은 `color:#d97706` (주황) 처리
+## 렌더링 규칙 (공통)
 - 강조 수치는 `<strong>` 태그 사용
+- `⚠`로 시작하는 항목은 `color:#d97706` (주황) 처리
+- (naver 분기) `campaign_bullets`/`adgroup_bullets`가 빈 배열이면 해당 소제목 블록 자체를
+  렌더링하지 않는다 (특이사항이 없으면 억지로 채우지 않음).
+- **문장 종결은 항상 개조식(~함/~음/~임/~됨 등)** — "~습니다/했습니다"체는 쓰지 않는다
+  (2026-07-23 정정, 두 분기 모두 적용).
+- (naver 분기) 이 섹션의 제목은 `daily_summary_subheading`("{M}월 {D}일 광고 성과 요약") 하나뿐이다
+  — 별도의 상위 제목("{M}월 {D}일의 성과요약")을 추가로 렌더링하지 않는다 (2026-07-23 정정,
+  동일 날짜 문구 중복 표시 문제 수정).
