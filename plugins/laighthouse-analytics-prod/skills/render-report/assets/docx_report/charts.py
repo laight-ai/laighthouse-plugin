@@ -5,6 +5,7 @@ part by hand, registers it in the docx package's relationship graph, and
 inserts the referencing drawing paragraph directly via lxml/python-docx's
 oxml layer.
 """
+from xml.sax.saxutils import escape as xml_escape
 from docx.opc.packuri import PackURI
 from docx.opc.part import Part
 from docx.oxml import parse_xml
@@ -69,7 +70,7 @@ def _next_doc_pr_id(document):
 
 
 def _str_cache(values):
-    pts = "".join(f'<c:pt idx="{i}"><c:v>{v}</c:v></c:pt>' for i, v in enumerate(values))
+    pts = "".join(f'<c:pt idx="{i}"><c:v>{xml_escape(v)}</c:v></c:pt>' for i, v in enumerate(values))
     return f'<c:strCache><c:ptCount val="{len(values)}"/>{pts}</c:strCache>'
 
 
@@ -85,29 +86,26 @@ def _col_letter(idx):
     return chr(66 + idx)  # B, C, D, ... (column A is reserved for categories)
 
 
-def _bar_series_xml(idx, name, categories, values):
+def _series_xml(idx, name, categories, values, with_marker=False):
     col = _col_letter(idx)
+    marker_xml = '<c:marker><c:symbol val="circle"/></c:marker>' if with_marker else ''
     return f'''
     <c:ser>
       <c:idx val="{idx}"/>
       <c:order val="{idx}"/>
       <c:tx><c:strRef><c:f>Sheet1!${col}$1</c:f>{_str_cache([name])}</c:strRef></c:tx>
+      {marker_xml}
       <c:cat><c:strRef><c:f>Sheet1!$A$2:$A${len(categories) + 1}</c:f>{_str_cache(categories)}</c:strRef></c:cat>
       <c:val><c:numRef><c:f>Sheet1!${col}$2:${col}${len(values) + 1}</c:f>{_num_cache(values)}</c:numRef></c:val>
     </c:ser>'''
+
+
+def _bar_series_xml(idx, name, categories, values):
+    return _series_xml(idx, name, categories, values, with_marker=False)
 
 
 def _line_series_xml(idx, name, categories, values):
-    col = _col_letter(idx)
-    return f'''
-    <c:ser>
-      <c:idx val="{idx}"/>
-      <c:order val="{idx}"/>
-      <c:tx><c:strRef><c:f>Sheet1!${col}$1</c:f>{_str_cache([name])}</c:strRef></c:tx>
-      <c:marker><c:symbol val="circle"/></c:marker>
-      <c:cat><c:strRef><c:f>Sheet1!$A$2:$A${len(categories) + 1}</c:f>{_str_cache(categories)}</c:strRef></c:cat>
-      <c:val><c:numRef><c:f>Sheet1!${col}$2:${col}${len(values) + 1}</c:f>{_num_cache(values)}</c:numRef></c:val>
-    </c:ser>'''
+    return _series_xml(idx, name, categories, values, with_marker=True)
 
 
 def _build_chart_xml(categories, bar_series, line_series, title):
@@ -121,7 +119,7 @@ def _build_chart_xml(categories, bar_series, line_series, title):
     if title:
         title_xml = (
             "<c:title><c:tx><c:rich><a:bodyPr/><a:p><a:r><a:t>"
-            f"{title}</a:t></a:r></a:p></c:rich></c:tx><c:overlay val=\"0\"/></c:title>"
+            f"{xml_escape(title)}</a:t></a:r></a:p></c:rich></c:tx><c:overlay val=\"0\"/></c:title>"
         )
     return f'''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <c:chartSpace {_CHART_NS}>

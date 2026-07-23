@@ -61,3 +61,37 @@ def test_add_combo_chart_supports_multiple_charts_in_one_document(tmp_path):
         names = z.namelist()
         assert "word/charts/chart1.xml" in names
         assert "word/charts/chart2.xml" in names
+
+
+def test_add_combo_chart_escapes_xml_special_characters(tmp_path):
+    """Test that series names, categories, and titles with special chars are properly escaped."""
+    document = Document()
+
+    rId = charts.add_combo_chart(
+        document,
+        categories=["1월 & 2월", "3월 < 4월"],
+        bar_series=[
+            {"name": "H&M 광고비", "values": [100, 200]},
+            {"name": "R&D \"캠페인\"", "values": [300, 400]},
+        ],
+        line_series={"name": "ROAS > 목표", "values": [300, 200]},
+        title="월별 성과 & 분석",
+    )
+
+    out_path = tmp_path / "escaped_chart_test.docx"
+    document.save(out_path)
+
+    # Verify the document saves and loads without corruption
+    with zipfile.ZipFile(out_path) as z:
+        names = z.namelist()
+        assert "word/charts/chart1.xml" in names
+        chart_xml = z.read("word/charts/chart1.xml").decode("utf-8")
+
+        # Verify escaped values are present in the XML
+        assert "H&amp;M 광고비" in chart_xml or "H&M 광고비" in chart_xml
+        assert "1월 &amp; 2월" in chart_xml or "1월 & 2월" in chart_xml
+        assert "월별 성과 &amp; 분석" in chart_xml or "월별 성과 & 분석" in chart_xml
+
+        # Verify the XML is well-formed by checking it can be parsed
+        import xml.etree.ElementTree as ET
+        ET.fromstring(chart_xml)  # This will raise if XML is malformed
