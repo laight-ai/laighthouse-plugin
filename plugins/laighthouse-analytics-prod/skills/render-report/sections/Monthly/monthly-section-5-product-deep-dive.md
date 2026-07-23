@@ -47,30 +47,18 @@ mtd(MK)의 `mtd-section-5-product-deep-dive.md`와 HTML 골격은 동일하지�
 
 ---
 
-## HTML
+## DOCX 섹션
 
-```html
-<!-- MONTHLY SECTION 5: 제품 판매 성과의 심층 분석 -->
-<div class="card" style="margin-bottom:16px;">
-  <div class="section-title">제품 판매 트렌드 분석</div>
-  <div style="font-size:13px; color:#374151; line-height:1.8;">
-    <!-- analysis_of_category_performance를 \n\n 기준으로 분리, 각 블록의 첫 줄은 <h4> 소제목 -->
-    {PRODUCT_ANALYSIS_BLOCKS}
-  </div>
-</div>
+```json
+{
+  "type": "text",
+  "heading": "제품 판매 트렌드 분석",
+  "body": "{analysis_of_category_performance}"
+}
 ```
 
-블록 렌더링 예시:
-
-```html
-<h4 style="font-size:14px; font-weight:700; margin:16px 0 6px;">성장 카테고리</h4>
-<p>단백질보충제와 우유/요거트는 각각 전월 대비 17%, 18.8% 증가하며 뚜렷한 성장세를 보였습니다...</p>
-```
-
-## Script
-없음 (정적 텍스트)
-
-## 렌더링 규칙
-- 첫 블록(`Overview`)은 `margin-top:0`
-- 강조 수치는 `<strong>` 태그 사용
-- 섹션 타이틀은 "제품 판매 성과의 심층 분석"**이다.
+- `analysis_of_category_performance`는 `\n\n`으로 구분된 블록 문자열(첫 줄이 `Overview` 또는
+  주제 소제목, 나머지가 설명)을 그대로 `body`에 넣는다 — 정적 문서에서는 소제목/본문을 별도
+  마크업으로 나누지 않고 하나의 텍스트 블록으로 낸다.
+- 강조하고 싶은 수치가 있으면 문장 자체에 자연스럽게 녹여 쓴다.
+- 섹션 타이틀은 "제품 판매 트렌드 분석"이다.

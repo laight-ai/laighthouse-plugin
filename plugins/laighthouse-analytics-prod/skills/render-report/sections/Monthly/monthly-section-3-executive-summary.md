@@ -50,26 +50,20 @@ mtd(MK)의 `mtd-section-3-executive-summary.md`와 HTML 골격은 동일하지�
 
 ---
 
-## HTML
+## DOCX 섹션
 
-```html
-<!-- MONTHLY SECTION 3: Executive Summary -->
-<div class="card" style="margin-bottom:16px;">
-  <div class="section-title">Executive Summary</div>
-  <ul style="padding-left:20px; line-height:1.9; font-size:13px; color:#374151;">
-    <!-- executive_summary를 줄바꿈 기준으로 분리하여 <li>로 렌더링 -->
-    {EXECUTIVE_SUMMARY_ITEMS}
-  </ul>
-</div>
+```json
+{
+  "type": "text",
+  "heading": "Executive Summary",
+  "body": "{executive_summary}"
+}
 ```
 
-## Script
-없음 (정적 텍스트)
-
-## 렌더링 규칙
-- `executive_summary` 문자열을 `\n` 기준으로 split → 각 줄을 `<li>` 태그로 변환
-- 빈 줄은 건너뜀
-- `⚠`로 시작하는 항목(주의/관찰 사항)은 `color:#d97706` (주황) 처리
-- 강조 수치는 `<strong>` 태그 사용
+- `executive_summary` 문자열을 그대로 `body`에 넣는다 — 줄바꿈(`\n`)이 있는 하나의 문자열을
+  그대로 전달하면 되고, 별도의 리스트/HTML 마크업으로 쪼개지 않는다(정적 문서에서는 단락 텍스트로
+  충분하다).
+- 빈 줄은 작성 단계에서 이미 걸러서 넣는다.
+- 강조하고 싶은 수치가 있으면 문장 자체에 자연스럽게 녹여 쓴다(굵게 표시할 별도 마크업은 없음).
 - mtd와 달리 "MTD 페이싱", "월 초부터 현재까지" 같은 부분월 표현을 쓰지 않는다 — monthly는
   항상 완결된 한 달을 다룬다.

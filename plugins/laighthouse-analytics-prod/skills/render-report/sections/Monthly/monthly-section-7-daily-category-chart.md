@@ -35,51 +35,26 @@ mtd(MK)의 `mtd-section-6-daily-category-chart.md`와 **동일한 포맷/차트*
   ]
   ```
 
-## HTML
+## DOCX 섹션
 
-```html
-<!-- MONTHLY SECTION 7: 일일 카테고리별 매출 현황 -->
-<div class="card" style="margin-bottom:16px;">
-  <div class="section-title">일일 카테고리별 매출 현황</div>
-  <div style="position:relative; height:300px;">
-    <canvas id="monthlyDailyCategoryChart"></canvas>
-  </div>
-</div>
+```json
+{
+  "type": "table",
+  "heading": "일일 카테고리별 매출 현황",
+  "headers": ["날짜", "국내분유", "커피", "단백질보충제", "우유/요거트", "두유"],
+  "rows": [
+    ["{daily_sales.labels[i]}", "{series[0].data[i]}", "{series[1].data[i]}", "{series[2].data[i]}", "{series[3].data[i]}", "{series[4].data[i]}"]
+  ]
+}
 ```
 
-## Script
-
-```javascript
-// Section 7: 일일 카테고리별 매출 멀티라인 차트 (월 전체)
-(function(){
-  const ctx = document.getElementById('monthlyDailyCategoryChart');
-  if(!ctx) return;
-  const d = {DAILY_SALES_DATA}; // MCP 데이터 JSON 치환
-  new Chart(ctx, {
-    type:'line',
-    data:{
-      labels: d.labels,
-      datasets: d.series.map(s=>({
-        label: s.label, data: s.data,
-        borderColor: s.color, backgroundColor:'transparent',
-        pointRadius:2, tension:0.3
-      }))
-    },
-    options:{
-      responsive:true, maintainAspectRatio:false,
-      plugins:{
-        legend:{ position:'top' },
-        tooltip:{
-          mode:'index', intersect:false,
-          callbacks:{ label: c => c.dataset.label+': '+Number(c.raw).toLocaleString() }
-        }
-      },
-      scales:{ y:{ ticks:{ callback: v => Number(v).toLocaleString() } } }
-    }
-  });
-})();
-```
-
-## 렌더링 규칙
-- `canvas id`는 `monthlyDailyCategoryChart`로 한다 (mtd(MK)의 `dailyChart`와 id 중복 방지).
-- 데이터가 비어있으면 "데이터 준비 중" 카드로 대체한다.
+> ⚠️ **원본은 5개 카테고리 매출 추이를 겹쳐 그리는 멀티라인 차트였지만, docx 생성기의 `chart`
+> 타입은 막대 시리즈 + 단일 꺾은선 시리즈로 구성된 콤보 차트만 지원하고(막대 없는 다중 라인
+> 차트는 지원하지 않는다), 5개의 독립된 라인 시리즈를 표현할 수 없다. 따라서 이 섹션은
+> `table`로 낸다** (mtd-section-6과 동일한 판단) — `daily_sales.labels`(날짜)를 행으로,
+> `daily_sales.series`의 각 카테고리(매출 상위 5개, `label` 필드 순서 그대로 — monthly-section-6과
+> 동일 카테고리로 맞춘다)를 열로 펼친다.
+- `rows`에는 `daily_sales.labels` 배열의 각 날짜(`i`)마다 한 행씩, 그 날짜의 `daily_sales.series`
+  5개 항목의 `data[i]` 값을 순서대로 채운 행을 전부 넣는다(월 전체 다 낸다 — 상/하한 컷 없음).
+- 매출 금액은 `toLocaleString()` 스타일 천 단위 콤마 포맷 문자열로 만들어 넣는다.
+- 데이터가 비어있으면 이 섹션 자체를 생략한다(임의로 채우지 않는다).
