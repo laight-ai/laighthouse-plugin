@@ -1,10 +1,18 @@
 """python-pptx slide builders consumed by build.py.
 
+Display-rounding note: MCP payloads carry raw float precision
+(55.88918788518661% 등). _prettify() rounds any decimal run longer than two
+places at the single point every rendered string passes through, so no
+mapper needs its own rounding rule.
+
 Each section-JSON object becomes one 16:9 slide. Unlike Word's flow layout,
 slides give absolute positioning and real shapes, so the HTML report's card
 UI (rounded corners, tinted page background, subtle borders) is reproduced
 directly instead of approximated.
 """
+import math
+import re
+
 from pptx.dml.color import RGBColor
 from pptx.enum.shapes import MSO_SHAPE
 from pptx.enum.text import MSO_ANCHOR, PP_ALIGN
@@ -22,6 +30,19 @@ _NO_GRID_TABLE_STYLE = "{2D5ABB26-0587-4C30-8999-92F81FD0307C}"  # "No Style, No
 
 def _rgb(hex_color):
     return RGBColor.from_string(hex_color.lstrip("#").upper())
+
+
+_LONG_DECIMAL = re.compile(r"(\d+)\.(\d{3,})")
+
+
+def _prettify(text):
+    """Round runaway float precision for display: 55.88918788518661 → 55.89.
+    Only decimal runs of 3+ places are touched, so pre-formatted values
+    (2,449.08 / 727% / dates) pass through unchanged."""
+    def _round(match):
+        rounded = round(float(f"{match.group(1)}.{match.group(2)}"), 2)
+        return f"{rounded:.2f}".rstrip("0").rstrip(".")
+    return _LONG_DECIMAL.sub(_round, str(text))
 
 
 def _style_run(run, size, color, bold=False):
@@ -53,7 +74,7 @@ def _add_line(tf, text, size, color, bold=False, first=False,
     p.alignment = align
     if space_before is not None:
         p.space_before = space_before
-    _style_run(p.add_run(), size, color, bold).text = str(text)
+    _style_run(p.add_run(), size, color, bold).text = _prettify(text)
     return p
 
 
@@ -113,6 +134,8 @@ def _content_slide(prs, heading, page_no=None):
     slide = _blank_slide(prs)
     if heading:
         _slide_title(slide, heading)
+    if page_no is None:
+        page_no = len(prs.slides._sldIdLst)  # cover is 1, content follows
     _footer(slide, page_no)
     return slide
 
@@ -148,7 +171,7 @@ def add_divider_slide(prs, text, page_no=None):
                    theme.CONTENT_W, Emu(914400))
     _add_line(box.text_frame, text, theme.SIZE_DIVIDER, theme.TEXT_STRONG,
               bold=True, first=True, align=PP_ALIGN.CENTER)
-    _footer(slide, page_no)
+    _footer(slide, page_no if page_no is not None else len(prs.slides._sldIdLst))
     return slide
 
 
@@ -216,7 +239,7 @@ def _display_width(value):
         value = value.get("label", "")
     elif _is_rich_cell(value):
         value = value["text"]
-    text = str(value)
+    text = _prettify(value)  # widths must match what actually renders
     return sum(2 if ord(ch) > 0x2E80 else 1 for ch in text)
 
 
@@ -226,11 +249,14 @@ def _column_widths(headers, rows, total_width):
     grow rows past the computed table height and overflow the slide)."""
     scores = []
     for c, header in enumerate(headers):
-        longest = _display_width(header)
+        header_width = _display_width(header)
+        longest = header_width
         for row in rows:
             if c < len(row):
                 longest = max(longest, _display_width(row[c]))
-        scores.append(min(max(longest, 6), 34))  # clamp: floor 6, cap 34 units
+        # floor at the header's own width so short columns never wrap their
+        # header vertically ("광고비" one glyph per line), cap runaway cells
+        scores.append(min(max(longest, header_width + 2, 8), 40))
     total_score = sum(scores)
     widths = [Emu(int(total_width * s / total_score)) for s in scores]
     widths[-1] = Emu(int(total_width) - sum(int(w) for w in widths[:-1]))
@@ -337,20 +363,59 @@ def add_table_slide(prs, heading, headers, rows, page_no=None,
     return slide
 
 
+# pagination model for text slides: estimated wrapped lines per card, from
+# the card's inner width at SIZE_BODY (display units: CJK counts double)
+_BODY_UNITS_PER_LINE = 130
+_BODY_LINES_PER_CARD = 14
+
+
+def _is_subheading(line):
+    """Short label lines between paragraphs (Overview / 국내분유 / 커피)
+    render as bold subheadings — sentence lines end with a stop."""
+    text = line.strip()
+    return bool(text) and _display_width(text) <= 30 and not text.endswith((".", "!", "?", "%"))
+
+
+def _paginate_body(body):
+    chunks, current, used = [], [], 0
+    for line in str(body).split("\n"):
+        est = max(1, math.ceil(_display_width(line) / _BODY_UNITS_PER_LINE))
+        if current and used + est > _BODY_LINES_PER_CARD:
+            chunks.append(current)
+            current, used = [], 0
+        current.append(line)
+        used += est
+    chunks.append(current)
+    return chunks
+
+
 def add_text_slide(prs, heading, body, page_no=None):
-    slide = _content_slide(prs, heading, page_no)
-    card = _card(slide, theme.MARGIN, theme.CONTENT_TOP,
-                 theme.CONTENT_W, theme.CONTENT_H)
-    tf = card.text_frame
-    tf.word_wrap = True
-    tf.vertical_anchor = MSO_ANCHOR.TOP
-    tf.margin_left = tf.margin_right = Emu(274320)
-    tf.margin_top = tf.margin_bottom = Emu(228600)
-    for i, line in enumerate(str(body).split("\n")):
-        p = _add_line(tf, line, theme.SIZE_BODY, theme.TEXT_TABLE, first=(i == 0))
-        p.line_spacing = 1.3
-        p.space_after = Pt(6)
-    return slide
+    """Long analysis text flows onto continuation slides ("(계속)") instead
+    of overflowing the card past the slide bottom."""
+    first_slide = None
+    for idx, chunk in enumerate(_paginate_body(body)):
+        title = heading if idx == 0 else (f"{heading} (계속)" if heading else None)
+        slide = _content_slide(prs, title, page_no if idx == 0 else None)
+        first_slide = first_slide or slide
+        card = _card(slide, theme.MARGIN, theme.CONTENT_TOP,
+                     theme.CONTENT_W, theme.CONTENT_H)
+        tf = card.text_frame
+        tf.word_wrap = True
+        tf.vertical_anchor = MSO_ANCHOR.TOP
+        tf.margin_left = tf.margin_right = Emu(274320)
+        tf.margin_top = tf.margin_bottom = Emu(228600)
+        for i, line in enumerate(chunk):
+            if _is_subheading(line):
+                p = _add_line(tf, line, theme.SIZE_BODY_SUBHEAD, theme.TEXT_STRONG,
+                              bold=True, first=(i == 0))
+                p.space_before = Pt(12)
+                p.space_after = Pt(2)
+            else:
+                p = _add_line(tf, line, theme.SIZE_BODY, theme.TEXT_TABLE,
+                              first=(i == 0))
+                p.space_after = Pt(6)
+            p.line_spacing = 1.35
+    return first_slide
 
 
 def add_chart_slide(prs, heading, categories, bar_series, line_series,

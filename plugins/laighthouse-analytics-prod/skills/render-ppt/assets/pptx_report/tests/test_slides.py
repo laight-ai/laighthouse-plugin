@@ -156,6 +156,62 @@ def test_text_slide_multiline_in_card():
     assert "둘째 줄." in texts
 
 
+def test_prettify_rounds_only_long_decimals():
+    assert sl._prettify("55.88918788518661%") == "55.89%"
+    assert sl._prettify("711,316.9333333333") == "711,316.93"
+    assert sl._prettify("92335.39603960396%") == "92335.4%"
+    assert sl._prettify("₩ 2,449.08 / 727% / 2026-05-15") == "₩ 2,449.08 / 727% / 2026-05-15"
+    assert sl._prettify("합계") == "합계"
+
+
+def test_table_cells_render_prettified_numbers():
+    prs = _prs()
+    slide = sl.add_table_slide(prs, "표", ["매체", "소진율"],
+                               [["브랜드검색", "55.88918788518661%"]])
+    table = next(s for s in slide.shapes if s.has_table).table
+    assert table.cell(1, 1).text_frame.text == "55.89%"
+
+
+def test_column_floor_prevents_vertical_headers():
+    # many columns + one huge column must not squeeze "광고비" below its width
+    rows = [["가나다라마바사아자차카타파하" * 2] + ["1"] * 7]
+    headers = ["키워드", "노출", "클릭", "광고비", "CPC", "CPM", "구매건수", "ROAS"]
+    prs = _prs()
+    slide = sl.add_table_slide(prs, "표", headers, rows)
+    table = next(s for s in slide.shapes if s.has_table).table
+    widths = [table.columns[c].width for c in range(len(headers))]
+    total = sum(widths)
+    for header, width in zip(headers, widths):
+        min_units = sl._display_width(header) + 2
+        # each column's share must be at least its floor share of the total
+        assert width / total >= min_units / (min_units * len(headers) + 40) * 0.5
+
+
+def test_long_text_paginates_to_continuation_slide():
+    long_line = "매출이 가장 많이 발생하는 카테고리를 분석 대상으로 선정하였습니다. " * 4
+    body = "\n".join(["Overview"] + [long_line] * 10)
+    prs = _prs()
+    sl.add_text_slide(prs, "카테고리별 성과 분석", body)
+    assert len(prs.slides) > 1
+    titles = []
+    for slide in prs.slides:
+        for shape in slide.shapes:
+            if shape.has_text_frame:
+                titles.append(shape.text_frame.text)
+    assert any("카테고리별 성과 분석 (계속)" in t for t in titles)
+
+
+def test_text_subheadings_render_bold():
+    prs = _prs()
+    slide = sl.add_text_slide(prs, "분석", "국내분유\n누적 매출 1위이며 성장했습니다.")
+    runs = [r for shape in slide.shapes if shape.has_text_frame
+            for p in shape.text_frame.paragraphs for r in p.runs]
+    subhead = next(r for r in runs if r.text == "국내분유")
+    assert subhead.font.bold is True
+    body_run = next(r for r in runs if "누적 매출" in r.text)
+    assert not body_run.font.bold
+
+
 def test_divider_slide():
     prs = _prs()
     slide = sl.add_divider_slide(prs, "부록")

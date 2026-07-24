@@ -33,16 +33,20 @@ CHART_GRID = "E2E8F0"
 # ── typography ─────────────────────────────────────────────────────────
 FONT = "Malgun Gothic"   # 맑은 고딕 — Windows-native, closest to Noto Sans KR
 
-SIZE_COVER_TITLE = Pt(30)
+# Typography scale — one deliberate step between levels so the hierarchy
+# reads at a glance: cover 32 > slide title 18 > subhead 13 > body 12 >
+# table 10/9.5 > captions 9.
+SIZE_COVER_TITLE = Pt(32)
 SIZE_COVER_PERIOD = Pt(14)
 SIZE_SLIDE_TITLE = Pt(18)
 SIZE_DIVIDER = Pt(24)
 SIZE_FOOTER = Pt(9)
-SIZE_TH = Pt(10.5)
-SIZE_TD = Pt(10.5)
-SIZE_BODY = Pt(13)
-SIZE_KPI_LABEL = Pt(12)
-SIZE_KPI_VALUE = Pt(24)
+SIZE_TH = Pt(9.5)
+SIZE_TD = Pt(10)
+SIZE_BODY = Pt(12)
+SIZE_BODY_SUBHEAD = Pt(13)
+SIZE_KPI_LABEL = Pt(11)
+SIZE_KPI_VALUE = Pt(26)
 SIZE_KPI_DIFF = Pt(12)
 SIZE_TABLE_NOTE = Pt(9.5)
 

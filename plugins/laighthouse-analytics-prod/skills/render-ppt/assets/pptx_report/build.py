@@ -70,22 +70,23 @@ def build_presentation(data, analysis=None):
     prs.slide_height = theme.SLIDE_H
     sl.add_cover_slide(prs, data["title"], data.get("period"))
     sections = _fill_analysis_slots(data["sections"], analysis)
-    for i, section in enumerate(_merge_headings(sections)):
+    for section in _merge_headings(sections):
         stype = section["type"]
-        page_no = i + 2  # cover slide is page 1
+        # page numbers are assigned by the slide builders from the actual
+        # slide count — text sections may paginate into multiple slides
         if stype == "heading":
-            sl.add_divider_slide(prs, section["text"], page_no)
+            sl.add_divider_slide(prs, section["text"])
         elif stype == "kpi_cards":
-            sl.add_kpi_slide(prs, section.get("heading"), section["cards"], page_no)
+            sl.add_kpi_slide(prs, section.get("heading"), section["cards"])
         elif stype == "table":
             sl.add_table_slide(prs, section.get("heading"), section["headers"],
-                               section["rows"], page_no,
+                               section["rows"],
                                rows_total=section.get("rows_total"))
         elif stype == "chart":
             sl.add_chart_slide(prs, section.get("heading"), section["categories"],
-                               section["bar_series"], section["line_series"], page_no)
+                               section["bar_series"], section["line_series"])
         elif stype == "text":
-            sl.add_text_slide(prs, section.get("heading"), section["body"], page_no)
+            sl.add_text_slide(prs, section.get("heading"), section["body"])
         else:
             raise ValueError(f"unknown section type: {stype}")
     return prs

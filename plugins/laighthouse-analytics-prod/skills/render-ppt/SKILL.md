@@ -7,7 +7,7 @@ description: >
   or wants MCP data rendered as a 16:9 PowerPoint (.pptx) daily/MTD/monthly/executive-MTD
   performance deck matching the Laighthouse style.
 metadata:
-  version: "1.2.1"
+  version: "1.2.2"
 ---
 
 > ⚡ **thinking 지침**: 이 스킬 실행 시 thinking(추론)은 최대한 짧게 유지한다. 불필요한 단계 반복, 장황한 계획 수립 없이 바로 MCP 호출 → 데이터 수신 → 렌더링 순서로 진행한다.
