@@ -44,6 +44,25 @@ def test_add_kpi_cards_applies_accent_color_to_value(tmp_path):
     assert value_run.font.color.rgb.__str__().upper() == "3B82F6"
 
 
+def test_add_data_table_repeats_header_row_across_pages(tmp_path):
+    document = Document()
+    sec.add_data_table(
+        document,
+        heading=None,
+        headers=["키워드", "매출"],
+        rows=[["a", "1"]],
+    )
+
+    out_path = tmp_path / "repeat_header.docx"
+    document.save(out_path)
+    reopened = Document(out_path)
+
+    header_tr = reopened.tables[0].rows[0]._tr
+    tblHeader = header_tr.trPr.find(qn("w:tblHeader"))
+    assert tblHeader is not None
+    assert tblHeader.get(qn("w:val")) in ("true", "1", "on")
+
+
 def test_add_data_table_shades_header_row(tmp_path):
     document = Document()
     sec.add_data_table(

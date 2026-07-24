@@ -96,6 +96,17 @@ def add_kpi_cards(document, cards):
                 diff_run.font.color.rgb = color
 
 
+def _set_repeat_header_row(row):
+    """Word's print/pagination equivalent of the original HTML's paginated
+    table: the header row re-appears at the top of every page the table
+    spans, instead of only being visible on the first page.
+    """
+    trPr = row._tr.get_or_add_trPr()
+    tblHeader = OxmlElement("w:tblHeader")
+    tblHeader.set(qn("w:val"), "true")
+    trPr.append(tblHeader)
+
+
 def add_data_table(document, heading, headers, rows):
     if heading:
         add_heading(document, heading)
@@ -104,7 +115,9 @@ def add_data_table(document, heading, headers, rows):
     # table.cell(r, c) rescans every cell in the table on each call; for
     # large tables (e.g. 1000+ keyword rows) that's O(rows*cols) per cell,
     # O(n^2) overall. table.rows[i].cells only scans that row.
-    header_cells = table.rows[0].cells
+    header_row = table.rows[0]
+    _set_repeat_header_row(header_row)
+    header_cells = header_row.cells
     for col, header in enumerate(headers):
         header_cells[col].text = header
         header_cells[col].paragraphs[0].runs[0].font.bold = True
