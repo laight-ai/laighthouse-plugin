@@ -16,8 +16,11 @@ laighthouse-plugin/
         └── skills/
             ├── render-table/      # MCP 결과를 HTML 테이블로 렌더링
             ├── render-chart/      # MCP 결과를 Chart.js 차트로 렌더링
-            └── render-report/     # MCP 결과를 일간/주간/월간 성과 보고서로 렌더링
-                └── sections/      # 보고서 섹션별 스킬 (daily / weekly·mtd·monthly)
+            ├── render-report/     # MCP 결과를 일간/MTD/월간 성과 보고서(HTML)로 렌더링
+            │   └── sections/      # 보고서 섹션 정의 (daily / mtd / Monthly / executive-mtd)
+            └── render-ppt/        # MCP 결과를 16:9 발표용 PPT(.pptx)로 렌더링
+                ├── sections/      # PPT 섹션 정의 (daily / mtd / Monthly / executive-mtd)
+                └── assets/pptx_report/   # python-pptx 렌더러 + 매핑 스크립트
 ```
 
 ## 포함된 플러그인
@@ -30,7 +33,8 @@ laighthouse-plugin/
 |------|------|
 | `render-table` | MCP 결과를 HTML 표로 렌더링 |
 | `render-chart` | MCP 결과를 Chart.js 기반 차트(막대/선/도넛/레이더)로 렌더링 |
-| `render-report` | MCP 결과를 라이트하우스 스타일 일간/주간/MTD/월간 성과 보고서로 렌더링 |
+| `render-report` | MCP 결과를 라이트하우스 스타일 Daily/MTD/Monthly/Executive-MTD 성과 보고서(HTML)로 렌더링 |
+| `render-ppt` | MCP 결과를 라이트하우스 스타일 16:9 발표용 PPT(.pptx)로 렌더링 — 네이티브 카드/표/차트, 긴 표는 상위 12행 요약 |
 
 
 자세한 사용법은 [플러그인 README](plugins/laighthouse-analytics-prod/README.md)를 참고하세요.
@@ -39,7 +43,8 @@ laighthouse-plugin/
 
 - "target-progress 결과를 표로 보여줘"
 - "이번 주 매출을 차트로 그려줘"
-- "주간 성과 보고서로 보여줘"
+- "다형식품 MTD 보고서로 보여줘"
+- "다형식품 MTD 성과를 PPT로 만들어줘"
 
 ## 마켓플레이스 등록
 
