@@ -252,6 +252,10 @@ def map_mtd_group_e(data):
             "노출", "클릭", "CTR", "CPC", "구매", "평균단가",
         ],
         "rows": rows,
+        # original row count when the caller truncated items at the source
+        # (SKILL.md's top-15 저장 규칙) so the renderer's "외 n행 생략"
+        # caption reflects the full dataset, not the truncated file.
+        "rows_total": data.get("items_total", len(items)),
     }
     digest = {
         "top_campaigns_by_ad_cost": sorted(items, key=lambda i: i["ad_cost"], reverse=True)[:3],
@@ -281,6 +285,7 @@ def map_mtd_group_f(data):
         "heading": "광고그룹별 성과",
         "headers": ["광고그룹", "노출", "클릭", "CPC", "광고비", "매출"],
         "rows": rows,
+        "rows_total": data.get("items_total", len(items)),
     }
     return {"sections": [section], "digest": None}
 
@@ -311,6 +316,7 @@ def map_mtd_group_g(data):
         "heading": "키워드별 성과",
         "headers": ["키워드", "노출", "클릭", "광고비", "CPC", "클릭율", "CPM", "구매건수", "매출", "ROAS"],
         "rows": rows,
+        "rows_total": data.get("items_total", len(items)),
     }
     return {"sections": [section], "digest": None}
 

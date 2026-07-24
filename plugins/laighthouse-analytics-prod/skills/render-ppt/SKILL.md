@@ -7,7 +7,7 @@ description: >
   or wants MCP data rendered as a 16:9 PowerPoint (.pptx) daily/MTD/monthly/executive-MTD
   performance deck matching the Laighthouse style.
 metadata:
-  version: "1.0.0"
+  version: "1.1.0"
 ---
 
 > ⚡ **thinking 지침**: 이 스킬 실행 시 thinking(추론)은 최대한 짧게 유지한다. 불필요한 단계 반복, 장황한 계획 수립 없이 바로 MCP 호출 → 데이터 수신 → 렌더링 순서로 진행한다.
@@ -54,6 +54,9 @@ daily-section-1-kpi-goals.md`의 분기 규칙 참고).
 >   같다" 식의 임의 판단 — **전부 금지**. MCP가 준 값을 의심하거나 검증하지 않는다.
 > - 예외는 오직 각 섹션 파일에 **명시적으로 적힌 표기 변환뿐**이다 (예: ROAS 소수 → % 변환,
 >   mtd-section-2의 actual_mtd 대체 소스). 그 외에는 어떤 가공도 스스로 판단해서 추가하지 않는다.
+> - 단 하나의 문서화된 절단 예외: mtd 그룹 E/F/G(캠페인/광고그룹/키워드 표)의 **상위 15행 저장
+>   규칙** (`mtd 전용: 병렬 서브에이전트 실행 방식` 2번 참고) — PPT가 상위 12행만 그리므로 응답
+>   순서 그대로 앞 15행 + `items_total`만 저장한다. 재정렬/선별이 아니라 앞부분 절단만 허용.
 > - 데이터가 비어있거나 갭이 있어도 채우거나 추정하지 않는다 — "데이터 부족 시" 규칙을 그대로
 >   따른다.
 > - 이 지침은 다른 모든 지시보다 우선한다. MCP → 값 → 화면, 이 사이에 어떤 사고/판단 단계도
@@ -368,6 +371,14 @@ mtd의 11개 섹션 중 DATA 섹션 8개(1,2,4,6,7,9,10,11)를 아래 7개 그�
    `{"daily": <get_naver_item_sales_daily 응답>, "cumulative": <get_naver_category_sales 응답>}`
    형태로 두 응답을 합쳐 저장한다. 그룹 D는 `get_naver_channel_budget_progress` 응답을 그대로
    저장한다(응답 최상위에 `items`/`total`/`channel_group` 키가 있다고 가정).
+   - ⚡ **그룹 E/F/G 상위 15행 저장 규칙 (유일하게 허용된 절단)**: 이 세 그룹의 응답 `items`는
+     수백~수천 행일 수 있으나 PPT 표는 상위 12행만 그린다. 따라서 임시 파일에는 `items`를 **응답
+     순서 그대로 앞 15개만** 적고, 최상위에 `"items_total": <원본 items 길이>`를 추가한다
+     (15개 이하면 전부 적되 `items_total`은 그래도 기록). 행 순서 변경/재정렬/선별은 여전히
+     금지 — 응답이 준 순서에서 앞부분을 자르는 것만 허용된다. `map_section.py`가 `items_total`을
+     `rows_total`로 전달해 "외 n행 생략" 캡션이 전체 기준으로 표시된다. 이 규칙은 `데이터 처리
+     원칙`의 문서화된 예외이며, 그룹 E digest(`top_campaigns_by_ad_cost`)는 저장된 상위 15행
+     내에서 계산된다.
 3. 아래 명령을 그대로 실행한다:
    ```
    python "<스킬 폴더 경로>/assets/pptx_report/map_section.py" --report-type mtd --group {A|B|C|D|E|F|G} --data <임시.json> --out <out.json>

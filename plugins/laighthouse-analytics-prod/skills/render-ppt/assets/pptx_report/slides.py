@@ -231,9 +231,20 @@ def _fill_cell(cell, text, size, color, bold=False, fill=None):
 
 
 def add_table_slide(prs, heading, headers, rows, page_no=None,
-                    max_rows=theme.MAX_TABLE_ROWS):
+                    max_rows=theme.MAX_TABLE_ROWS, rows_total=None):
+    """rows_total: original body-row count when the data was already
+    truncated upstream (SKILL.md's top-15 저장 규칙) — keeps the
+    "외 n행 생략" caption honest about the full dataset."""
     slide = _content_slide(prs, heading, page_no)
     shown, hidden = _truncate_rows(rows, max_rows)
+    if rows_total is not None:
+        def _is_total(row):
+            first = row[0] if row else ""
+            if _is_rich_cell(first):
+                first = first["text"]
+            return str(first) in _TOTAL_ROW_LABELS
+        body_shown = sum(1 for row in shown if not _is_total(row))
+        hidden = max(rows_total - body_shown, 0)
 
     header_h = Emu(320040)
     row_h = Emu(292608)

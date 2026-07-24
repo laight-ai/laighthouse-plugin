@@ -84,6 +84,27 @@ def test_table_slide_truncates_to_top_n_preserving_total():
     assert any("외 19행 생략" in t for t in texts)
 
 
+def test_table_slide_rows_total_overrides_hidden_count():
+    # source data was already truncated to 15 rows upstream; the caption
+    # must report against the full dataset (rows_total), not the file
+    rows = [[f"kw{i}", str(i)] for i in range(15)]
+    prs = _prs()
+    slide = sl.add_table_slide(prs, "키워드별 성과", ["키워드", "값"], rows,
+                               max_rows=12, rows_total=1234)
+    table = next(s for s in slide.shapes if s.has_table).table
+    assert len(table.rows) == 1 + 12
+    assert any("외 1222행 생략" in t for t in _texts(slide))
+
+
+def test_table_slide_rows_total_with_preserved_total_row():
+    rows = [[f"kw{i}", str(i)] for i in range(15)] + [["합계", "999"]]
+    prs = _prs()
+    slide = sl.add_table_slide(prs, "표", ["이름", "값"], rows,
+                               max_rows=12, rows_total=1000)
+    # 12 rows shown, one of them the 합계 row -> 11 body rows visible
+    assert any("외 989행 생략" in t for t in _texts(slide))
+
+
 def test_table_slide_no_truncation_note_when_small():
     prs = _prs()
     slide = sl.add_table_slide(prs, "표", ["a"], [["1"], ["2"]])

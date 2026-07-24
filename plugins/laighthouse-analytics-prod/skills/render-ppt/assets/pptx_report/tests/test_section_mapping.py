@@ -1,6 +1,18 @@
 import section_mapping as sm
 
 
+def test_mtd_heavy_tables_carry_rows_total_from_items_total():
+    # 상위 15행 저장 규칙: caller truncates items and records items_total
+    keyword_item = {"keyword": "k", "impressions": 1, "clicks": 1, "ad_cost": 1,
+                    "cpc": 1, "ctr": 1.0, "cpm": 1, "purchases": 1,
+                    "revenue": 1, "roas": 100.0}
+    out = sm.map_mtd_group_g({"items": [keyword_item] * 15, "items_total": 2345})
+    assert out["sections"][0]["rows_total"] == 2345
+    # without items_total (small responses saved whole) it falls back to len(items)
+    out = sm.map_mtd_group_g({"items": [keyword_item] * 3})
+    assert out["sections"][0]["rows_total"] == 3
+
+
 def test_map_mtd_group_a_kpi_cards_and_digest():
     data = {
         "target_cost": 15000000,
@@ -199,6 +211,7 @@ def test_map_mtd_group_e_campaign_performance():
                     "12,778", "53", "0.41%", "2,449.08", 17, "77,679",
                 ]
             ],
+            "rows_total": 1,
         }
     ]
     assert result["digest"] == {"top_campaigns_by_ad_cost": data["items"]}
@@ -223,6 +236,7 @@ def test_map_mtd_group_f_group_performance():
             "heading": "광고그룹별 성과",
             "headers": ["광고그룹", "노출", "클릭", "CPC", "광고비", "매출"],
             "rows": [["002_브랜드_공용_통합", "3,528", "108", "346.41", "37,412", "666,438"]],
+            "rows_total": 1,
         }
     ]
 
@@ -252,6 +266,7 @@ def test_map_mtd_group_g_keyword_performance():
                     "7.26%", "38,973.34", 183, "8,057,615", "2278%",
                 ]
             ],
+            "rows_total": 1,
         }
     ]
 

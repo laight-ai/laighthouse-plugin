@@ -58,7 +58,8 @@ def build_presentation(data):
             sl.add_kpi_slide(prs, section.get("heading"), section["cards"], page_no)
         elif stype == "table":
             sl.add_table_slide(prs, section.get("heading"), section["headers"],
-                               section["rows"], page_no)
+                               section["rows"], page_no,
+                               rows_total=section.get("rows_total"))
         elif stype == "chart":
             sl.add_chart_slide(prs, section.get("heading"), section["categories"],
                                section["bar_series"], section["line_series"], page_no)
