@@ -44,12 +44,33 @@ def _merge_headings(sections):
     return merged
 
 
-def build_presentation(data):
+def _fill_analysis_slots(sections, analysis):
+    """Replace map_report.py's analysis_slot placeholders with the LLM-written
+    text sections; a slot with no matching analysis entry degrades to the
+    데이터 준비 중 rule instead of failing the whole deck."""
+    filled = []
+    for section in sections:
+        if section.get("type") != "analysis_slot":
+            filled.append(section)
+            continue
+        entry = (analysis or {}).get(section["key"])
+        if entry and entry.get("body"):
+            filled.append({"type": "text",
+                           "heading": entry.get("heading", section.get("heading")),
+                           "body": entry["body"]})
+        else:
+            filled.append({"type": "text", "heading": section.get("heading"),
+                           "body": "데이터 준비 중"})
+    return filled
+
+
+def build_presentation(data, analysis=None):
     prs = Presentation()
     prs.slide_width = theme.SLIDE_W
     prs.slide_height = theme.SLIDE_H
     sl.add_cover_slide(prs, data["title"], data.get("period"))
-    for i, section in enumerate(_merge_headings(data["sections"])):
+    sections = _fill_analysis_slots(data["sections"], analysis)
+    for i, section in enumerate(_merge_headings(sections)):
         stype = section["type"]
         page_no = i + 2  # cover slide is page 1
         if stype == "heading":
@@ -74,10 +95,16 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--data", required=True, help="path to the section-list JSON file")
     parser.add_argument("--out", required=True, help="path to write the .pptx file to")
+    parser.add_argument("--analysis", default=None,
+                        help="optional JSON filling map_report.py analysis_slot "
+                             "placeholders: {\"section3\": {\"heading\": ..., \"body\": ...}}")
     args = parser.parse_args()
 
     data = json.loads(Path(args.data).read_text(encoding="utf-8"))
-    prs = build_presentation(data)
+    analysis = None
+    if args.analysis:
+        analysis = json.loads(Path(args.analysis).read_text(encoding="utf-8"))
+    prs = build_presentation(data, analysis)
 
     out_path = Path(args.out).expanduser()
     out_path.parent.mkdir(parents=True, exist_ok=True)

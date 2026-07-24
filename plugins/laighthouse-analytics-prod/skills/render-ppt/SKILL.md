@@ -7,7 +7,7 @@ description: >
   or wants MCP data rendered as a 16:9 PowerPoint (.pptx) daily/MTD/monthly/executive-MTD
   performance deck matching the Laighthouse style.
 metadata:
-  version: "1.1.0"
+  version: "1.2.0"
 ---
 
 > ⚡ **thinking 지침**: 이 스킬 실행 시 thinking(추론)은 최대한 짧게 유지한다. 불필요한 단계 반복, 장황한 계획 수립 없이 바로 MCP 호출 → 데이터 수신 → 렌더링 순서로 진행한다.
@@ -66,7 +66,8 @@ daily-section-1-kpi-goals.md`의 분기 규칙 참고).
 
 > 🚫 **이 스킬을 실행하는 동안 `.py`/`.js`/`.ipynb` 등 별도 스크립트·노트북 파일을 절대 생성하지
 > 않는다.** 유일한 예외는 이 스킬 폴더에 이미 있는 재사용 스크립트
-> `assets/pptx_report/build.py`와 `assets/pptx_report/map_section.py` 둘뿐이다 — 이 둘 다 새로
+> `assets/pptx_report/build.py`, `assets/pptx_report/map_report.py`,
+> `assets/pptx_report/map_section.py` 셋뿐이다 — 셋 다 새로
 > 만드는 게 아니라 그대로 호출만 하는 고정 스크립트다 (`map_section.py`는 report_type=`mtd`의
 > DATA 섹션 그룹 A~G 전용 — 아래 `mtd 전용: 병렬 서브에이전트 실행 방식` 참고). MCP 도구는 직접
 > 호출하고, 그 결과를 곧바로 섹션 JSON 조합에 사용한다. 데이터 가공·집계·검증용 임시 스크립트를
@@ -240,7 +241,46 @@ daily/mtd/monthly/executive-mtd 모두 **섹션 구성은 report_type이 전부 
 
 ---
 
+## 고속 실행 공통 규칙 (map_report.py — 모든 report_type 기본 경로)
+
+아래 네 개의 "병렬 서브에이전트 실행 방식" 절은 **Agent(서브에이전트) 도구가 있는 환경에서만**
+그 메커니즘을 쓴다. **Agent 도구가 없는 환경(claude.ai 등)이거나 확신이 없으면 이 공통 규칙이
+기본 경로다** — 각 절의 그룹 표·MCP 파라미터·그룹별 저장 형식·분석(digest) 지침은 그대로 쓰되,
+실행 메커니즘만 아래로 대체한다. 목적: 대용량 데이터가 LLM 출력을 통과하는 횟수를 0에 가깝게.
+
+1. **MCP 호출 동시 발사** — 해당 report_type의 모든 그룹 MCP 도구 호출을 가능한 한 **한
+   메시지(한 턴) 안에서 동시에** 보낸다. 그룹당 하나씩 순차로 호출하지 않는다 (호스트가 병렬
+   tool use를 지원하지 않아 순차 실행되더라도, 한 턴에 모아 보내는 것이 왕복을 최소화한다).
+2. **응답 재타이핑 금지** — MCP 응답을 손으로 다시 받아 적어 파일을 만들지 않는다.
+   - 호스트가 대용량 도구 결과를 **파일로 저장해 주는 환경**(claude.ai 등)에서는 그 저장 파일을
+     Bash/Python 한 줄로 파싱·복사해 combined.json에 넣는다 (이 파싱 스크립트 호출은 "임시
+     스크립트 생성 금지" 지침의 예외가 아니라, 파일 복사/파싱 명령 실행일 뿐이다).
+   - 저장 파일이 없어 컨텍스트에서 직접 받아 적어야 할 때만 손으로 쓰되, mtd 그룹 E/F/G는 반드시
+     **상위 15행 + `items_total` 규칙**(mtd 절 참고)을 적용한다.
+3. **combined.json 하나로 조립** — `{"A": <그룹 A 저장 형식>, "B": ..., ...}` 형태. 그룹별 내부
+   형식은 각 절의 기존 규칙과 동일하다. 실패/빈 응답 그룹은 키를 아예 넣지 않는다.
+4. **map_report.py 1회 실행**:
+   ```
+   python "<스킬 폴더 경로>/assets/pptx_report/map_report.py" --report-type {daily|mtd|monthly|executive-mtd} \
+     --data combined.json --out sections.json --digests digests.json \
+     --title "{보고서_제목}" --period "{기간}" [--branch {google_meta|naver}]   # --branch는 daily만
+   ```
+   전 그룹 매핑 + 문서 순서 조립 + ANALYSIS 자리 placeholder 삽입 + 실패 그룹의 "데이터 준비 중"
+   대체까지 전부 스크립트가 처리한다. **sections.json은 절대 컨텍스트로 다시 읽지 않는다.**
+5. **분석 텍스트 작성** — 작은 digests.json만 읽고, 각 절의 분석 지침대로 analysis.json을 쓴다:
+   `{"section3": {"heading": "...", "body": "..."}, "section5": {...}, "section8": {...}}`
+   (report_type에 존재하는 슬롯만; 근거 digest가 없으면 그 키를 생략한다 — build.py가 자동으로
+   "데이터 준비 중" 처리).
+6. **빌드**:
+   ```
+   python "<스킬 폴더 경로>/assets/pptx_report/build.py" --data sections.json --analysis analysis.json --out "~/Downloads/laighthouse-reports/{brand_name}_{report_type}_{기준_일자}.pptx"
+   ```
+
+---
+
 ## daily 전용: 병렬 서브에이전트 실행 방식
+
+> ⚡ **기본 경로는 위 `고속 실행 공통 규칙(map_report.py)`이다.** 이 절의 서브에이전트 메커니즘은 Agent 도구가 있는 환경 전용 옵션이며, 그룹 표·MCP 파라미터·저장 형식·분석 지침은 두 경로가 공유한다.
 
 > ⚙️ 이 절은 **`report_type=daily`에만 적용**된다 (mtd/monthly/executive-mtd는 각자의 절을 따른다).
 > 목적은 시간/토큰 절약이며, **산출물(`.pptx` 최종 렌더링 결과)은 순차 실행 방식과 완전히 동일해야
@@ -340,6 +380,8 @@ digest를 각각 섹션3에서 쓰고, 반대쪽은 쓰지 않는다(아래 "오
 
 ## mtd 전용: 병렬 서브에이전트 실행 방식
 
+> ⚡ **기본 경로는 위 `고속 실행 공통 규칙(map_report.py)`이다.** 이 절의 서브에이전트 메커니즘은 Agent 도구가 있는 환경 전용 옵션이며, 그룹 표·MCP 파라미터·저장 형식·분석 지침은 두 경로가 공유한다.
+
 > ⚙️ 이 절은 **`report_type=mtd`에만 적용**된다 (daily/monthly/executive-mtd는 위 순차 `실행 순서`를
 > 그대로 따른다). 목적은 시간/토큰 절약이며, **산출물(`.pptx` 최종 렌더링 결과)은 순차 실행 방식과
 > 완전히 동일해야 한다** — `데이터 처리 원칙`은 그대로 유지된다. 설계 배경은
@@ -408,6 +450,8 @@ mtd의 11개 섹션 중 DATA 섹션 8개(1,2,4,6,7,9,10,11)를 아래 7개 그�
 ---
 
 ## monthly 전용: 병렬 서브에이전트 실행 방식
+
+> ⚡ **기본 경로는 위 `고속 실행 공통 규칙(map_report.py)`이다.** 이 절의 서브에이전트 메커니즘은 Agent 도구가 있는 환경 전용 옵션이며, 그룹 표·MCP 파라미터·저장 형식·분석 지침은 두 경로가 공유한다.
 
 > ⚙️ 이 절은 **`report_type=monthly`에만 적용**된다 (daily/mtd/executive-mtd는 각자의 절을 따른다).
 > 목적은 시간/토큰 절약이며, **산출물(`.pptx` 최종 렌더링 결과)은 순차 실행 방식과 완전히 동일해야
@@ -481,6 +525,8 @@ monthly-section-6에서 뽑은 상위 5개 카테고리와 동일한 카테고�
 ---
 
 ## executive-mtd 전용: 병렬 서브에이전트 실행 방식
+
+> ⚡ **기본 경로는 위 `고속 실행 공통 규칙(map_report.py)`이다.** 이 절의 서브에이전트 메커니즘은 Agent 도구가 있는 환경 전용 옵션이며, 그룹 표·MCP 파라미터·저장 형식·분석 지침은 두 경로가 공유한다.
 
 > ⚙️ 이 절은 **`report_type=executive-mtd`에만 적용**된다 (daily/mtd/monthly는 각자의 절을 따른다).
 > 목적은 시간/토큰 절약이며, **산출물(`.pptx` 최종 렌더링 결과)은 순차 실행 방식과 완전히 동일해야
@@ -677,6 +723,10 @@ brand_name의 report-backend generator로 판단한 분기 쪽 마크업만 렌�
 ---
 
 ## 보고서 조립 (pptx assembly)
+
+> ⚡ **고속 실행 공통 규칙을 따랐다면 이 절의 수동 조립은 건너뛴다** — `map_report.py`가
+> sections.json을 이미 조립했고, `build.py --data sections.json --analysis analysis.json`으로
+> 끝난다. 아래 수동 조립은 서브에이전트 경로 또는 단일 섹션 렌더링 시에만 쓴다.
 
 각 섹션 파일의 `## PPT 섹션` 블록에 있는 JSON 오브젝트(파일에 따라 1개 또는 여러 개)를 **문서
 순서 그대로 이어붙여** 아래 형태의 JSON 오브젝트 하나를 만든다:
