@@ -31,10 +31,12 @@ def add_kpi_cards(document, cards):
     table = document.add_table(rows=2, cols=len(cards))
     table.alignment = WD_TABLE_ALIGNMENT.CENTER
     table.style = "Table Grid"
+    label_cells = table.rows[0].cells
+    value_cells = table.rows[1].cells
     for col, card in enumerate(cards):
-        table.cell(0, col).text = card["label"]
+        label_cells[col].text = card["label"]
 
-        value_cell = table.cell(1, col)
+        value_cell = value_cells[col]
         value_text = card["value"]
         if card.get("diff"):
             value_text += f"  ({card['diff']})"
@@ -53,13 +55,17 @@ def add_data_table(document, heading, headers, rows):
         add_heading(document, heading)
     table = document.add_table(rows=1 + len(rows), cols=len(headers))
     table.style = "Table Grid"
+    # table.cell(r, c) rescans every cell in the table on each call; for
+    # large tables (e.g. 1000+ keyword rows) that's O(rows*cols) per cell,
+    # O(n^2) overall. table.rows[i].cells only scans that row.
+    header_cells = table.rows[0].cells
     for col, header in enumerate(headers):
-        cell = table.cell(0, col)
-        cell.text = header
-        cell.paragraphs[0].runs[0].font.bold = True
+        header_cells[col].text = header
+        header_cells[col].paragraphs[0].runs[0].font.bold = True
     for row_idx, row in enumerate(rows, start=1):
+        row_cells = table.rows[row_idx].cells
         for col, value in enumerate(row):
-            table.cell(row_idx, col).text = str(value)
+            row_cells[col].text = str(value)
 
 
 def add_text_section(document, heading, body):
