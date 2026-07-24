@@ -127,6 +127,27 @@ def test_table_slide_rich_and_bar_cells():
     assert rich_run.font.bold is True
 
 
+def test_table_columns_sized_by_content():
+    rows = [["012_브랜드_공통_분유_견과류음료_견과류천국", "1,204,331", "12%"],
+            ["짧은이름", "48,102", "7%"]]
+    prs = _prs()
+    slide = sl.add_table_slide(prs, "그룹별 성과", ["광고그룹", "노출", "CTR"], rows)
+    table = next(s for s in slide.shapes if s.has_table).table
+    widths = [table.columns[c].width for c in range(3)]
+    assert widths[0] > widths[1] > widths[2]  # long-name column gets the most room
+    assert abs(sum(widths) - int(theme.CONTENT_W)) <= 3  # still fills content width
+
+
+def test_truncation_caption_sits_in_title_band():
+    rows = [[f"kw{i}", str(i)] for i in range(30)]
+    prs = _prs()
+    slide = sl.add_table_slide(prs, "표", ["이름", "값"], rows, max_rows=12)
+    note = next(s for s in slide.shapes if s.has_text_frame
+                and "생략" in s.text_frame.text)
+    assert note.top == theme.TITLE_TOP  # fixed band — cannot overlap grown rows
+    assert "상위 12행 표시 · 외 18행 생략" in note.text_frame.text
+
+
 def test_text_slide_multiline_in_card():
     prs = _prs()
     slide = sl.add_text_slide(prs, "Executive Summary", "첫 줄.\n둘째 줄.", page_no=4)

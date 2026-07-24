@@ -209,6 +209,34 @@ def _truncate_rows(rows, limit):
     return shown, hidden
 
 
+def _display_width(value):
+    """Approximate rendered width in half-width character units — CJK glyphs
+    count double, so Korean campaign names get the width they need."""
+    if _is_bar_cell(value):
+        value = value.get("label", "")
+    elif _is_rich_cell(value):
+        value = value["text"]
+    text = str(value)
+    return sum(2 if ord(ch) > 0x2E80 else 1 for ch in text)
+
+
+def _column_widths(headers, rows, total_width):
+    """Distribute the table width by each column's longest content instead of
+    equally — long name columns stop wrapping onto extra lines (which used to
+    grow rows past the computed table height and overflow the slide)."""
+    scores = []
+    for c, header in enumerate(headers):
+        longest = _display_width(header)
+        for row in rows:
+            if c < len(row):
+                longest = max(longest, _display_width(row[c]))
+        scores.append(min(max(longest, 6), 34))  # clamp: floor 6, cap 34 units
+    total_score = sum(scores)
+    widths = [Emu(int(total_width * s / total_score)) for s in scores]
+    widths[-1] = Emu(int(total_width) - sum(int(w) for w in widths[:-1]))
+    return widths
+
+
 def _fill_cell(cell, text, size, color, bold=False, fill=None):
     cell.margin_left = cell.margin_right = Emu(109728)
     cell.margin_top = cell.margin_bottom = Emu(45720)
@@ -237,13 +265,15 @@ def add_table_slide(prs, heading, headers, rows, page_no=None,
     "외 n행 생략" caption honest about the full dataset."""
     slide = _content_slide(prs, heading, page_no)
     shown, hidden = _truncate_rows(rows, max_rows)
+
+    def _is_total(row):
+        first = row[0] if row else ""
+        if _is_rich_cell(first):
+            first = first["text"]
+        return str(first) in _TOTAL_ROW_LABELS
+
+    body_shown = sum(1 for row in shown if not _is_total(row))
     if rows_total is not None:
-        def _is_total(row):
-            first = row[0] if row else ""
-            if _is_rich_cell(first):
-                first = first["text"]
-            return str(first) in _TOTAL_ROW_LABELS
-        body_shown = sum(1 for row in shown if not _is_total(row))
         hidden = max(rows_total - body_shown, 0)
 
     header_h = Emu(320040)
@@ -266,6 +296,9 @@ def add_table_slide(prs, heading, headers, rows, page_no=None,
     table.rows[0].height = header_h
     for r in range(1, 1 + len(shown)):
         table.rows[r].height = row_h
+
+    for c, width in enumerate(_column_widths(headers, shown, theme.CONTENT_W)):
+        table.columns[c].width = width
 
     for c, header in enumerate(headers):
         _fill_cell(table.cell(0, c), header, theme.SIZE_TH, theme.TEXT_TH,
@@ -292,11 +325,15 @@ def add_table_slide(prs, heading, headers, rows, page_no=None,
                            bold=is_total, fill=fill)
 
     if hidden:
-        note = _textbox(slide, theme.MARGIN,
-                        theme.CONTENT_TOP + table_h + Emu(91440),
-                        theme.CONTENT_W, Emu(274320))
-        _add_line(note.text_frame, f"외 {hidden}행 생략 — 상위 {max_rows}개 기준",
-                  theme.SIZE_TABLE_NOTE, theme.TEXT_FAINT, first=True)
+        # anchored to the fixed title band, not below the table — wrapped
+        # rows can grow the table past its computed height, and a caption
+        # positioned by table_h then overlaps the rows
+        note = _textbox(slide, theme.MARGIN, theme.TITLE_TOP,
+                        theme.CONTENT_W, theme.TITLE_H)
+        note.text_frame.vertical_anchor = MSO_ANCHOR.MIDDLE
+        _add_line(note.text_frame, f"상위 {body_shown}행 표시 · 외 {hidden}행 생략",
+                  theme.SIZE_TABLE_NOTE, theme.TEXT_FAINT, first=True,
+                  align=PP_ALIGN.RIGHT)
     return slide
 
 
