@@ -585,6 +585,248 @@ def map_monthly_group_d(data):
     return {"sections": sections, "digest": digest}
 
 
+# ---------------------------------------------------------------------------
+# executive-mtd
+# ---------------------------------------------------------------------------
+
+
+def map_execmtd_group_a(data):
+    """executive-mtd-section-1 (목표 달성 현황).
+
+    `data`: raw get_naver_target_progress response (as_of_date = target_date,
+    partial month -- same call shape as mtd's, but executive-mtd has no
+    separate kpi-goals card section, so this produces a single kpi_cards
+    section instead of mtd_group_a's pair.
+    """
+    roas_goal_pct = _ratio_to_pct(data["target_roas"])
+    roas_actual_pct = _ratio_to_pct(data["actual_roas"])
+    budget_spent_rate = _ratio_to_pct(data["cost_progress_ratio"])
+    revenue_achievement_rate = _ratio_to_pct(data["revenue_progress_ratio"])
+
+    section = {
+        "type": "kpi_cards",
+        "cards": [
+            {
+                "label": "기간 예산대비 소진율",
+                "value": f"{budget_spent_rate}%",
+                "diff": f"목표 {_fmt_amount(data['target_cost'])} · 소진 {_fmt_amount(data['actual_cost'])}",
+            },
+            {
+                "label": "기간 목표 매출 대비 달성률",
+                "value": f"{revenue_achievement_rate}%",
+                "diff": f"목표 {_fmt_amount(data['target_revenue'])} · 기간 매출 {_fmt_amount(data['actual_revenue'])}",
+            },
+            {
+                "label": "기간 누적 ROAS",
+                "value": f"{roas_actual_pct}%",
+                "diff": f"목표 {roas_goal_pct}%",
+            },
+        ],
+    }
+    digest = {
+        "roas_goal_pct": roas_goal_pct,
+        "roas_actual_pct": roas_actual_pct,
+        "budget_spent_rate": budget_spent_rate,
+        "revenue_achievement_rate": revenue_achievement_rate,
+        "target_cost": data["target_cost"],
+        "actual_cost": data["actual_cost"],
+        "target_revenue": data["target_revenue"],
+        "actual_revenue": data["actual_revenue"],
+    }
+    return {"sections": [section], "digest": digest}
+
+
+def map_execmtd_group_b(data):
+    """executive-mtd-section-2 (월별 광고 성과 차트).
+
+    `data`: raw get_naver_monthly_ad_performance response, identical shape
+    and mapping to map_mtd_group_b. Unlike mtd's group B (digest=None),
+    executive-mtd-section-3's Executive Summary explicitly lists this
+    section's raw response as one of its inputs, so the digest carries the
+    raw `items` through unmodified (same spirit as map_monthly_group_b).
+    """
+    items = data["items"]
+    section = {
+        "type": "chart",
+        "heading": "월별 광고 성과",
+        "categories": [item["month"] for item in items],
+        "bar_series": [
+            {"name": "광고비", "values": [item["cost"] for item in items]},
+            {"name": "매출", "values": [item["purchase_amount"] for item in items]},
+        ],
+        "line_series": {"name": "ROAS", "values": [item["roas"] for item in items]},
+    }
+    digest = {"items": items}
+    return {"sections": [section], "digest": digest}
+
+
+def map_execmtd_group_c(data):
+    """executive-mtd-section-4 (주요 카테고리별 월간 매출액 증감).
+
+    `data`: {
+      "curr": <get_naver_category_sales response, 이번 달 MTD(1일~target_date)>,
+      "prev": <get_naver_category_sales response, 전월 동일 기간(1일~day-of-month
+               매칭, clamp)>,
+    }
+    Each is shaped {"items": [{"category", "sales"}, ...]}. The curr/prev
+    date-range computation itself (day-of-month matching + clamp to the
+    previous month's last day) happens in the caller, before this function
+    ever sees the data -- this function only does the MoM arithmetic
+    documented in executive-mtd-section-4-category-mom-highlights.md.
+
+    ASSUMPTION (flagged, no concrete example covers this): the .md file
+    computes mom_pct only for categories present in `prev` with a non-zero
+    value, and separately flags prev==0 categories as "신규" excluded "from
+    the calculation" -- but it never states whether/how 신규 categories
+    interact with the |mom_pct|>=10 / min-3 / max-6 selection window (the
+    file's own worked example has no 신규 entries). This function treats
+    신규 categories as always-shown highlights, appended after the
+    threshold-based selection (uncapped by the 3/6 window, which the .md
+    only ties to the mom_pct-ranked list) -- this specific interaction is an
+    assumption, not a documented rule; flag before relying on it for a real
+    six-plus-new-category brand.
+    """
+    curr_map = {row["category"]: row["sales"] for row in data["curr"]["items"]}
+    prev_map = {row["category"]: row["sales"] for row in data["prev"]["items"]}
+    all_categories = sorted(set(curr_map) | set(prev_map))
+
+    new_categories = []
+    ranked = []
+    for cat in all_categories:
+        curr_val = curr_map.get(cat, 0)
+        prev_val = prev_map.get(cat, 0)
+        if prev_val == 0:
+            new_categories.append(cat)
+        else:
+            mom_pct = round((curr_val - prev_val) / prev_val * 100, 1)
+            ranked.append((cat, mom_pct))
+
+    ranked.sort(key=lambda kv: abs(kv[1]), reverse=True)
+
+    if not ranked and not new_categories:
+        cards = [{"label": "안내", "value": "이번 기간 카테고리별 매출 변동이 두드러지지 않았습니다"}]
+        return {"sections": [{"type": "kpi_cards", "cards": cards}], "digest": {"category_mom_highlights": []}}
+
+    above_threshold = [item for item in ranked if abs(item[1]) >= 10]
+    if len(above_threshold) < 3:
+        selected = ranked[:3]
+    else:
+        selected = above_threshold[:6]
+
+    highlights = [{"category": cat, "mom_pct": pct} for cat, pct in selected]
+    highlights += [{"category": cat, "mom_pct": None} for cat in new_categories]
+
+    if not highlights:
+        cards = [{"label": "안내", "value": "이번 기간 카테고리별 매출 변동이 두드러지지 않았습니다"}]
+        return {"sections": [{"type": "kpi_cards", "cards": cards}], "digest": {"category_mom_highlights": []}}
+
+    cards = []
+    for item in highlights:
+        if item["mom_pct"] is None:
+            cards.append({"label": item["category"], "value": "신규"})
+        else:
+            pct = item["mom_pct"]
+            change_label = f"+{pct}%" if pct > 0 else f"{pct}%"
+            cards.append({"label": item["category"], "value": change_label, "diff_value": pct})
+
+    section = {"type": "kpi_cards", "cards": cards}
+    digest = {"category_mom_highlights": highlights}
+    return {"sections": [section], "digest": digest}
+
+
+_EXECMTD_CHANNEL_LABELS = [
+    ("nvad:BRS", "네이버 브랜드검색"),
+    ("nvad:PLINK", "네이버 파워링크"),
+    ("nvad:NVSHOP", "네이버 쇼핑검색"),
+    ("nvgfa_ad:", "네이버 GFA 애드부스트"),
+]
+
+
+def map_execmtd_group_d(data):
+    """executive-mtd-section-5 (매체별 성과 비교).
+
+    `data`: {
+      "curr": <get_naver_channel_progression response, 이번 달>,
+      "curr_as_of_date": "2026-03-15",
+      "prev": <get_naver_channel_progression response, 전월>,
+      "prev_as_of_date": "2026-02-15",   # day-of-month matched, clamp to
+                                          # prev month's last day -- computed
+                                          # by the caller, same rule as group C
+      "curr_period_label": "3월",
+      "prev_period_label": "2월",
+    }
+    Each of curr/prev shaped {"channels": [{"channel": "...", "actual": [{"date","cost","revenue"}, ...]}]}
+    (same inferred raw shape as map_monthly_group_d -- see that function's
+    docstring for the schema-naming caveat).
+
+    Unlike get_naver_channel_progression's monthly-report usage, this
+    function must itself apply the `date <= as_of_date` cutoff (the tool
+    always returns the full calendar month) before summing -- per
+    executive-mtd-section-5.md's explicit instruction that the skill (not
+    the tool) performs this truncation. nvgfa_dp: is excluded entirely (not
+    just from the label table) per the .md's explicit exclusion rule.
+    """
+    def _channel_totals(period, as_of_date, channel_key):
+        channels = period.get("channels", [])
+        match = next((c for c in channels if c.get("channel") == channel_key), None)
+        actual = match["actual"] if match else []
+        actual = [row for row in actual if row["date"] <= as_of_date]
+        cost_sum = sum(row["cost"] for row in actual)
+        revenue_sum = sum(row["revenue"] for row in actual)
+        if channel_key.startswith("nvgfa_"):
+            cost_sum = cost_sum / 1.1
+        return cost_sum, revenue_sum
+
+    rows = []
+    for channel_key, channel_label in _EXECMTD_CHANNEL_LABELS:
+        prev_cost, prev_revenue = _channel_totals(data["prev"], data["prev_as_of_date"], channel_key)
+        curr_cost, curr_revenue = _channel_totals(data["curr"], data["curr_as_of_date"], channel_key)
+
+        prev_roas = None if prev_cost == 0 else (prev_revenue / prev_cost * 100)
+        curr_roas = None if curr_cost == 0 else (curr_revenue / curr_cost * 100)
+        if prev_roas is None or curr_roas is None:
+            continue
+
+        change_pp = round(curr_roas - prev_roas, 1)
+        rows.append(
+            {
+                "channel_label": channel_label,
+                "prev_roas": round(prev_roas, 1),
+                "curr_roas": round(curr_roas, 1),
+                "change_pp": change_pp,
+            }
+        )
+
+    rows.sort(key=lambda r: r["change_pp"])
+
+    if not rows:
+        return {"sections": [], "digest": {"media_roas_comparison": None}}
+
+    table_rows = [
+        [
+            row["channel_label"],
+            f"{row['prev_roas']}%",
+            f"{row['curr_roas']}%",
+            (f"+{row['change_pp']}%p" if row["change_pp"] > 0 else f"{row['change_pp']}%p"),
+        ]
+        for row in rows
+    ]
+    section = {
+        "type": "table",
+        "heading": "매체별 성과 비교",
+        "headers": ["채널", f"{data['prev_period_label']} ROAS", f"{data['curr_period_label']} ROAS", "변동"],
+        "rows": table_rows,
+    }
+    digest = {
+        "media_roas_comparison": {
+            "prev_period_label": data["prev_period_label"],
+            "curr_period_label": data["curr_period_label"],
+            "rows": rows,
+        }
+    }
+    return {"sections": [section], "digest": digest}
+
+
 MAPPERS = {
     ("mtd", "A"): map_mtd_group_a,
     ("mtd", "B"): map_mtd_group_b,
@@ -597,6 +839,10 @@ MAPPERS = {
     ("monthly", "B"): map_monthly_group_b,
     ("monthly", "C"): map_monthly_group_c,
     ("monthly", "D"): map_monthly_group_d,
+    ("executive-mtd", "A"): map_execmtd_group_a,
+    ("executive-mtd", "B"): map_execmtd_group_b,
+    ("executive-mtd", "C"): map_execmtd_group_c,
+    ("executive-mtd", "D"): map_execmtd_group_d,
 }
 
 
