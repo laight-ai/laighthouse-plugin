@@ -6,7 +6,7 @@ description: >
   "executive mtd", "라이트하우스 보고서", "성과 분석 보고서", or wants MCP data formatted as a
   structured daily/MTD/monthly/executive-MTD performance report matching the Laighthouse style.
 metadata:
-  version: "0.9.1"
+  version: "0.10.0"
 ---
 
 > ⚡ **thinking 지침**: 이 스킬 실행 시 thinking(추론)은 최대한 짧게 유지한다. 불필요한 단계 반복, 장황한 계획 수립 없이 바로 MCP 호출 → 데이터 수신 → 렌더링 순서로 진행한다.
@@ -59,11 +59,13 @@ daily-section-1-kpi-goals.md`의 분기 규칙 참고).
 
 > 🚫 **이 스킬을 실행하는 동안 `.py`/`.js`/`.ipynb` 등 별도 스크립트·노트북 파일을 절대 생성하지
 > 않는다.** 유일한 예외는 이 스킬 폴더에 이미 있는 재사용 스크립트
-> `assets/docx_report/build.py`뿐이다 — 이건 새로 만드는 게 아니라 그대로 호출만 하는 고정
-> 산출물 생성기다. MCP 도구는 직접 호출하고, 그 결과를 곧바로 섹션 JSON 조합에 사용한다. 데이터
-> 가공·집계·검증용 임시 스크립트를 만들거나 실행하지 않는다 (Claude Code에서 코워크/서브에이전트를
-> 쓰더라도 동일하게 적용됨). 이 스킬이 만드는 파일은 오직 최종 보고서 `.docx` 하나뿐이다(중간
-> JSON 데이터 파일은 `build.py` 호출을 위한 임시 입력일 뿐이다).
+> `assets/docx_report/build.py`와 `assets/docx_report/map_section.py` 둘뿐이다 — 이 둘 다 새로
+> 만드는 게 아니라 그대로 호출만 하는 고정 스크립트다 (`map_section.py`는 report_type=`mtd`의
+> DATA 섹션 그룹 A~G 전용 — 아래 `mtd 전용: 병렬 서브에이전트 실행 방식` 참고). MCP 도구는 직접
+> 호출하고, 그 결과를 곧바로 섹션 JSON 조합에 사용한다. 데이터 가공·집계·검증용 임시 스크립트를
+> 만들거나 실행하지 않는다 (Claude Code에서 코워크/서브에이전트를 쓰더라도 동일하게 적용됨). 이
+> 스킬이 만드는 파일은 오직 최종 보고서 `.docx` 하나뿐이다(중간 JSON 데이터 파일은
+> `build.py`/`map_section.py` 호출을 위한 임시 입력·출력일 뿐이다).
 
 ## 입력 파라미터
 
@@ -84,6 +86,8 @@ daily/mtd/monthly/executive-mtd 모두 **섹션 구성은 report_type이 전부 
 ## 실행 순서
 
 1. 파라미터를 파싱하고 report_type을 확정한다 (`daily`/`mtd`/`monthly`/`executive-mtd`만 유효).
+   - **report_type이 `mtd`면, 2~7단계 대신 아래 `mtd 전용: 병렬 서브에이전트 실행 방식` 절을
+     따른다** (daily/monthly/executive-mtd는 지금부터 설명하는 순차 실행 순서를 그대로 따른다).
 2. target/achievement 수치를 호출한다 — **report_type에 따라 쓰는 도구가 다르다, 절대 섞지 않는다**:
    - `daily`: brand_name의 report-backend generator로 분기를 먼저 판단한다
      (`sections/daily/daily-section-1-kpi-goals.md` 분기 규칙 참고).
@@ -215,6 +219,67 @@ daily/mtd/monthly/executive-mtd 모두 **섹션 구성은 report_type이 전부 
 — by LaightAI
 📁 C:\Users\minhyeok\Downloads\laighthouse-reports\다형식품_mtd_2026-05-15.docx
 ```
+
+---
+
+## mtd 전용: 병렬 서브에이전트 실행 방식
+
+> ⚙️ 이 절은 **`report_type=mtd`에만 적용**된다 (daily/monthly/executive-mtd는 위 순차 `실행 순서`를
+> 그대로 따른다). 목적은 시간/토큰 절약이며, **산출물(`.docx` 최종 렌더링 결과)은 순차 실행 방식과
+> 완전히 동일해야 한다** — `데이터 처리 원칙`은 그대로 유지된다. 설계 배경은
+> `docs/superpowers/specs/2026-07-24-render-report-mtd-parallel-mapping-design.md` 참고.
+
+mtd의 11개 섹션 중 DATA 섹션 8개(1,2,4,6,7,9,10,11)를 아래 7개 그룹으로 나눠 **Agent 도구로 한
+메시지 안에서 동시에** 서브에이전트를 띄운다 (`general-purpose` 타입 — MCP 도구와 Bash가 모두
+필요). ANALYSIS 섹션 3개(3,5,8)는 서브에이전트가 반환한 digest를 오케스트레이터(본 대화)가 직접
+읽고 기존 분석 지침대로 작성한다 — dify 미사용 등 기존 원칙은 동일하다.
+
+| 그룹 | 담당 섹션 | MCP 호출 (파라미터는 각 섹션 파일 참고) | digest 소비처 |
+|---|---|---|---|
+| A | 1+2 | `get_naver_target_progress` | 섹션3 |
+| B | 4 | `get_naver_monthly_ad_performance` | (없음) |
+| C | 6 + 6.1(참조용) | `get_naver_item_sales_daily`, `get_naver_category_sales` | 섹션3, 섹션5 |
+| D | 7 | `get_naver_channel_budget_progress` | 섹션3 |
+| E | 9 | `get_naver_campaign_performance` | 섹션8 |
+| F | 10 | `get_naver_group_performance` | (없음) |
+| G | 11 | `get_naver_keyword_performance` | (없음) |
+
+### 서브에이전트 지시문 (그룹당 1개, 총 7개를 한 메시지에서 병렬 호출)
+
+각 서브에이전트에게 아래를 지시한다:
+
+1. 이 그룹에 해당하는 MCP 도구를 호출한다 (파라미터/도구 선택 규칙은 `sections/mtd/mtd-section-{N}.md`의
+   `## MCP 도구 호출` 절을 그대로 따른다 — 절대 임의로 다른 도구를 쓰지 않는다). 그룹 C는 두 도구를
+   순서대로 호출한다.
+2. 응답을 가공 없이 그대로 스크래치패드 임시 파일에 저장한다. 그룹 C는
+   `{"daily": <get_naver_item_sales_daily 응답>, "cumulative": <get_naver_category_sales 응답>}`
+   형태로 두 응답을 합쳐 저장한다. 그룹 D는 `get_naver_channel_budget_progress` 응답을 그대로
+   저장한다(응답 최상위에 `items`/`total`/`channel_group` 키가 있다고 가정).
+3. 아래 명령을 그대로 실행한다:
+   ```
+   python "<스킬 폴더 경로>/assets/docx_report/map_section.py" --report-type mtd --group {A|B|C|D|E|F|G} --data <임시.json> --out <out.json>
+   ```
+4. `out.json`의 내용을 그대로 자신의 최종 응답으로 반환한다 — raw 데이터를 다시 설명하거나 요약하지
+   않는다(오케스트레이터가 볼 결과는 이 압축된 JSON뿐이어야 한다).
+
+### 오케스트레이터가 병렬 결과를 받은 뒤
+
+5. 7개 서브에이전트 결과의 `sections[]`를 문서 순서(1,2,4,6,7,9,10,11 섹션 순서, 즉 그룹
+   A,B,C,D,E,F,G 순)대로 이어붙인다.
+6. digest를 모아 아래처럼 텍스트 섹션 3개를 직접 작성한다 (섹션 파일의 분석 항목 지침은 그대로
+   따른다 — 새 수치를 지어내지 않는다):
+   - **섹션3 (Executive Summary)**: 그룹 A digest(ROAS/달성률/소진율) + 그룹 D digest(매체별
+     소진율 중 특이사항) + 그룹 C digest의 `product_cumulative_sales`(상품별 누적 판매 특이사항)를
+     근거로 `sections/mtd/mtd-section-3-executive-summary.md`의 4개 분석 항목을 작성한다.
+   - **섹션5 (제품 판매 성과의 심층 분석)**: 그룹 C digest(`top_categories`/`top_category_totals`/
+     `product_cumulative_sales`)를 근거로 `sections/mtd/mtd-section-5-product-deep-dive.md`의
+     지침대로 작성한다.
+   - **섹션8 (캠페인별 성과 심층 분석)**: 그룹 E digest(`top_campaigns_by_ad_cost`)를 근거로
+     `sections/mtd/mtd-section-8-campaign-deep-dive.md`의 지침대로 작성한다.
+7. 어느 그룹의 서브에이전트가 실패했거나 MCP가 빈 응답/에러를 반환하면, 그 그룹이 담당하던 섹션(들)은
+   `데이터 부족 시` 규칙대로 `{ "type": "text", "heading": "...", "body": "데이터 준비 중" }`으로
+   대체한다 — 다른 그룹은 정상 진행하며, 그 그룹에 의존하는 digest 항목은 텍스트 작성 시 건너뛴다.
+8. 이후 절차(최종 JSON 조립 → `build.py` 호출 → 완료 메시지)는 위 `실행 순서` 6~8단계와 동일하다.
 
 ---
 
