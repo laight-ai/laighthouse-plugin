@@ -64,20 +64,38 @@ def _fill_analysis_slots(sections, analysis):
     return filled
 
 
+def _merge_adjacent_kpi(sections):
+    """Consecutive kpi_cards sections (월 목표 카드 + 목표 달성 현황) each used
+    to occupy a half-empty slide; stack them as card rows on one slide."""
+    merged = []
+    for section in sections:
+        if section["type"] == "kpi_cards" and merged \
+                and merged[-1]["type"] == "kpi_cards":
+            merged[-1]["card_rows"].append(
+                {"heading": section.get("heading"), "cards": section["cards"]})
+            continue
+        if section["type"] == "kpi_cards":
+            section = {"type": "kpi_cards", "heading": section.get("heading"),
+                       "card_rows": [{"heading": None, "cards": section["cards"]}]}
+        merged.append(section)
+    return merged
+
+
 def build_presentation(data, analysis=None):
     prs = Presentation()
     prs.slide_width = theme.SLIDE_W
     prs.slide_height = theme.SLIDE_H
     sl.add_cover_slide(prs, data["title"], data.get("period"))
     sections = _fill_analysis_slots(data["sections"], analysis)
-    for section in _merge_headings(sections):
+    for section in _merge_adjacent_kpi(_merge_headings(sections)):
         stype = section["type"]
         # page numbers are assigned by the slide builders from the actual
         # slide count — text sections may paginate into multiple slides
         if stype == "heading":
             sl.add_divider_slide(prs, section["text"])
         elif stype == "kpi_cards":
-            sl.add_kpi_slide(prs, section.get("heading"), section["cards"])
+            sl.add_kpi_slide(prs, section.get("heading"), None,
+                             card_rows=section["card_rows"])
         elif stype == "table":
             sl.add_table_slide(prs, section.get("heading"), section["headers"],
                                section["rows"],

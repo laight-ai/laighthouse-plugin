@@ -48,6 +48,24 @@ def test_build_presentation_one_slide_per_section_plus_cover():
         assert expected in texts
 
 
+def test_adjacent_kpi_sections_share_one_slide():
+    data = {"title": "t", "sections": [
+        {"type": "kpi_cards", "cards": [{"label": "월 예산 목표", "value": "1"}]},
+        {"type": "kpi_cards", "cards": [{"label": "기간 예산대비 소진율", "value": "2"}]},
+        {"type": "text", "heading": "h", "body": "b"},
+        {"type": "kpi_cards", "cards": [{"label": "별도 카드", "value": "3"}]},
+    ]}
+    prs = build.build_presentation(data)
+    # cover + merged kpi slide + text + the non-adjacent kpi slide
+    assert len(prs.slides) == 4
+    merged_texts = _all_texts(prs)[:]
+    kpi_slide = prs.slides[1]
+    kpi_texts = [p.text for shape in kpi_slide.shapes if shape.has_text_frame
+                 for p in shape.text_frame.paragraphs]
+    assert "월 예산 목표" in kpi_texts and "기간 예산대비 소진율" in kpi_texts
+    assert "별도 카드" in merged_texts
+
+
 def test_standalone_heading_merges_into_headingless_follower():
     data = {"title": "t", "sections": [
         {"type": "heading", "text": "월 목표"},

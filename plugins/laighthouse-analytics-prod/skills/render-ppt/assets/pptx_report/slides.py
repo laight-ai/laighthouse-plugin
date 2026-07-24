@@ -175,13 +175,15 @@ def add_divider_slide(prs, text, page_no=None):
     return slide
 
 
-def add_kpi_slide(prs, heading, cards, page_no=None):
-    slide = _content_slide(prs, heading, page_no)
+_KPI_CARD_H = Emu(1600200)   # 1.75 in
+_KPI_ROW_GAP = Emu(320040)   # 0.35 in between stacked card rows
+_KPI_LABEL_H = Emu(365760)   # 0.4 in row-heading strip
+
+
+def _kpi_card_row(slide, cards, y, card_h):
     n = len(cards)
     gap = Emu(228600)  # 0.25 in
     card_w = Emu(int((theme.CONTENT_W - gap * (n - 1)) / n))
-    card_h = Emu(1600200)  # 1.75 in
-    y = theme.CONTENT_TOP + Emu(int((theme.CONTENT_H - card_h) * 0.35))
     for i, card in enumerate(cards):
         x = theme.MARGIN + Emu(int((card_w + gap) * i))
         shape = _card(slide, x, y, card_w, card_h)
@@ -201,6 +203,38 @@ def add_kpi_slide(prs, heading, cards, page_no=None):
                                theme.diff_color(card.get("diff_value")) or theme.GRAY,
                                bold=True, align=PP_ALIGN.CENTER)
             diff_p.space_before = Pt(4)
+
+
+def add_kpi_slide(prs, heading, cards, page_no=None, card_rows=None):
+    """Tinted, bordered card cells — the HTML flex card row. `cards` renders a
+    single row; `card_rows` ([{"heading": ..., "cards": [...]}, ...]) stacks
+    the rows that adjacent kpi_cards sections used to spread across two
+    half-empty slides (월 목표 카드 + 목표 달성 현황)."""
+    rows = card_rows or [{"heading": None, "cards": cards}]
+    slide = _content_slide(prs, heading, page_no)
+
+    blocks = []  # (row, label_h, card_h) — measured first so the stack centers
+    total = 0
+    for row in rows:
+        label_h = int(_KPI_LABEL_H) if row.get("heading") else 0
+        blocks.append((row, label_h, int(_KPI_CARD_H)))
+        total += label_h + int(_KPI_CARD_H)
+    total += int(_KPI_ROW_GAP) * (len(rows) - 1)
+    if total > int(theme.CONTENT_H):  # 3+ rows: shrink cards to fit the slide
+        shrink = (total - int(theme.CONTENT_H)) // len(rows) + 1
+        blocks = [(r, lh, ch - shrink) for r, lh, ch in blocks]
+        total -= shrink * len(rows)
+
+    y = int(theme.CONTENT_TOP) + max((int(theme.CONTENT_H) - total) // 2, 0)
+    for row, label_h, card_h in blocks:
+        if label_h:
+            box = _textbox(slide, theme.MARGIN, Emu(y), theme.CONTENT_W, Emu(label_h))
+            box.text_frame.vertical_anchor = MSO_ANCHOR.MIDDLE
+            _add_line(box.text_frame, row["heading"], theme.SIZE_BODY_SUBHEAD,
+                      theme.TEXT_STRONG, bold=True, first=True)
+            y += label_h
+        _kpi_card_row(slide, row["cards"], Emu(y), Emu(card_h))
+        y += card_h + int(_KPI_ROW_GAP)
     return slide
 
 
