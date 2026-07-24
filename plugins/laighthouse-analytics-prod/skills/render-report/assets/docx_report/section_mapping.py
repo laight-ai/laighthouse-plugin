@@ -85,16 +85,19 @@ def map_mtd_group_a(data):
             {
                 "label": "기간 예산대비 소진율",
                 "value": f"{budget_spent_rate}%",
+                "accent": "#3b82f6",
                 "diff": f"목표 {_fmt_amount(data['target_cost'])} · 소진 {_fmt_amount(data['actual_cost'])}",
             },
             {
                 "label": "기간 목표 매출 대비 달성률",
                 "value": f"{revenue_achievement_rate}%",
+                "accent": "#16a34a",
                 "diff": f"목표 {_fmt_amount(data['target_revenue'])} · 매출 {_fmt_amount(data['actual_revenue'])}",
             },
             {
                 "label": "기간 누적 ROAS",
                 "value": f"{roas_actual_pct}%",
+                "accent": "#7c3aed",
                 "diff": f"목표 {roas_goal_pct}%",
             },
         ],
@@ -189,18 +192,18 @@ def map_mtd_group_d(data):
     total = data["total"]
     channel_group = data.get("channel_group")
 
-    def _row(r, label):
+    def _row(r, label, bar_color):
         return [
             label,
-            f"{r['spent_rate']}%",
+            {"type": "bar", "pct": r["spent_rate"], "color": bar_color, "label": f"{r['spent_rate']}%"},
             _fmt_amount(r["budget_goal"]),
             _fmt_amount(r["spent"]),
             _fmt_amount(r["daily_budget"]),
             _fmt_amount(r["daily_spent_avg"]),
         ]
 
-    table_rows = [_row(r, r["channel"]) for r in rows]
-    table_rows.append(_row(total, "합계"))
+    table_rows = [_row(r, r["channel"], "3B82F6") for r in rows]
+    table_rows.append(_row(total, "합계", "1E293B"))
 
     heading = "매체별 예산 소진 현황"
     if channel_group:
