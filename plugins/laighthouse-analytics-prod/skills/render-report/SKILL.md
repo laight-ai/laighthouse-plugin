@@ -64,11 +64,13 @@ daily-section-1-kpi-goals.md`의 분기 규칙 참고).
 > DATA 섹션 그룹 A~G 전용 — 아래 `mtd 전용: 병렬 서브에이전트 실행 방식` 참고). MCP 도구는 직접
 > 호출하고, 그 결과를 곧바로 섹션 JSON 조합에 사용한다. 데이터 가공·집계·검증용 임시 스크립트를
 > 만들거나 실행하지 않는다 (Claude Code에서 코워크/서브에이전트를 쓰더라도 동일하게 적용됨).
-> `map_section.py`는 report_type=`mtd`의 DATA 섹션 그룹 A~G, report_type=`monthly`의 DATA 섹션
-> 그룹 A~D, report_type=`executive-mtd`의 DATA 섹션 그룹 A~D 전용이다 — 각각 아래 `mtd 전용: 병렬
-> 서브에이전트 실행 방식` / `monthly 전용: 병렬 서브에이전트 실행 방식` / `executive-mtd 전용: 병렬
-> 서브에이전트 실행 방식` 절 참고. 이 스킬이 만드는 파일은 오직 최종 보고서 `.docx` 하나뿐이다
-> (중간 JSON 데이터 파일은 `build.py`/`map_section.py` 호출을 위한 임시 입력·출력일 뿐이다).
+> `map_section.py`는 report_type=`daily`의 DATA 섹션 그룹 A~D(분기별로 `_google_meta`/`_naver` 두
+> 변형씩, 총 8개 `--group` 값), report_type=`mtd`의 DATA 섹션 그룹 A~G, report_type=`monthly`의
+> DATA 섹션 그룹 A~D, report_type=`executive-mtd`의 DATA 섹션 그룹 A~D 전용이다 — 각각 아래 `daily
+> 전용: 병렬 서브에이전트 실행 방식` / `mtd 전용: 병렬 서브에이전트 실행 방식` / `monthly 전용: 병렬
+> 서브에이전트 실행 방식` / `executive-mtd 전용: 병렬 서브에이전트 실행 방식` 절 참고. 이 스킬이
+> 만드는 파일은 오직 최종 보고서 `.docx` 하나뿐이다 (중간 JSON 데이터 파일은 `build.py`/
+> `map_section.py` 호출을 위한 임시 입력·출력일 뿐이다).
 
 ## 입력 파라미터
 
@@ -89,6 +91,8 @@ daily/mtd/monthly/executive-mtd 모두 **섹션 구성은 report_type이 전부 
 ## 실행 순서
 
 1. 파라미터를 파싱하고 report_type을 확정한다 (`daily`/`mtd`/`monthly`/`executive-mtd`만 유효).
+   - **report_type이 `daily`면, 2~7단계 대신 아래 `daily 전용: 병렬 서브에이전트 실행 방식` 절을
+     따른다** (mtd/monthly/executive-mtd는 각자의 병렬 절을 따른다).
    - **report_type이 `mtd`면, 2~7단계 대신 아래 `mtd 전용: 병렬 서브에이전트 실행 방식` 절을
      따른다** (daily/executive-mtd는 지금부터 설명하는 순차 실행 순서를 그대로 따른다).
    - **report_type이 `monthly`면, 2~7단계 대신 아래 `monthly 전용: 병렬 서브에이전트 실행 방식`
@@ -226,6 +230,104 @@ daily/mtd/monthly/executive-mtd 모두 **섹션 구성은 report_type이 전부 
 — by LaightAI
 📁 C:\Users\minhyeok\Downloads\laighthouse-reports\다형식품_mtd_2026-05-15.docx
 ```
+
+---
+
+## daily 전용: 병렬 서브에이전트 실행 방식
+
+> ⚙️ 이 절은 **`report_type=daily`에만 적용**된다 (mtd/monthly/executive-mtd는 각자의 절을 따른다).
+> 목적은 시간/토큰 절약이며, **산출물(`.docx` 최종 렌더링 결과)은 순차 실행 방식과 완전히 동일해야
+> 한다** — `데이터 처리 원칙`은 그대로 유지된다. daily는 다른 세 report_type과 달리 **분기(A:
+> Google/Meta, B: naver)가 있는 유일한 report_type**이라 그룹 분리 외에 분기 판단이 하나 더
+> 필요하다.
+
+### 0단계: 분기를 먼저, 단 한 번만 판단한다
+
+병렬 서브에이전트를 띄우기 **전에** brand_name의 report-backend generator로 분기(A/B)를 판단한다
+(`sections/daily/daily-section-1-kpi-goals.md`의 분기 규칙, `실행 순서` 2단계와 동일한 판단 기준).
+이 판단은 **한 번만** 하고, 그 결과(A 또는 B)를 아래 4개 그룹 서브에이전트 전원에게 지시문에
+포함해 전달한다 — 각 서브에이전트가 호출할 MCP 도구/실행할 `map_section.py --group` 값이 이
+분기 하나로 전부 결정되기 때문이다 (서브에이전트가 스스로 분기를 재판단하지 않는다).
+
+daily의 DATA 섹션 4개(1+2, 4, 5, 6)를 아래 4개 그룹으로 나눠 **Agent 도구로 한 메시지 안에서
+동시에** 서브에이전트를 띄운다 (`general-purpose` 타입). ANALYSIS 섹션 1개(3, Executive Summary)는
+서브에이전트가 반환한 digest를 오케스트레이터(본 대화)가 직접 읽고 기존 분석 지침대로 작성한다.
+
+### 그룹 표 (분기별 MCP 호출)
+
+| 그룹 | 담당 섹션 | 분기 A (Google/Meta) MCP 호출 | 분기 B (naver) MCP 호출 | digest 소비처 |
+|---|---|---|---|---|
+| A | 1+2 | `target_progress`(v1, `campaign_type="sales"`) | `get_naver_target_progress`(`as_of_date`=target_date) | **분기 A만**: 섹션3 |
+| B | 4 | `get_sales_performance_daily`(start=week_start, end=target_date) | `get_naver_daily_attributed_sales`(start=target_date-6일, end=target_date) | **분기 B만**: 섹션3 |
+| C | 5 | `get_sales_by_campaign_monthly`(day_offset=target_date.day) | `get_naver_campaign_performance`(start=end=target_date) | (없음 — 아래 참고) |
+| D | 6 | `get_sales_by_asset_group_monthly`(day_offset=target_date.day) | `get_naver_sa_performance_daily` ×2(`group_by="ad-group"`/`"keyword"`, 둘 다 target_date 당일) | (없음 — 아래 참고) |
+
+⚠️ **그룹 A/B의 digest 소비 방향이 분기마다 다르다** — 분기 A는 그룹 A digest를, 분기 B는 그룹 B
+digest를 각각 섹션3에서 쓰고, 반대쪽은 쓰지 않는다(아래 "오케스트레이터가 병렬 결과를 받은 뒤"
+참고). 두 분기 모두를 동시에 실행하는 일은 없으므로(브랜드 하나는 항상 한쪽 분기), 실제로는 항상
+"그 브랜드의 분기에 해당하는 digest 하나"만 쓰인다.
+
+⚠️ **그룹 C/D는 두 분기 모두 digest=None이다** — daily-section-3(분기 B)의 캠페인/광고그룹별
+특이사항 문단은 그룹 C/D가 만드는 것과 **다른 날짜 범위**의 호출(target_date 당일 + 비교 기준
+기간, `get_naver_sa_performance_daily(group_by="campaign"/"ad-group")`)이 필요하다 — 그룹 C(캠페인
+성과)는 `get_naver_campaign_performance`를, 그룹 D(광고그룹/키워드)는 `get_naver_sa_performance_daily`를
+쓰지만 **둘 다 target_date 하루치뿐**이라 섹션3이 필요로 하는 "비교 기준 기간 대비" 계산의 재료가
+되지 못한다. 아래 "섹션3 작성" 항목 참고.
+
+### 서브에이전트 지시문 (그룹당 1개, 총 4개를 한 메시지에서 병렬 호출)
+
+각 서브에이전트에게 아래를 지시한다:
+
+1. 0단계에서 판단한 분기(A 또는 B)에 해당하는 MCP 도구를 호출한다 (파라미터는
+   `sections/daily/daily-section-{N}.md`의 해당 분기 절 `## 분기 A`/`## 분기 B` 아래 `MCP 도구`
+   설명을 그대로 따른다 — 절대 반대 분기의 도구를 쓰지 않는다). 그룹 D의 분기 B는 같은 도구를
+   `group_by`만 바꿔 2회 호출한다.
+2. 응답을 가공 없이 그대로 스크래치패드 임시 파일에 저장한다.
+   - 그룹 A(분기 A)는 `target_progress` 응답을 `{"sales": {...}}` 형태 그대로 저장한다(응답이
+     이미 `sales` 키 아래에 필요한 필드를 담고 있다고 가정).
+   - 그룹 A(분기 B)는 `get_naver_target_progress` 응답에 `"as_of_date": "target_date"` 필드 하나를
+     더해 저장한다(예: `{ ...응답 그대로..., "as_of_date": "2026-04-28" }`) — 이 값은 이미 MCP 호출
+     파라미터로 쓴 것과 동일한 문자열이며, `map_section.py`가 "기간 진척률"(day-of-month/월
+     일수)을 계산하는 데 쓴다.
+   - 그룹 B(분기 B)는 `get_naver_daily_attributed_sales` 응답을 `{"items": [...]}` 형태 그대로
+     저장한다.
+   - 그룹 D(분기 B)는 두 호출 결과를 `{"ad_group": <group_by="ad-group" 응답>, "keyword":
+     <group_by="keyword" 응답>}` 형태로 합쳐 저장한다.
+3. 아래 명령을 그대로 실행한다 (`--group` 값은 `{A|B|C|D}_{google_meta|naver}` 중 0단계에서
+   정한 분기에 해당하는 쪽 하나):
+   ```
+   python "<스킬 폴더 경로>/assets/docx_report/map_section.py" --report-type daily --group {A|B|C|D}_{google_meta|naver} --data <임시.json> --out <out.json>
+   ```
+4. `out.json`의 내용을 그대로 자신의 최종 응답으로 반환한다 — raw 데이터를 다시 설명하거나 요약하지
+   않는다(오케스트레이터가 볼 결과는 이 압축된 JSON뿐이어야 한다).
+
+### 오케스트레이터가 병렬 결과를 받은 뒤
+
+5. 4개 서브에이전트 결과의 `sections[]`를 문서 순서(1,2,4,5,6 섹션 순서, 즉 그룹 A,B,C,D 순 —
+   그룹 A는 `sections[]`에 1번, 2번 섹션이 이미 이 순서로 들어있다)대로 이어붙인다.
+6. 텍스트 섹션 1개(섹션3, Executive Summary)를 분기에 따라 다르게 작성한다 — 두 분기의 형식과
+   근거 데이터가 완전히 다르므로 절대 교차 적용하지 않는다:
+   - **분기 A (Google/Meta)**: 그룹 A digest(`period_progress_pct`/`budget_utilization_*`/
+     `revenue_achievement_*`/`roas_achievement_*` 등)를 근거로
+     `sections/daily/daily-section-3-executive-summary.md`의 분기 A 지침대로 작성한다 (dify는
+     호출하지 않고, `실행 순서` 4단계 원칙대로 수치 기반 AI 직접 작성 — 개조식 문체 유지).
+   - **분기 B (naver)**: 그룹 B digest(`daily_items` — target_date 포함 최근 7일의
+     `logdate`/`ad_cost`/`revenue`/`roas`)로 최상위 불릿(`top_bullet`, 오늘 vs. 직전 7일 평균)의
+     수치 근거를 얻는다. 그룹 C/D의 digest는 없으므로(위 "그룹 C/D는 두 분기 모두 digest=None"
+     참고), 캠페인별/광고그룹별 특이사항 불릿에 필요한 데이터는 **이 시점에 오케스트레이터가 직접**
+     아래를 추가로 호출한다 (mtd-section-5/execmtd-section-3의 `list_promotions` 직접 호출 선례와
+     동일한 패턴 — ANALYSIS 섹션은 DATA 그룹이 커버하지 못하는 범위를 스스로 채운다):
+     - `get_naver_sa_performance_daily(group_by="campaign")` / `(group_by="ad-group")`를 각각
+       target_date와 비교 기준 기간에 대해 호출.
+     - `list_promotions(start_date=target_date-21일, end_date=target_date)`로 최근 프로모션 여부
+       확인.
+     - `daily-section-3-executive-summary.md` 분기 B의 "작성 원칙" 1~6번을 그대로 따라
+       `daily_summary_subheading`/`top_bullet`/`campaign_bullets`/`adgroup_bullets`를 만들고,
+       그 파일의 "DOCX 섹션 (분기 B)" 조립 규칙대로 `body` 문자열을 조립한다.
+7. 어느 그룹의 서브에이전트가 실패했거나 MCP가 빈 응답/에러를 반환하면, 그 그룹이 담당하던 섹션(들)은
+   `데이터 부족 시` 규칙대로 `{ "type": "text", "heading": "...", "body": "데이터 준비 중" }`으로
+   대체한다 — 다른 그룹은 정상 진행하며, 그 그룹에 의존하는 digest 항목은 텍스트 작성 시 건너뛴다.
+8. 이후 절차(최종 JSON 조립 → `build.py` 호출 → 완료 메시지)는 위 `실행 순서` 6~8단계와 동일하다.
 
 ---
 

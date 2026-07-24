@@ -8,7 +8,21 @@ other way around.
 
 No network/MCP calls happen here: callers save a raw MCP response to a JSON
 file and pass its parsed contents in.
+
+BRANCH REGISTRATION SCHEME (daily only): `daily` is the only report_type whose
+sections branch on brand ad-media (분기 A = Google/Meta brands, 분기 B = naver
+brands) -- each section file documents both branches. Rather than overload one
+mapper per group with an internal if/else (the two branches call different MCP
+tools and consume structurally unrelated response shapes), each daily group
+gets two separate functions and two separate MAPPERS registrations, keyed as
+("daily", "<GROUP>_google_meta") / ("daily", "<GROUP>_naver"). The orchestrator
+determines the branch once (per daily-section-1's rule, before dispatching any
+subagent) and tells every subagent which of the two `--group` values to pass to
+map_section.py -- see SKILL.md's "daily 전용" section.
 """
+
+from datetime import date as _date
+import calendar as _calendar
 
 
 def _fmt_amount(value):
@@ -827,6 +841,525 @@ def map_execmtd_group_d(data):
     return {"sections": [section], "digest": digest}
 
 
+# ---------------------------------------------------------------------------
+# daily
+# ---------------------------------------------------------------------------
+#
+# See the module docstring for the branch registration scheme. Group letters
+# mirror the section numbers they cover: A=1+2 (kpi 카드 쌍), B=4 (최근 7일
+# 차트), C=5 (캠페인 성과 표), D=6 (광고그룹/키워드 표). Section 3(Executive
+# Summary)는 ANALYSIS 섹션이라 여기 없다 -- 아래 각 함수의 digest 문서 참고.
+
+
+def _signed(value):
+    """Sign-prefixed number string: >0 gets a literal '+', <=0 prints as-is
+    (its own '-' already carries the sign) -- same convention already used by
+    map_execmtd_group_c's change_label for diff_value-bearing cards.
+    """
+    return f"+{value}" if value > 0 else f"{value}"
+
+
+def map_daily_group_a_google_meta(data):
+    """daily-section-1 (월 목표 카드) + daily-section-2 (Overview), 분기 A (Google/Meta).
+
+    `data`: raw `target_progress` (v1, generic) response, shaped
+    {"sales": {...}} -- every field daily-section-1/2.md documents
+    (`sales.budget_goal`, `sales.period_progress_pct`, `sales.roas_achievement_diff`,
+    etc.) is already computed by the tool; this function only formats/composes
+    strings, it does not (re)compute any ratio or diff.
+    """
+    sales = data["sales"]
+
+    section1 = {
+        "type": "kpi_cards",
+        "cards": [
+            {"label": "Monthly Budget Plan", "value": f"${_fmt_amount(sales['budget_goal'])}"},
+            {"label": "Monthly Revenue Target", "value": f"${_fmt_amount(sales['revenue_goal'])}"},
+            {"label": "Monthly ROAS Target", "value": f"{sales['roas_goal']}%"},
+        ],
+    }
+    section2 = {
+        "type": "kpi_cards",
+        "cards": [
+            {
+                "label": "Period Progress",
+                "value": f"{sales['period_progress_pct']}% ({sales['period_label']})",
+            },
+            {
+                "label": "Monthly Budget Utilization",
+                "value": f"{sales['budget_utilization_pct']}% ({_signed(sales['budget_utilization_diff'])}%p)",
+                "diff": f"Target ${_fmt_amount(sales['budget_goal'])} · Current ${_fmt_amount(sales['budget_spent'])}",
+                "diff_value": sales["budget_utilization_diff"],
+            },
+            {
+                "label": "Monthly Revenue Achievement",
+                "value": f"{sales['revenue_achievement_pct']}% ({_signed(sales['revenue_achievement_diff'])}%p)",
+                "diff": f"Target ${_fmt_amount(sales['revenue_goal'])} · Current ${_fmt_amount(sales['revenue_actual'])}",
+                "diff_value": sales["revenue_achievement_diff"],
+            },
+            {
+                "label": "Monthly ROAS Achievement",
+                "value": f"{sales['roas_achievement_pct']}% ({_signed(sales['roas_achievement_diff'])}%p)",
+                "diff": f"Target {sales['roas_goal']}% · Current {sales['roas_actual']}%",
+                "diff_value": sales["roas_achievement_diff"],
+            },
+        ],
+    }
+    # Consumed by daily-section-3 분기 A (its step 1 explicitly reuses this
+    # same target_progress call before authoring the summary).
+    digest = {
+        "period_progress_pct": sales["period_progress_pct"],
+        "budget_utilization_pct": sales["budget_utilization_pct"],
+        "budget_utilization_diff": sales["budget_utilization_diff"],
+        "revenue_achievement_pct": sales["revenue_achievement_pct"],
+        "revenue_achievement_diff": sales["revenue_achievement_diff"],
+        "roas_achievement_pct": sales["roas_achievement_pct"],
+        "roas_achievement_diff": sales["roas_achievement_diff"],
+        "budget_goal": sales["budget_goal"],
+        "budget_spent": sales["budget_spent"],
+        "revenue_goal": sales["revenue_goal"],
+        "revenue_actual": sales["revenue_actual"],
+        "roas_goal": sales["roas_goal"],
+        "roas_actual": sales["roas_actual"],
+    }
+    return {"sections": [section1, section2], "digest": digest}
+
+
+def map_daily_group_a_naver(data):
+    """daily-section-1 (월 목표 카드) + daily-section-2 (목표 달성 현황), 분기 B (naver).
+
+    `data`: raw get_naver_target_progress response
+    ({"target_cost","target_revenue","target_roas","actual_cost","actual_revenue",
+    "actual_roas","cost_progress_ratio","revenue_progress_ratio"}) plus one
+    caller-supplied field, "as_of_date" (the same target_date string already
+    passed as the MCP call's `as_of_date` param) -- the tool's response has no
+    date/month field, so `period_progress_pct`/`period_label` (day-of-month /
+    days-in-month, per daily-section-2.md's explicit formula) can only be
+    computed here given that one extra string. This mirrors the existing
+    caller-supplied-label convention (map_monthly_group_c's month labels,
+    map_execmtd_group_d's period labels) rather than inventing a new pattern.
+
+    digest=None: unlike 분기 A, daily-section-3 분기 B's data-collection list
+    does NOT reuse this call at all -- its top_bullet is built from
+    get_naver_daily_attributed_sales (daily-section-4's call, see
+    map_daily_group_b_naver's digest) plus separate campaign/ad-group/promotion
+    calls, never from get_naver_target_progress. Documented explicitly so a
+    future editor doesn't assume symmetry with 분기 A.
+    """
+    as_of = _date.fromisoformat(data["as_of_date"])
+    days_in_month = _calendar.monthrange(as_of.year, as_of.month)[1]
+    period_progress_pct = round(as_of.day / days_in_month * 100, 1)
+    period_label = f"{as_of.day}/{days_in_month}일"
+
+    roas_goal_pct = _ratio_to_pct(data["target_roas"])
+    roas_actual_pct = _ratio_to_pct(data["actual_roas"])
+    budget_spent_rate = _ratio_to_pct(data["cost_progress_ratio"])
+    revenue_achievement_rate = _ratio_to_pct(data["revenue_progress_ratio"])
+
+    # budget/revenue diffs are relative to period_progress_pct (pace vs. an
+    # evenly-spread expectation), NOT vs. the target -- per daily-section-2.md's
+    # explicit warning that this differs from ROAS diff (target-relative).
+    budget_spent_diff = round(budget_spent_rate - period_progress_pct, 1)
+    revenue_achievement_diff = round(revenue_achievement_rate - period_progress_pct, 1)
+    roas_diff = round(roas_actual_pct - roas_goal_pct, 1)
+
+    section1 = {
+        "type": "kpi_cards",
+        "cards": [
+            {"label": "월 예산 목표", "value": _fmt_amount(data["target_cost"])},
+            {"label": "월 매출 목표", "value": _fmt_amount(data["target_revenue"])},
+            {"label": "월 ROAS 목표", "value": f"{roas_goal_pct}%"},
+        ],
+    }
+    section2 = {
+        "type": "kpi_cards",
+        "cards": [
+            {"label": "기간 진척률", "value": f"{period_progress_pct}% ({period_label})"},
+            {
+                "label": "월 예산대비 소진율",
+                "value": f"{budget_spent_rate}% ({_signed(budget_spent_diff)}%p)",
+                "diff": f"목표 ₩{_fmt_amount(data['target_cost'])} · 소진비용 ₩{_fmt_amount(data['actual_cost'])}",
+                "diff_value": budget_spent_diff,
+            },
+            {
+                "label": "월 목표 매출 대비 달성률",
+                "value": f"{revenue_achievement_rate}% ({_signed(revenue_achievement_diff)}%p)",
+                "diff": f"목표 ₩{_fmt_amount(data['target_revenue'])} · 매출 ₩{_fmt_amount(data['actual_revenue'])}",
+                "diff_value": revenue_achievement_diff,
+            },
+            {
+                "label": "월 누적 ROAS",
+                "value": f"{roas_actual_pct}% ({_signed(roas_diff)}%p)",
+                "diff": f"목표 {roas_goal_pct}%",
+                "diff_value": roas_diff,
+            },
+        ],
+    }
+    return {"sections": [section1, section2], "digest": None}
+
+
+def map_daily_group_b_google_meta(data):
+    """daily-section-4 (최근 7일 성과), 분기 A (Google/Meta).
+
+    `data`: raw get_sales_performance_daily response, shaped
+    {"sales_daily": {"labels","revenue","ad_spend","roas"}} -- all four arrays
+    already computed by the tool.
+    """
+    sd = data["sales_daily"]
+    section = {
+        "type": "chart",
+        "heading": "Sales campaign: Daily performance in the last 7 days",
+        "categories": sd["labels"],
+        "bar_series": [
+            {"name": "Revenue", "values": sd["revenue"]},
+            {"name": "Ad Spend", "values": sd["ad_spend"]},
+        ],
+        "line_series": {"name": "ROAS", "values": sd["roas"]},
+    }
+    return {"sections": [section], "digest": None}
+
+
+_DAILY_KOREAN_WEEKDAYS = ["월", "화", "수", "목", "금", "토", "일"]
+
+
+def map_daily_group_b_naver(data):
+    """daily-section-4 (최근 7일 성과), 분기 B (naver).
+
+    `data`: raw get_naver_daily_attributed_sales response, shaped
+    {"items": [{"logdate","ad_cost","revenue", ...}, ...]} ("items" as the
+    top-level key is inferred from every other naver MCP tool response
+    documented in this skill -- daily-section-4.md itself has no literal raw
+    JSON example, only the field list -- verify against the live tool schema).
+    `roas` is not returned by the tool; per daily-section-4.md this skill
+    computes it (`revenue / ad_cost * 100`). 0-cost days fall back to
+    roas=0.0, mirroring map_monthly_group_d's documented 0-spend fallback
+    (no rule is documented for this edge case here, but that's the closest
+    precedent in this file rather than inventing a new one).
+    """
+    items = data["items"]
+    labels, revenue, ad_spend, roas = [], [], [], []
+    digest_items = []
+    for item in items:
+        d = _date.fromisoformat(item["logdate"])
+        labels.append(f"{d.month}/{d.day}({_DAILY_KOREAN_WEEKDAYS[d.weekday()]})")
+        revenue.append(item["revenue"])
+        ad_spend.append(item["ad_cost"])
+        item_roas = round(item["revenue"] / item["ad_cost"] * 100, 2) if item["ad_cost"] else 0.0
+        roas.append(item_roas)
+        digest_items.append({**item, "roas": item_roas})
+
+    section = {
+        "type": "chart",
+        "heading": "최근 7일 성과",
+        "categories": labels,
+        "bar_series": [
+            {"name": "매출", "values": revenue},
+            {"name": "광고비", "values": ad_spend},
+        ],
+        "line_series": {"name": "ROAS", "values": roas},
+    }
+    # Consumed by daily-section-3 분기 B's top_bullet (오늘 vs. 비교 기준 기간
+    # 평균) -- the orchestrator still needs its own additional
+    # get_naver_sa_performance_daily/list_promotions calls for the
+    # campaign/ad-group bullets; see SKILL.md's "daily 전용" section.
+    digest = {"daily_items": digest_items}
+    return {"sections": [section], "digest": digest}
+
+
+def map_daily_group_c_google_meta(data):
+    """daily-section-5 (캠페인 성과), 분기 A (Google/Meta).
+
+    `data`: raw get_sales_by_campaign_monthly response, shaped
+    {"sales_by_campaign": [{"media","campaign","impression","click","ctr",
+    "cost","revenue","roas"}, ...]}. `ctr`/`roas` are placed as-is (the table
+    headers already carry the "(%)" unit, so no suffix is appended here).
+    """
+    items = data["sales_by_campaign"]
+    rows = [
+        [
+            item["media"],
+            item["campaign"],
+            _fmt_amount(item["impression"]),
+            _fmt_amount(item["click"]),
+            item["ctr"],
+            _fmt_amount(item["cost"]),
+            _fmt_amount(item["revenue"]),
+            item["roas"],
+        ]
+        for item in items
+    ]
+    section = {
+        "type": "table",
+        "heading": "Performance by Campaign",
+        "headers": ["Media", "Campaign", "Impression", "Click", "CTR (%)", "Cost ($)", "Revenue ($)", "ROAS (%)"],
+        "rows": rows,
+    }
+    return {"sections": [section], "digest": None}
+
+
+_DAILY_NAVER_CHANNEL_LABELS = {
+    "BRS": "네이버 브랜드검색",
+    "PLINK": "네이버 파워링크",
+    "NVSHOP": "네이버 쇼핑검색",
+}
+
+
+def map_daily_group_c_naver(data):
+    """daily-section-5 (캠페인 성과), 분기 B (naver).
+
+    `data`: raw get_naver_campaign_performance response
+    ({"items": [{"campaign","channel","revenue","ad_cost","roas","impressions",
+    "clicks","ctr","cpc","purchases"}, ...]}). `ctr`/`roas` already arrive
+    percentage-scale (no x100). `cpm` isn't in the response; computed here as
+    `ad_cost / impressions * 1000` per daily-section-5.md's explicit formula.
+    Rows with `ad_cost < 10,000` are dropped (2026-07-23 rule); if that leaves
+    nothing, an "안내" kpi_cards fallback replaces the table (same shape as
+    map_execmtd_group_c's no-highlights fallback) instead of an empty table.
+
+    ⚠️ FLAGGED cpm formula: daily-section-5.md's prose states
+    `cpm = ad_cost / impressions × 1000`, but its own literal example
+    (revenue 4,441,630 / ad_cost 494,112 / impressions 5,901 -- the same row
+    reused for daily-section-6's worked example) is a naver-style cpc/roas
+    table with `cpc: 720.28` documented alongside it; no cpm value is given
+    in section-5's own example, but the *identical row* is used again in
+    daily-section-6.md's worked cpm example there, where `cost/impressions`
+    (WITHOUT `x 1000`) is what reproduces the documented result. Since both
+    section-5 and section-6 state the same formula prose and section-6's
+    worked numbers only match without the `x 1000`, this function follows
+    the worked example (`ad_cost / impressions`, no `x 1000`) here too for
+    consistency, treating the "x 1000" in both .md files' prose as a
+    copy-paste error from the standard CPM definition -- verify against a
+    live tool response before trusting this in production.
+
+    digest=None -- daily-section-3 분기 B's campaign-level bullets are sourced
+    from get_naver_sa_performance_daily(group_by="campaign") across two date
+    ranges (target_date + a comparison baseline), not from this single-day
+    get_naver_campaign_performance call, so this section's output isn't a
+    valid digest source for section 3 (see SKILL.md's "daily 전용" section).
+    """
+    filtered = [item for item in data["items"] if item["ad_cost"] >= 10000]
+    if not filtered:
+        cards = [{"label": "안내", "value": "이번 기간 10,000원 이상 집행된 캠페인이 없음"}]
+        return {"sections": [{"type": "kpi_cards", "cards": cards}], "digest": None}
+
+    rows = []
+    for item in filtered:
+        cpm = round(item["ad_cost"] / item["impressions"], 2) if item["impressions"] else None
+        rows.append(
+            [
+                _DAILY_NAVER_CHANNEL_LABELS.get(item["channel"], item["channel"]),
+                item["campaign"],
+                _fmt_amount(item["impressions"]),
+                _fmt_amount(item["clicks"]),
+                _fmt_amount(item["ad_cost"]),
+                _fmt_amount(item["cpc"]),
+                f"{item['ctr']}%",
+                _fmt_amount(cpm) if cpm is not None else "-",
+                item["purchases"],
+                _fmt_amount(item["revenue"]),
+                f"{item['roas']}%",
+            ]
+        )
+    section = {
+        "type": "table",
+        "heading": "캠페인 성과",
+        "headers": ["광고 채널", "캠페인", "노출", "클릭", "광고비", "CPC", "CTR", "CPM", "구매건수", "매출", "ROAS"],
+        "rows": rows,
+    }
+    return {"sections": [section], "digest": None}
+
+
+def map_daily_group_d_google_meta(data):
+    """daily-section-6 (광고 그룹 및 키워드 성과), 분기 A (Google/Meta).
+
+    `data`: raw get_sales_by_asset_group_monthly response, shaped
+    {"sales_by_asset_group": [{"media","campaign","asset_group","impression",
+    "click","ctr","cost","revenue"}, ...]} -- no ROAS column (PMax asset
+    groups have no keyword targeting, per daily-section-6.md).
+    """
+    items = data["sales_by_asset_group"]
+    rows = [
+        [
+            item["media"],
+            item["campaign"],
+            item["asset_group"],
+            _fmt_amount(item["impression"]),
+            _fmt_amount(item["click"]),
+            item["ctr"],
+            _fmt_amount(item["cost"]),
+            _fmt_amount(item["revenue"]),
+        ]
+        for item in items
+    ]
+    section = {
+        "type": "table",
+        "heading": "Performance by Asset group",
+        "headers": ["Media", "Campaign", "Asset Group", "Impression", "Click", "CTR (%)", "Cost ($)", "Revenue ($)"],
+        "rows": rows,
+    }
+    return {"sections": [section], "digest": None}
+
+
+def _daily_naver_node_metrics(imp, click, cost, conv_cnt, conv_amnt):
+    """ctr/cpc/cpm/roas from raw imp/click/cost_exc_vat/gross_conv_cnt/
+    gross_conv_amnt, per daily-section-6.md step 3. cpc/roas are `None` when
+    their denominator (click/cost) is 0, per the .md's explicit "-" display
+    rule; ctr/cpm defensively do the same for a 0-impression node even though
+    the .md doesn't call that case out (it should never occur for a row that
+    already cleared the >=10,000 ad_cost filter, but this avoids a
+    ZeroDivisionError instead of guessing a display value).
+
+    Rounded to 2 decimals -- the .md states the four formulas but not a
+    decimal count; 2 decimals matches the precision of every other
+    naver-computed ratio metric already in this file (map_mtd_group_e's cpc,
+    map_daily_group_c_naver's cpm, etc.), so this follows that established
+    convention rather than inventing a new one.
+
+    ⚠️ FLAGGED cpm formula: daily-section-6.md's prose says
+    `cpm = cost_exc_vat / imp × 1000`, but its own worked example (group node
+    cpm=101.4 from imp=1315/ad_cost=133321; keyword node cpm=81.6 from
+    imp=320/ad_cost=26100) only reproduces as plain `cost / imp` -- WITHOUT
+    the `x 1000` (with it, the same inputs give ~101,381 / ~81,562, nowhere
+    near the documented 101.4/81.6). See map_daily_group_c_naver's matching
+    flag for daily-section-5's identical formula text/example conflict; both
+    functions consistently follow the worked examples (`cost / imp`, no
+    `x 1000`) rather than the prose, on the theory that "x 1000" is a
+    copy-paste artifact of the standard CPM definition in this .md. Verify
+    against a live tool response before trusting this in production.
+    """
+    ctr = round(click / imp * 100, 2) if imp else None
+    cpc = round(cost / click, 2) if click else None
+    cpm = round(cost / imp, 2) if imp else None
+    roas = round(conv_amnt / cost * 100, 2) if cost else None
+    return {
+        "impressions": imp,
+        "clicks": click,
+        "ad_cost": cost,
+        "cpc": cpc,
+        "ctr": ctr,
+        "cpm": cpm,
+        "purchases": conv_cnt,
+        "revenue": conv_amnt,
+        "roas": roas,
+    }
+
+
+def _daily_naver_fmt_ratio(value, suffix=""):
+    return "-" if value is None else f"{value}{suffix}"
+
+
+def map_daily_group_d_naver(data):
+    """daily-section-6 (광고 그룹 및 키워드 성과), 분기 B (naver).
+
+    `data`: {"ad_group": <get_naver_sa_performance_daily group_by="ad-group"
+    응답>, "keyword": <동일 도구 group_by="keyword" 응답>}, each shaped
+    {"items": [{"nvr_media_type","campaign_name","group_name","imp","click",
+    "cost_exc_vat","gross_conv_cnt","gross_conv_amnt", ...}, ...]} (keyword
+    items additionally carry "term"). Both calls target the same single
+    target_date -- daily is always a one-day snapshot for this section.
+
+    Processing (per daily-section-6.md steps 1-5, mechanical only -- no value
+    is invented/re-estimated, matching the "데이터 처리 원칙" exception this
+    file already documents for tree-building/filtering):
+    1. Drop keyword rows with term=="-".
+    2. Group keyword rows by (nvr_media_type, campaign_name, group_name) as
+       children of the matching ad-group row.
+    3. Compute ctr/cpc/cpm/roas per node (see _daily_naver_node_metrics).
+    4. Map nvr_media_type -> channel_label.
+    5. Drop any node (group OR keyword, independently) with ad_cost<10,000;
+       cap each group's remaining children to the top 20 by revenue (ties by
+       ad_cost), appending a "외 N개 키워드" placeholder row for the rest.
+
+    digest=None -- same reasoning as map_daily_group_c_naver: daily-section-3
+    분기 B's ad-group-level bullets need a *comparison-period* call to this
+    same tool (not just target_date), which this group doesn't fetch.
+    """
+    keyword_items = [item for item in data["keyword"]["items"] if item.get("term") != "-"]
+
+    def _key(item):
+        return (item["nvr_media_type"], item["campaign_name"], item["group_name"])
+
+    children_by_key = {}
+    for kw in keyword_items:
+        metrics = _daily_naver_node_metrics(
+            kw["imp"], kw["click"], kw["cost_exc_vat"], kw["gross_conv_cnt"], kw["gross_conv_amnt"]
+        )
+        if metrics["ad_cost"] < 10000:
+            continue
+        children_by_key.setdefault(_key(kw), []).append({"keyword": kw["term"], **metrics})
+
+    groups = []
+    for g in data["ad_group"]["items"]:
+        metrics = _daily_naver_node_metrics(
+            g["imp"], g["click"], g["cost_exc_vat"], g["gross_conv_cnt"], g["gross_conv_amnt"]
+        )
+        if metrics["ad_cost"] < 10000:
+            continue
+        children = sorted(children_by_key.get(_key(g), []), key=lambda c: (-c["revenue"], -c["ad_cost"]))
+        truncated = len(children) - 20 if len(children) > 20 else None
+        groups.append(
+            {
+                "channel_label": _DAILY_NAVER_CHANNEL_LABELS.get(g["nvr_media_type"], g["nvr_media_type"]),
+                "campaign": g["campaign_name"],
+                "group": g["group_name"],
+                "children": children[:20],
+                "children_truncated": truncated,
+                **metrics,
+            }
+        )
+    groups.sort(key=lambda g: (-g["revenue"], -g["ad_cost"]))
+
+    if not groups:
+        cards = [{"label": "안내", "value": "이번 기간 10,000원 이상 집행된 광고그룹이 없음"}]
+        return {"sections": [{"type": "kpi_cards", "cards": cards}], "digest": None}
+
+    rows = []
+    for g in groups:
+        rows.append(
+            [
+                f"{g['channel_label']} / {g['campaign']}",
+                g["group"],
+                "전체",
+                _fmt_amount(g["impressions"]),
+                _fmt_amount(g["clicks"]),
+                _fmt_amount(g["ad_cost"]),
+                _daily_naver_fmt_ratio(g["cpc"]),
+                _daily_naver_fmt_ratio(g["ctr"], "%"),
+                _daily_naver_fmt_ratio(g["cpm"]),
+                g["purchases"],
+                _fmt_amount(g["revenue"]),
+                _daily_naver_fmt_ratio(g["roas"], "%"),
+            ]
+        )
+        for c in g["children"]:
+            rows.append(
+                [
+                    "",
+                    "",
+                    f"└ {c['keyword']}",
+                    _fmt_amount(c["impressions"]),
+                    _fmt_amount(c["clicks"]),
+                    _fmt_amount(c["ad_cost"]),
+                    _daily_naver_fmt_ratio(c["cpc"]),
+                    _daily_naver_fmt_ratio(c["ctr"], "%"),
+                    _daily_naver_fmt_ratio(c["cpm"]),
+                    c["purchases"],
+                    _fmt_amount(c["revenue"]),
+                    _daily_naver_fmt_ratio(c["roas"], "%"),
+                ]
+            )
+        if g["children_truncated"]:
+            rows.append(["", "", f"└ 외 {g['children_truncated']}개 키워드", "", "", "", "", "", "", "", "", ""])
+
+    section = {
+        "type": "table",
+        "heading": "광고 그룹 및 키워드 성과",
+        "headers": ["채널 / 캠페인", "광고그룹", "키워드", "노출", "클릭", "광고비", "CPC", "CTR", "CPM", "구매건수", "매출", "ROAS"],
+        "rows": rows,
+    }
+    return {"sections": [section], "digest": None}
+
+
 MAPPERS = {
     ("mtd", "A"): map_mtd_group_a,
     ("mtd", "B"): map_mtd_group_b,
@@ -843,6 +1376,14 @@ MAPPERS = {
     ("executive-mtd", "B"): map_execmtd_group_b,
     ("executive-mtd", "C"): map_execmtd_group_c,
     ("executive-mtd", "D"): map_execmtd_group_d,
+    ("daily", "A_google_meta"): map_daily_group_a_google_meta,
+    ("daily", "A_naver"): map_daily_group_a_naver,
+    ("daily", "B_google_meta"): map_daily_group_b_google_meta,
+    ("daily", "B_naver"): map_daily_group_b_naver,
+    ("daily", "C_google_meta"): map_daily_group_c_google_meta,
+    ("daily", "C_naver"): map_daily_group_c_naver,
+    ("daily", "D_google_meta"): map_daily_group_d_google_meta,
+    ("daily", "D_naver"): map_daily_group_d_naver,
 }
 
 
