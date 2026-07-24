@@ -33,17 +33,29 @@
 
 ---
 
-## DOCX 섹션
+## HTML
 
-```json
-{
-  "type": "text",
-  "heading": "카테고리별 성과 분석",
-  "body": "{analysis_of_category_performance}"
-}
+```html
+<!-- MTD SECTION 8: 카테고리별 성과 분석 -->
+<div class="card" style="margin-bottom:16px;">
+  <div class="section-title">카테고리별 성과 분석</div>
+  <div style="font-size:13px; color:#374151; line-height:1.8;">
+    <!-- analysis_of_ad_performance를 \n\n 기준으로 분리, 각 블록의 첫 줄은 <h4> 소제목 -->
+    {PRODUCT_ANALYSIS_BLOCKS}
+  </div>
+</div>
 ```
 
-- `analysis_of_category_performance`는 `\n\n`으로 구분된 블록 문자열(첫 줄이 `Overview` 또는
-  카테고리명, 나머지가 설명)을 그대로 `body`에 넣는다 — 정적 문서에서는 소제목/본문을 별도
-  마크업으로 나누지 않고 하나의 텍스트 블록으로 낸다.
-- 강조하고 싶은 수치가 있으면 문장 자체에 자연스럽게 녹여 쓴다.
+블록 렌더링 예시:
+
+```html
+<h4 style="font-size:14px; font-weight:700; margin:16px 0 6px;">국내분유</h4>
+<p>프로모션 기간 광고 효율에서 CTR과의 관계가 뚜렷이 드러났습니다...</p>
+```
+
+## Script
+없음 (정적 텍스트)
+
+## 렌더링 규칙
+- 첫 블록(`Overview`)은 `margin-top:0`
+- 강조 수치는 `<strong>` 태그 사용

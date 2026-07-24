@@ -55,20 +55,32 @@ mtd(MK)의 `mtd-section-3-executive-summary.md`와 HTML 골격(카드 + 불릿 �
 
 ---
 
-## DOCX 섹션
+## HTML
 
-```json
-{
-  "type": "text",
-  "heading": "Executive Summary",
-  "body": "{executive_summary}"
-}
+```html
+<!-- EXECUTIVE-MTD SECTION 3: Executive Summary -->
+<div class="card" style="margin-bottom:16px;">
+  <div class="section-title">Executive Summary</div>
+  <div style="display:flex; flex-direction:column; gap:10px;">
+    <!-- executive_summary를 줄바꿈 기준으로 분리하여 아래 불릿 카드로 반복 렌더링 -->
+    <div style="border:1px solid #e2e8f0; border-radius:8px; padding:16px 18px; display:flex; gap:10px; align-items:flex-start;">
+      <span style="color:{DOT_COLOR}; font-size:14px; line-height:1.6;">●</span>
+      <span style="font-size:13px; color:#374151; line-height:1.6;">{BULLET_TEXT}</span>
+    </div>
+    <!-- 반복 끝 -->
+  </div>
+</div>
 ```
 
-- `executive_summary` 문자열을 그대로 `body`에 넣는다 — 줄바꿈(`\n`)으로 구분된 각 불릿 문장이
-  하나의 문단(줄)로 렌더링되며, 별도의 리스트/색깔 점(●) 마크업으로 쪼개지 않는다(정적 문서에서는
-  단락 텍스트로 충분하다) — 색깔 점(`DOT_COLOR`)에 의한 성장/하락/중립 구분은 정적 문서에서는
-  표현하지 않는다.
-- 강조하고 싶은 수치가 있으면 문장 자체에 자연스럽게 녹여 쓴다(굵게 표시할 별도 마크업은 없음).
-- 문장 수는 3~5개로 제한하는 원문 작성 규칙은 그대로 유지한다(위 "텍스트 생성" 절 참고) — 이미
-  그 단계에서 걸러진 문자열을 그대로 전달한다.
+## Script
+없음 (정적 텍스트)
+
+## 렌더링 규칙
+- 각 불릿을 감싸는 카드는 흰 배경, 옅은 회색 테두리(`#e2e8f0`)의 **평범한 카드**로만 렌더링한다
+  — 1번 스크린샷 마지막의 색깔 입힌 "승인 필요" 강조 박스는 만들지 않는다 (전체 배경색 강조,
+  버튼, 배지 등 없음).
+- 앞머리 점(●) 색상(`{DOT_COLOR}`)은 내용의 성격에 따라 구분한다: 성장/개선 신호는
+  `#16a34a`(초록), 하락/점검 필요 신호는 `#dc2626`(빨강), 중립적 관찰은 `#78716c`(회색-갈색).
+  스크린샷과 동일하게 각 불릿마다 다른 색의 점을 쓴다.
+- 강조 수치는 `<strong>` 태그 사용.
+- 불릿 개수가 5개를 초과하면 상위 5개(가장 임팩트가 큰 것)만 남긴다.

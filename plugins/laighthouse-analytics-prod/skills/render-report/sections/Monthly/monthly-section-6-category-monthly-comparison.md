@@ -67,29 +67,81 @@
 }
 ```
 
-## DOCX 섹션
+## HTML
 
-```json
-{
-  "type": "chart",
-  "heading": "카테고리별 월간 매출액 비교",
-  "categories": "{category_monthly_comparison.labels}",
-  "bar_series": [
-    { "name": "{category_monthly_comparison.prev_month_label}", "values": "{category_monthly_comparison.prev}" },
-    { "name": "{category_monthly_comparison.curr_month_label}", "values": "{category_monthly_comparison.curr}" }
-  ],
-  "line_series": { "name": "전월 대비 증감률(%)", "values": "{category_monthly_comparison.change_pct}" }
-}
+```html
+<!-- MONTHLY SECTION 6: 카테고리별 월간 매출액 비교 -->
+<div class="card" style="margin-bottom:16px;">
+  <div class="section-title">카테고리별 월간 매출액 비교</div>
+  <div style="position:relative; height:340px;">
+    <canvas id="categoryMonthlyChart"></canvas>
+  </div>
+</div>
 ```
 
-- `categories`는 상위 5개 카테고리명 + "기타"(카테고리 개수가 5개 미만인 브랜드는 있는 만큼만)
-  배열을 그대로 넣는다.
-- `bar_series`는 전월/이번달 매출 두 그룹 막대다 — 원본 Chart.js 그룹 바 차트(전월/이번달)와
-  동일 구성.
-- 원본 HTML은 막대 위 % 변화 배지를 캔버스에 직접 그리는 인라인 플러그인을 썼지만, 정적 문서
-  차트에는 막대 위 배지를 얹을 수단이 없으므로 이를 `line_series`(전월 대비 증감률 %) 한 줄로
-  대체해 같은 정보를 보존한다 — `change_pct`가 `null`(전월 매출 0)인 항목은 `0`으로 넣고, 해당
-  카테고리가 신규임을 위 텍스트 섹션(monthly-section-5) 등 서술에서 별도로 언급한다.
-- 위 JSON의 문자열 자리(`"{category_monthly_comparison.labels}"` 등)는 실제 렌더링 시 그
-  배열/리스트 값으로 그대로 치환한다(문자열이 아니라 JSON 배열이 들어간다).
-- 데이터가 비어있으면 이 섹션 자체를 생략한다(임의로 채우지 않는다).
+## Script
+
+```javascript
+// Section 6: 카테고리별 월간 매출액 비교 (그룹 바 차트 + % 변화 배지)
+(function(){
+  const ctx = document.getElementById('categoryMonthlyChart');
+  if(!ctx) return;
+  const d = {CATEGORY_MONTHLY_COMPARISON_DATA}; // MCP 가공 데이터 JSON 치환
+  // d = { prev_month_label, curr_month_label, labels:[...], prev:[...], curr:[...], change_pct:[...] }
+
+  // 막대 위 % 변화 배지를 그리는 인라인 플러그인 (외부 datalabels 플러그인 미사용 — CDN 금지 원칙)
+  const changeBadgePlugin = {
+    id: 'changeBadge',
+    afterDatasetsDraw(chart) {
+      const { ctx: c } = chart;
+      const meta0 = chart.getDatasetMeta(0);
+      const meta1 = chart.getDatasetMeta(1);
+      d.change_pct.forEach((pct, i) => {
+        if (pct === null || pct === undefined) return;
+        const bar0 = meta0.data[i], bar1 = meta1.data[i];
+        const topY = Math.min(bar0.y, bar1.y) - 10;
+        const x = (bar0.x + bar1.x) / 2;
+        const label = (pct > 0 ? '+' : '') + pct.toFixed(1) + '%';
+        const color = pct > 0 ? '#16a34a' : (pct < 0 ? '#dc2626' : '#6b7280');
+        c.save();
+        c.font = '600 12px -apple-system, sans-serif';
+        c.fillStyle = color;
+        c.textAlign = 'center';
+        c.fillText(label, x, topY);
+        c.restore();
+      });
+    }
+  };
+
+  new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: d.labels,
+      datasets: [
+        { label: d.prev_month_label, data: d.prev, backgroundColor: '#93c5fd' },
+        { label: d.curr_month_label, data: d.curr, backgroundColor: '#f87171' }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      layout: { padding: { top: 24 } },
+      plugins: {
+        legend: { position: 'top' },
+        tooltip: {
+          callbacks: { label: c => c.dataset.label + ': ' + Number(c.raw).toLocaleString() }
+        }
+      },
+      scales: {
+        y: { ticks: { callback: v => Number(v).toLocaleString() } }
+      }
+    },
+    plugins: [changeBadgePlugin]
+  });
+})();
+```
+
+## 렌더링 규칙
+- 막대는 항상 6개 그룹(상위 5개 카테고리 + 기타)이며, 카테고리 개수가 5개 미만인 브랜드는
+  "기타" 없이 있는 만큼만 렌더링한다.
+- `change_pct`가 `null`(전월 매출 0)인 경우 배지 텍스트를 "신규"로 표시하고 색상은 `#3b82f6`.
+- 데이터가 비어있으면 "데이터 준비 중" 카드로 대체한다.

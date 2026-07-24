@@ -31,17 +31,31 @@
 
 ---
 
-## DOCX 섹션
+## HTML
 
-```json
-{
-  "type": "text",
-  "heading": "캠페인별 성과 심층 분석",
-  "body": "{analysis_by_campaign}"
-}
+```html
+<!-- MTD SECTION 8: 캠페인별 성과 심층 분석 -->
+<div class="card" style="margin-bottom:16px;">
+  <div class="section-title">캠페인별 성과 심층 분석</div>
+  <div style="font-size:13px; color:#374151; line-height:1.8;">
+    <!-- analysis_by_ad_group를 \n\n 기준으로 분리, 첫 블록은 <p> 인트로, 이후 블록은 <h4>+<p> -->
+    {AD_GROUP_ANALYSIS_BLOCKS}
+  </div>
+</div>
 ```
 
-- `analysis_by_campaign`은 `\n\n`으로 구분된 블록 문자열(첫 블록은 인트로 문단, 이후 블록은
-  캠페인명 + 설명)을 그대로 `body`에 넣는다 — 정적 문서에서는 소제목/본문을 별도 마크업으로
-  나누지 않고 하나의 텍스트 블록으로 낸다.
-- 강조하고 싶은 수치가 있으면 문장 자체에 자연스럽게 녹여 쓴다.
+블록 렌더링 예시 (첫 블록 = 인트로, 이후 블록 = 그룹별 소제목):
+
+```html
+<p>광고비를 가장 많이 소진한 캠페인 3개를 선정하였습니다.</p>
+
+<h4 style="font-size:14px; font-weight:700; margin:16px 0 6px;">분유_MO(파워링크)</h4>
+<p>이번 달 클릭수는 82만건으로...</p>
+```
+
+## Script
+없음 (정적 텍스트)
+
+## 렌더링 규칙
+- 강조 수치는 `<strong>` 태그 사용
+- `⚠`로 시작하는 문장은 `color:#d97706` (주황) 처리

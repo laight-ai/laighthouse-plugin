@@ -38,36 +38,50 @@
 
 ---
 
-## DOCX 섹션
+## HTML
 
-```json
-{
-  "type": "kpi_cards",
-  "cards": [
-    {
-      "label": "월 예산대비 소진율",
-      "value": "{overview.budget_spent_rate}%",
-      "diff": "목표 {overview.budget_goal} · 소진 {overview.budget_spent}"
-    },
-    {
-      "label": "월 목표 매출 대비 달성률",
-      "value": "{overview.revenue_achievement_rate}%",
-      "diff": "목표 {overview.revenue_goal} · 매출 {overview.revenue_actual}"
-    },
-    {
-      "label": "월 누적 ROAS",
-      "value": "{overview.roas_actual}%",
-      "diff": "목표 {overview.roas_goal}%"
-    }
-  ]
-}
+```html
+<!-- MONTHLY SECTION 2: 목표 달성 현황 -->
+<div class="card" style="margin-bottom:16px;">
+  <div class="section-title">목표 달성 현황</div>
+  <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:0; border:1px solid #e2e8f0; border-radius:8px; overflow:hidden;">
+
+    <div style="padding:20px; border-right:1px solid #e2e8f0; text-align:center;">
+      <div style="font-size:12px; color:#64748b; margin-bottom:8px;">월 예산대비 소진율</div>
+      <div style="font-size:32px; font-weight:700; color:#3b82f6; margin-bottom:12px;">{overview.budget_spent_rate}%</div>
+      <div style="display:flex; justify-content:center; gap:24px; font-size:12px;">
+        <div><div style="color:#94a3b8;">월 목표</div><div style="font-weight:600;">{overview.budget_goal}</div></div>
+        <div style="width:1px; background:#e2e8f0;"></div>
+        <div><div style="color:#94a3b8;">소진비용</div><div style="font-weight:600;">{overview.budget_spent}</div></div>
+      </div>
+    </div>
+
+    <div style="padding:20px; border-right:1px solid #e2e8f0; text-align:center;">
+      <div style="font-size:12px; color:#64748b; margin-bottom:8px;">월 목표 매출 대비 달성률</div>
+      <div style="font-size:32px; font-weight:700; color:#16a34a; margin-bottom:12px;">{overview.revenue_achievement_rate}%</div>
+      <div style="display:flex; justify-content:center; gap:24px; font-size:12px;">
+        <div><div style="color:#94a3b8;">월 목표</div><div style="font-weight:600;">{overview.revenue_goal}</div></div>
+        <div style="width:1px; background:#e2e8f0;"></div>
+        <div><div style="color:#94a3b8;">월 매출</div><div style="font-weight:600;">{overview.revenue_actual}</div></div>
+      </div>
+    </div>
+
+    <div style="padding:20px; text-align:center;">
+      <div style="font-size:12px; color:#64748b; margin-bottom:8px;">월 누적 ROAS</div>
+      <div style="font-size:32px; font-weight:700; color:#7c3aed; margin-bottom:12px;">{overview.roas_actual}%</div>
+      <div style="display:flex; justify-content:center; gap:24px; font-size:12px;">
+        <div><div style="color:#94a3b8;">월 목표</div><div style="font-weight:600;">{overview.roas_goal}%</div></div>
+        <div style="width:1px; background:#e2e8f0;"></div>
+        <div><div style="color:#94a3b8;">월 ROAS</div><div style="font-weight:600;">{overview.roas_actual}%</div></div>
+      </div>
+    </div>
+
+  </div>
+</div>
 ```
 
-- 각 카드는 원본 HTML의 "월 목표 / 실제" 두 값을 `diff` 필드 하나의 문자열로 합쳐서 담는다
-  (예: `"목표 15,000,000 · 소진 8,400,000"`). 이 값들은 증감(+/-)이 아니라 목표 대비 절대값
-  병기이므로 `diff_value`는 넣지 않는다(부호 기반 색상 강조 대상이 아님).
-- 금액 필드(`budget_goal`/`budget_spent`/`revenue_goal`/`revenue_actual`)는 `toLocaleString()`
-  스타일 천 단위 콤마 포맷 문자열로 만들어 넣는다.
+## Script
+없음 (정적 카드)
 
 ## 렌더링 규칙
 - 데이터가 비어있으면 "데이터 준비 중" 카드로 대체하고 임의로 채우지 않는다.

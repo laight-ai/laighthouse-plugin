@@ -32,21 +32,16 @@ dify 응답 실패 시 수치 기반으로 AI가 직접 생성한다.
 - `executive_summary` 값이 문자열이면 그대로 `<p>`로 렌더링
 - 줄바꿈(`\n`) 기준으로 분리하여 각 줄을 `<li>`로 렌더링
 
-### DOCX 섹션 (분기 A)
-
-```json
-{
-  "type": "text",
-  "heading": "Executive Summary",
-  "body": "{executive_summary}"
-}
+### HTML
+```html
+<!-- DAILY SECTION 3 (Google/Meta): Executive Summary -->
+<div class="card" style="margin-bottom:16px;">
+  <div class="section-title">Executive Summary</div>
+  <ul style="padding-left:20px; line-height:1.9; font-size:13px; color:#374151;">
+    {EXECUTIVE_SUMMARY_ITEMS}
+  </ul>
+</div>
 ```
-
-- `executive_summary` 문자열을 그대로 `body`에 넣는다 — 줄바꿈(`\n`)이 있는 하나의 문자열을
-  그대로 전달하면 되고, 별도의 리스트/HTML 마크업으로 쪼개지 않는다(정적 문서에서는 단락 텍스트로
-  충분하다 — mtd-section-3와 동일한 판단).
-- 빈 줄은 작성 단계에서 이미 걸러서 넣는다.
-- 강조하고 싶은 수치가 있으면 문장 자체에 자연스럽게 녹여 쓴다(굵게 표시할 별도 마크업은 없음).
 
 ---
 
@@ -134,35 +129,38 @@ dify 응답 실패 시 수치 기반으로 AI가 직접 생성한다.
 }
 ```
 
-### DOCX 섹션 (분기 B)
+### HTML
 
-```json
-{
-  "type": "text",
-  "heading": "{daily_summary_subheading}",
-  "body": "{top_bullet}\n\n{campaign_group_title}\n- {campaign_bullet_1}\n- {campaign_bullet_2}\n\n{adgroup_group_title}\n- {adgroup_bullet_1}\n- {adgroup_bullet_2}"
-}
+```html
+<!-- DAILY SECTION 3 (naver): 성과요약 -->
+<div class="card" style="margin-bottom:16px;">
+  <div style="font-size:15px; font-weight:700; color:#1e293b; margin-bottom:12px;">{daily_summary_subheading}</div>
+  <ul style="padding-left:20px; line-height:1.9; font-size:13px; color:#374151; margin-bottom:12px;">
+    <li>{top_bullet}</li>
+  </ul>
+
+  <div style="font-size:13px; color:#374151; margin:10px 0 4px; padding-left:4px;">{campaign_group_title}</div>
+  <ul style="padding-left:36px; line-height:1.8; font-size:13px; color:#374151; margin-bottom:12px;">
+    <!-- campaign_bullets 배열을 순회하며 <li> 반복 -->
+    <li>{campaign_bullet}</li>
+  </ul>
+
+  <div style="font-size:13px; color:#374151; margin:10px 0 4px; padding-left:4px;">{adgroup_group_title}</div>
+  <ul style="padding-left:36px; line-height:1.8; font-size:13px; color:#374151;">
+    <!-- adgroup_bullets 배열을 순회하며 <li> 반복 -->
+    <li>{adgroup_bullet}</li>
+  </ul>
+</div>
 ```
 
-- 이 분기는 원본 HTML이 상위 불릿 1개 + 캠페인 소제목/불릿 목록 + 광고그룹 소제목/불릿 목록,
-  이렇게 세 블록으로 구성되어 있어 `text` 하나로는 구조가 다소 복잡하지만, 정적 문서에서 표/차트로
-  쪼갤 이유가 없는 순수 서술형 콘텐츠이므로 **`text` 섹션 하나에 줄바꿈으로 구획을 나눠** 담는다
-  (mtd-section-3 판단과 동일 — 리스트/HTML 마크업 대신 단락 텍스트).
-- `body`는 이 스킬이 아래 순서로 직접 문자열을 조립해서 넣는다: `top_bullet` 한 줄 → 빈 줄 →
-  `campaign_group_title` → `campaign_bullets` 배열의 각 항목을 `"- "` 접두사로 한 줄씩 → 빈 줄 →
-  `adgroup_group_title` → `adgroup_bullets` 배열의 각 항목을 `"- "` 접두사로 한 줄씩.
-  (위 JSON의 `{campaign_bullet_1}`/`{campaign_bullet_2}` 등은 예시일 뿐 — 실제로는
-  `campaign_bullets`/`adgroup_bullets` 배열 길이(1~3개)만큼 줄을 생성한다.)
-- `heading`은 `daily_summary_subheading`("{M}월 {D}일 광고 성과 요약") 하나뿐이다 — 별도의 상위
-  제목을 추가로 만들지 않는다(2026-07-23 정정 유지).
-- `campaign_bullets`/`adgroup_bullets`가 빈 배열이면 해당 소제목 줄 자체를 `body`에서 생략한다
-  (특이사항이 없으면 억지로 채우지 않음).
+## Script (두 분기 공통)
+없음 (정적 텍스트)
 
 ## 렌더링 규칙 (공통)
-- `text` 섹션은 일반 단락 텍스트로만 렌더링되므로 강조 수치나 `⚠` 항목에 별도 서식(굵게/색상)을
-  주지 않는다 — 문장 자체에 자연스럽게 녹여 쓴다(분기 A 규칙과 동일).
-- (naver 분기) `campaign_bullets`/`adgroup_bullets`가 빈 배열이면 해당 소제목 줄 자체를 `body`에서
-  생략한다 (특이사항이 없으면 억지로 채우지 않음).
+- 강조 수치는 `<strong>` 태그 사용
+- `⚠`로 시작하는 항목은 `color:#d97706` (주황) 처리
+- (naver 분기) `campaign_bullets`/`adgroup_bullets`가 빈 배열이면 해당 소제목 블록 자체를
+  렌더링하지 않는다 (특이사항이 없으면 억지로 채우지 않음).
 - **문장 종결은 항상 개조식(~함/~음/~임/~됨 등)** — "~습니다/했습니다"체는 쓰지 않는다
   (2026-07-23 정정, 두 분기 모두 적용).
 - (naver 분기) 이 섹션의 제목은 `daily_summary_subheading`("{M}월 {D}일 광고 성과 요약") 하나뿐이다

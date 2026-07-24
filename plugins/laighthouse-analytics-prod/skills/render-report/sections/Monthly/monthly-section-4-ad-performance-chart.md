@@ -28,25 +28,52 @@ mtd(MK)의 `mtd-section-4-monthly-chart.md`와 **완전히 동일한 포맷/차�
 - `monthly_chart.roas`: ROAS 배열 (숫자, %) ← `roas` **그대로** (이미 percentage 스케일로
   반환되므로 × 100 변환 불필요)
 
-## DOCX 섹션
+## HTML
 
-```json
-{
-  "type": "chart",
-  "heading": "월별 광고 성과",
-  "categories": "{monthly_chart.labels}",
-  "bar_series": [
-    { "name": "광고비", "values": "{monthly_chart.ad_cost}" },
-    { "name": "매출", "values": "{monthly_chart.revenue}" }
-  ],
-  "line_series": { "name": "ROAS", "values": "{monthly_chart.roas}" }
-}
+```html
+<!-- MONTHLY SECTION 4: 월별 광고 성과 차트 -->
+<div class="card" style="margin-bottom:16px;">
+  <div class="section-title">월별 광고 성과</div>
+  <div style="position:relative; height:320px;">
+    <canvas id="monthlyAdChart"></canvas>
+  </div>
+</div>
 ```
 
-- `categories`는 `monthly_chart.labels`(연월 레이블 배열, 예: `["25년 10월", ..., "26년 3월"]`)를
-  그대로 넣는다.
-- `bar_series`는 광고비(`monthly_chart.ad_cost`)와 매출(`monthly_chart.revenue`) 두 시리즈,
-  `line_series`는 ROAS(`monthly_chart.roas`) 한 시리즈다 — 원본 Chart.js 혼합 차트(막대 2개 +
-  꺾은선 1개)와 동일 구성.
-- 위 JSON의 문자열 자리(`"{monthly_chart.labels}"` 등)는 실제 렌더링 시 그 배열/리스트 값으로
-  그대로 치환한다(문자열이 아니라 JSON 배열이 들어간다).
+## Script
+
+```javascript
+// Section 4: 월별 광고 성과 혼합 차트
+(function(){
+  const ctx = document.getElementById('monthlyAdChart');
+  if(!ctx) return;
+  const d = {MONTHLY_CHART_DATA}; // MCP 데이터 JSON 치환
+  // d = { labels:[...], ad_cost:[...], revenue:[...], roas:[...] }
+  new Chart(ctx, {
+    data: {
+      labels: d.labels,
+      datasets: [
+        { type:'bar',  label:'광고비', data:d.ad_cost,  backgroundColor:'#93c5fd', yAxisID:'y', order:2 },
+        { type:'bar',  label:'매출',   data:d.revenue,  backgroundColor:'#94a3b8', yAxisID:'y', order:2 },
+        { type:'line', label:'ROAS',   data:d.roas,
+          borderColor:'#ef4444', backgroundColor:'transparent',
+          pointBackgroundColor:'#ef4444', tension:0.3, yAxisID:'y2', order:1 }
+      ]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ position:'top' } },
+      scales:{
+        y:  { position:'left',  ticks:{ callback: v => Number(v).toLocaleString() } },
+        y2: { position:'right', grid:{ drawOnChartArea:false },
+              ticks:{ callback: v => v+'%' } }
+      }
+    }
+  });
+})();
+```
+
+## 렌더링 규칙
+- `canvas id`는 `monthlyAdChart`로 한다 (mtd(MK)의 `monthlyChart`와 이름을 다르게 해 한 화면에
+  두 report_type이 혼동되지 않도록 함 — 이 스킬 자체는 report_type을 섞지 않지만, id 중복 방지
+  관례를 따른다).
