@@ -1486,14 +1486,18 @@ def map_creative_group_a(data):
         "rows_total": len(creatives),
     }
 
-    # daily revenue trend for the top-5 creatives by spend
+    # daily trend for the top-5 creatives by spend. Revenue by default;
+    # brands with no purchase conversion tracked (총 매출 0 — breezm 등)
+    # fall back to daily spend so the chart still carries signal.
+    trend_field = "purchase_amount" if total_amount else "cost"
+    trend_label = "매출" if total_amount else "광고비"
     top5 = [t["name"] for t in creatives[:5]]
     by_date = {}
     for row in rows:
         key = _creative_identity(row)
         if key in top5:
             by_date.setdefault(row.get("logdate", ""), {}).setdefault(key, 0.0)
-            by_date[row["logdate"]][key] += _md_num(row.get("purchase_amount"))
+            by_date[row["logdate"]][key] += _md_num(row.get(trend_field))
     labels = sorted(d for d in by_date if d)
 
     def _short_date(iso):
@@ -1502,7 +1506,7 @@ def map_creative_group_a(data):
 
     chart_section = {
         "type": "line_chart",
-        "heading": "상위 소재 일별 매출 추이",
+        "heading": f"상위 소재 일별 {trend_label} 추이",
         "categories": [_short_date(d) for d in labels],
         "series": [
             {"name": name, "values": [round(by_date[d].get(name, 0.0)) for d in labels]}

@@ -442,6 +442,10 @@ def filter_zero_gross(headers, rows):
             if _is_total_row(row)
             or gross_col >= len(row)
             or not _is_zero_amount(row[gross_col])]
+    if not any(not _is_total_row(row) for row in kept):
+        # every body row is zero-gross (전환 미집계 브랜드) — an empty table
+        # is worse than an unfiltered one, so keep the original rows
+        return rows, 0
     return kept, len(rows) - len(kept)
 
 

@@ -106,3 +106,17 @@ def test_creative_registered_in_mappers_and_orders():
     assert ("creative", "A") in sm.MAPPERS and ("creative", "B") in sm.MAPPERS
     entries = map_report.ORDERS["creative"]
     assert entries[-1][0] == "analysis" and entries[-1][1] == "section4"
+
+
+def test_creative_chart_falls_back_to_cost_when_no_revenue():
+    md = (
+        "| logdate | media | campaign_name | asset_group | ad_name | cost | impression "
+        "| click | purchase_count | purchase_amount |\n"
+        "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |\n"
+        "| 2026-07-01 | meta | c | s | 소재A | 1000 | 10 | 1 | 0 | 0 |\n"
+        "| 2026-07-02 | meta | c | s | 소재A | 2000 | 10 | 1 | 0 | 0 |\n"
+    )
+    result = sm.map_creative_group_a({"result": md})
+    chart = result["sections"][2]
+    assert chart["heading"] == "상위 소재 일별 광고비 추이"
+    assert chart["series"][0]["values"] == [1000, 2000]

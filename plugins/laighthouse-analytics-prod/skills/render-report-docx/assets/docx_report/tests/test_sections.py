@@ -251,3 +251,11 @@ def test_text_section_subheadings_bold():
     assert subhead.font.bold is True
     body = next(r for r in runs if "누적 매출" in r.text)
     assert not body.font.bold
+
+
+def test_zero_gross_filter_keeps_rows_when_all_zero():
+    # 전환 미집계 브랜드(breezm): every row zero — an empty table is worse
+    headers = ["소재", "광고비", "매출"]
+    rows = [[f"c{i}", "1,000", "0"] for i in range(30)]
+    kept, removed = sec.filter_zero_gross(headers, rows)
+    assert removed == 0 and len(kept) == 30
