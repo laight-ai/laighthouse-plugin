@@ -65,8 +65,12 @@ def build_document(data, analysis=None):
     sec.setup_document(document)
     sec.add_title(document, data["title"], data.get("period"))
     sections = _fill_analysis_slots(data["sections"], analysis)
+    in_landscape = False  # restored lazily so the doc never ends on a blank page
     for section in _merge_headings(sections):
         stype = section["type"]
+        if in_landscape:
+            sec.restore_portrait(document)
+            in_landscape = False
         if stype == "heading":
             sec.add_heading(document, section["text"])
         elif stype == "kpi_cards":
@@ -74,9 +78,10 @@ def build_document(data, analysis=None):
                 sec.add_heading(document, section["heading"])
             sec.add_kpi_cards(document, section["cards"])
         elif stype == "table":
-            sec.add_data_table(document, section.get("heading"),
-                               section["headers"], section["rows"],
-                               rows_total=section.get("rows_total"))
+            in_landscape = sec.add_data_table(
+                document, section.get("heading"),
+                section["headers"], section["rows"],
+                rows_total=section.get("rows_total"))
         elif stype == "chart":
             sec.add_combo_chart_section(
                 document, section.get("heading"), section["categories"],

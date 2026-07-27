@@ -9,6 +9,7 @@ drop 매출(gross) 0원 rows before rendering.
 """
 import re
 
+from docx.enum.section import WD_ORIENT, WD_SECTION
 from docx.enum.table import WD_TABLE_ALIGNMENT
 from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_TAB_ALIGNMENT
 from docx.oxml import OxmlElement, parse_xml
@@ -258,21 +259,58 @@ def _display_width(value):
     return sum(2 if ord(ch) > 0x2E80 else 1 for ch in _prettify(_cell_text(value)))
 
 
-def _column_widths(headers, rows):
-    """Content-proportional widths with the header's own width as the floor,
-    so short columns never wrap their header vertically."""
-    scores = []
+def _column_units(headers, rows):
+    """Per-column content width in half-em display units (header included)."""
+    units = []
     for c, header in enumerate(headers):
-        header_width = _display_width(header)
-        longest = header_width
+        longest = _display_width(header)
         for row in rows:
             if c < len(row):
                 longest = max(longest, _display_width(row[c]))
-        scores.append(min(max(longest, header_width + 2, 8), 40))
-    total_score = sum(scores)
-    widths = [Emu(int(int(theme.CONTENT_W) * s / total_score)) for s in scores]
-    widths[-1] = Emu(int(theme.CONTENT_W) - sum(int(w) for w in widths[:-1]))
+        units.append(max(longest, 4))
+    return units
+
+
+_PT_PER_UNIT = 0.5      # one half-width glyph ≈ half an em
+_CELL_SIDE_PT = 11      # 2 × 110 dxa cell margins per column
+_FIT_SAFETY = 1.08
+
+
+def _fitted_font_pt(units, avail_width):
+    """Largest body-font size at which every column renders on one line."""
+    avail_pt = int(avail_width) / 12700 - len(units) * _CELL_SIDE_PT
+    return avail_pt / (_PT_PER_UNIT * sum(units) * _FIT_SAFETY)
+
+
+def _column_widths(units, total_width):
+    """Distribute the table width proportionally to content units."""
+    total_units = sum(units)
+    widths = [Emu(int(int(total_width) * u / total_units)) for u in units]
+    widths[-1] = Emu(int(total_width) - sum(int(w) for w in widths[:-1]))
     return widths
+
+
+def _begin_landscape(document):
+    """Wide tables get their own landscape page instead of wrapping cells."""
+    section = document.add_section(WD_SECTION.NEW_PAGE)
+    section.orientation = WD_ORIENT.LANDSCAPE
+    section.page_width = theme.PAGE_H
+    section.page_height = theme.PAGE_W
+    section.top_margin = section.bottom_margin = theme.MARGIN
+    section.left_margin = section.right_margin = theme.MARGIN
+    return section
+
+
+def restore_portrait(document):
+    """Return to portrait after a landscape table — called by build.py only
+    when more content follows, so the document never ends on a blank page."""
+    section = document.add_section(WD_SECTION.NEW_PAGE)
+    section.orientation = WD_ORIENT.PORTRAIT
+    section.page_width = theme.PAGE_W
+    section.page_height = theme.PAGE_H
+    section.top_margin = section.bottom_margin = theme.MARGIN
+    section.left_margin = section.right_margin = theme.MARGIN
+    return section
 
 
 def _is_total_row(row):
@@ -347,15 +385,31 @@ def _render_bar_cell(cell, pct, color, label):
 
 
 def add_data_table(document, heading, headers, rows, rows_total=None):
-    if heading:
-        add_heading(document, heading)
-
+    """Renders the table; returns True when it moved to a landscape page (the
+    caller restores portrait before the next section)."""
     original_count = rows_total if rows_total is not None \
         else sum(1 for row in rows if not _is_total_row(row))
     rows, zero_removed = filter_zero_gross(headers, rows)
     shown, _ = _truncate_rows(rows, theme.MAX_TABLE_ROWS)
     body_shown = sum(1 for row in shown if not _is_total_row(row))
     hidden = max(original_count - zero_removed - body_shown, 0)
+
+    # fit check: shrink toward MIN_TABLE_FONT first; a table that still
+    # cannot render one-line-per-cell moves to its own landscape page
+    units = _column_units(headers, shown)
+    fitted = _fitted_font_pt(units, theme.CONTENT_W)
+    landscape = fitted < theme.MIN_TABLE_FONT
+    if landscape:
+        _begin_landscape(document)
+        fitted = _fitted_font_pt(units, theme.LANDSCAPE_CONTENT_W)
+        content_w = theme.LANDSCAPE_CONTENT_W
+    else:
+        content_w = theme.CONTENT_W
+    td_size = Pt(round(min(9.5, max(fitted, theme.MIN_TABLE_FONT)), 1))
+    th_size = Pt(max(td_size.pt - 0.5, 7.5))
+
+    if heading:
+        add_heading(document, heading)
 
     table = document.add_table(rows=1 + len(shown), cols=len(headers))
     _set_table_borders(
@@ -364,7 +418,7 @@ def add_data_table(document, heading, headers, rows, rows_total=None):
         insideH=("single", 4, theme.BORDER_SOFT),
     )
     _set_cell_margins(table)
-    _fixed_layout(table, _column_widths(headers, shown))
+    _fixed_layout(table, _column_widths(units, content_w))
 
     header_row = table.rows[0]
     _set_repeat_header_row(header_row)
@@ -372,7 +426,7 @@ def add_data_table(document, heading, headers, rows, rows_total=None):
         cell = header_row.cells[col]
         _shade_cell(cell, theme.FILL_HEADER)
         _set_cell_border(cell, "bottom", "single", 6, theme.BORDER)
-        _para(cell, str(header), size=theme.SIZE_TH, color=theme.TEXT_TH,
+        _para(cell, str(header), size=th_size, color=theme.TEXT_TH,
               bold=True, first=True)
 
     for row_idx, row in enumerate(shown, start=1):
@@ -384,11 +438,11 @@ def add_data_table(document, heading, headers, rows, rows_total=None):
                 _render_bar_cell(cell, value["pct"], value.get("color", theme.ACCENT),
                                  value.get("label", f"{value['pct']}%"))
             elif _is_rich_cell(value):
-                _para(cell, value["text"], size=theme.SIZE_TD,
+                _para(cell, value["text"], size=td_size,
                       color=value.get("color", theme.TEXT_TABLE),
                       bold=value.get("bold", is_total), first=True)
             else:
-                _para(cell, value, size=theme.SIZE_TD, color=theme.TEXT_TABLE,
+                _para(cell, value, size=td_size, color=theme.TEXT_TABLE,
                       bold=is_total or None, first=True)
             if is_total:
                 _shade_cell(cell, theme.FILL_HEADER)
@@ -401,7 +455,7 @@ def add_data_table(document, heading, headers, rows, rows_total=None):
     if notes:
         _para(document, " · ".join(notes), size=theme.SIZE_CAPTION,
               color=theme.TEXT_FAINT, space_before=Pt(3))
-    return table
+    return landscape
 
 
 # ── text & chart sections ──────────────────────────────────────────────

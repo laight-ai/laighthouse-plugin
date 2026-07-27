@@ -1,6 +1,6 @@
 {
   "name": "laighthouse-analytics-prod",
-  "version": "1.6.0",
+  "version": "1.6.1",
   "description": "라이트하우스 분석 플러그인 — MCP 연동 데이터를 표, 차트, Daily/MTD/Monthly/Executive-MTD 성과 보고서(HTML), 발표용 PPT, Word 문서(docx)로 렌더링합니다.",
   "author": {
     "name": "Laight"

@@ -31,7 +31,9 @@ CHART_GRID = "E2E8F0"
 
 # ── typography (print scale: title 20 > section 12.5 > subhead 11 >
 #    body 10.5 > table 9.5/9 > caption 8.5) ────────────────────────────
-FONT = "Malgun Gothic"   # 맑은 고딕 — Windows-native, closest to Noto Sans KR
+# the HTML stylesheet's own font stack ('Noto Sans KR'); Word substitutes a
+# system Korean face (typically 맑은 고딕) on machines without it
+FONT = "Noto Sans KR"
 SIZE_TITLE = Pt(20)
 SIZE_PERIOD = Pt(10)
 SIZE_SECTION = Pt(12.5)
@@ -55,6 +57,10 @@ CONTENT_W = Cm(21.0 - 2 * 1.6)   # 17.8cm usable width
 MAX_TABLE_ROWS = 50
 # tables larger than this get 매출 0원 rows removed before rendering
 ZERO_GROSS_FILTER_MIN_ROWS = 20
+# tables whose content cannot fit portrait width without dropping below this
+# font size move to a landscape page instead of wrapping cells mid-word
+MIN_TABLE_FONT = 8.0
+LANDSCAPE_CONTENT_W = Cm(29.7 - 2 * 1.6)   # A4 landscape usable width
 
 
 def diff_color(diff_value):

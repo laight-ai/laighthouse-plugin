@@ -70,8 +70,9 @@ def test_kpi_cards_layout_colors():
 
 def test_table_header_band_repeat_and_no_vertical_borders():
     d = _doc()
-    table = sec.add_data_table(d, "캠페인별 성과", ["캠페인", "ROAS"],
-                               [["브랜드검색", "727%"], ["합계", "573%"]])
+    sec.add_data_table(d, "캠페인별 성과", ["캠페인", "ROAS"],
+                       [["브랜드검색", "727%"], ["합계", "573%"]])
+    table = d.tables[-1]
     header_row = table.rows[0]
     assert header_row._tr.find(qn("w:trPr")).find(qn("w:tblHeader")) is not None
     shd = header_row.cells[0]._tc.find(qn("w:tcPr")).find(qn("w:shd"))
@@ -84,17 +85,52 @@ def test_table_header_band_repeat_and_no_vertical_borders():
 
 def test_table_prettifies_raw_floats():
     d = _doc()
-    table = sec.add_data_table(d, None, ["매체", "소진율"],
-                               [["브랜드검색", "55.88918788518661%"]])
-    assert table.rows[1].cells[1].paragraphs[0].text == "55.89%"
+    sec.add_data_table(d, None, ["매체", "소진율"],
+                       [["브랜드검색", "55.88918788518661%"]])
+    assert d.tables[-1].rows[1].cells[1].paragraphs[0].text == "55.89%"
 
 
-def test_column_widths_proportional_with_header_floor():
+def test_column_widths_proportional_with_content():
     headers = ["광고그룹", "노출", "광고비"]
     rows = [["012_브랜드_공통_분유_견과류음료_견과류천국", "1,204,331", "808"]]
-    widths = sec._column_widths(headers, rows)
+    units = sec._column_units(headers, rows)
+    widths = sec._column_widths(units, theme.CONTENT_W)
     assert widths[0] > widths[1] > 0
     assert abs(sum(int(w) for w in widths) - int(theme.CONTENT_W)) <= 3
+
+
+def test_narrow_table_stays_portrait():
+    d = _doc()
+    landscape = sec.add_data_table(d, "표", ["지표", "실적"], [["매출", "₩ 500"]])
+    assert landscape is False
+    assert len(d.sections) == 1
+
+
+def test_wide_table_moves_to_landscape():
+    headers = ["캠페인", "네이버 광고 채널명", "매출", "광고비", "ROAS",
+               "노출", "클릭", "CTR", "CPC", "구매", "평균단가"]
+    rows = [["01_커피믹스_NVSHOP", "PLINK", "152,667,168", "13,820,664", "1105%",
+             "557,783", "16,398", "0.4%", "2,074.77", "149", "65,258"]] * 3
+    d = _doc()
+    landscape = sec.add_data_table(d, "캠페인별 성과", headers, rows)
+    assert landscape is True
+    s = d.sections[-1]
+    assert s.page_width > s.page_height  # landscape page
+    widths = [c.width for c in d.tables[0].columns]
+    # column widths round-trip through twips, so allow half a twip per column
+    assert abs(sum(int(w) for w in widths) - int(theme.LANDSCAPE_CONTENT_W)) \
+        <= 635 * len(widths)
+
+
+def test_restore_portrait_after_landscape():
+    d = _doc()
+    sec.add_data_table(d, "표", ["캠페인", "네이버 광고 채널명", "매출", "광고비",
+                                 "ROAS", "노출", "클릭", "CTR", "CPC", "구매", "평균단가"],
+                       [["가나다라마바사아자차카타", "PLINK", "152,667,168", "13,820,664",
+                         "1105%", "557,783", "16,398", "0.4%", "2,074.77", "149", "65,258"]])
+    sec.restore_portrait(d)
+    s = d.sections[-1]
+    assert s.page_height > s.page_width  # back to portrait
 
 
 def test_zero_gross_filter_on_large_tables():
