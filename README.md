@@ -18,9 +18,12 @@ laighthouse-plugin/
             ├── render-chart/      # MCP 결과를 Chart.js 차트로 렌더링
             ├── render-report/     # MCP 결과를 일간/MTD/월간 성과 보고서(HTML)로 렌더링
             │   └── sections/      # 보고서 섹션 정의 (daily / mtd / Monthly / executive-mtd)
-            └── render-ppt/        # MCP 결과를 16:9 발표용 PPT(.pptx)로 렌더링
-                ├── sections/      # PPT 섹션 정의 (daily / mtd / Monthly / executive-mtd)
-                └── assets/pptx_report/   # python-pptx 렌더러 + 매핑 스크립트
+            ├── render-ppt/        # MCP 결과를 16:9 발표용 PPT(.pptx)로 렌더링
+            │   ├── sections/      # PPT 섹션 정의 (daily / mtd / Monthly / executive-mtd)
+            │   └── assets/pptx_report/   # python-pptx 렌더러 + 매핑 스크립트
+            └── render-report-docx/       # MCP 결과를 편집 가능한 Word(.docx) 보고서로 렌더링
+                ├── sections/      # DOCX 섹션 정의 (daily / mtd / Monthly / executive-mtd)
+                └── assets/docx_report/   # python-docx 렌더러 + 매핑 스크립트
 ```
 
 ## 포함된 플러그인
@@ -35,6 +38,7 @@ laighthouse-plugin/
 | `render-chart` | MCP 결과를 Chart.js 기반 차트(막대/선/도넛/레이더)로 렌더링 |
 | `render-report` | MCP 결과를 라이트하우스 스타일 Daily/MTD/Monthly/Executive-MTD 성과 보고서(HTML)로 렌더링 |
 | `render-ppt` | MCP 결과를 라이트하우스 스타일 16:9 발표용 PPT(.pptx)로 렌더링 — 네이티브 카드/표/차트, 긴 표는 상위 12행 요약 |
+| `render-report-docx` | MCP 결과를 편집 가능한 Word(.docx) 보고서로 렌더링 — 배너 섹션 헤더/카드/네이티브 차트, 대용량 표는 매출 0원 행 제외 + 상위 50행 |
 
 
 자세한 사용법은 [플러그인 README](plugins/laighthouse-analytics-prod/README.md)를 참고하세요.

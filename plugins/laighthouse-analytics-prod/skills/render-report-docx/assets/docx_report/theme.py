@@ -1,0 +1,68 @@
+"""Design tokens for the docx report — translated from the render-report
+HTML stylesheet, with a print-document hierarchy layered on top (accent
+banner section headers, footer page numbers) so the Word document reads as
+a designed report rather than default Word output.
+"""
+from docx.shared import Cm, Pt
+
+# ── palette (HTML hex values, no '#') ──────────────────────────────────
+TEXT = "1E293B"          # body   (html: color #1e293b)
+TEXT_STRONG = "0F172A"   # titles
+TEXT_MUTED = "64748B"    # secondary labels
+TEXT_FAINT = "94A3B8"    # captions / footer
+TEXT_TABLE = "374151"    # td color
+TEXT_TH = "475569"       # th color
+BORDER = "E2E8F0"        # card / th border
+BORDER_SOFT = "F1F5F9"   # td row divider
+FILL_HEADER = "F1F5F9"   # th background
+FILL_CARD = "F8FAFC"     # page background reused as card tint
+FILL_BANNER = "EFF6FF"   # section-header banner (blue-50)
+ACCENT = "3B82F6"        # primary blue
+GREEN = "16A34A"
+RED = "DC2626"
+GRAY = "6B7280"
+
+# default chart series colors, in order, when a series has no explicit color.
+# Mappings emit [광고비/전월, 매출/당월] pairs, and the HTML charts color the
+# first series slate gray (#94a3b8) and the second light blue (#93c5fd).
+CHART_BAR_COLORS = ["94A3B8", "93C5FD", "3B82F6", "A855F7"]
+CHART_LINE_COLOR = "EF4444"
+CHART_GRID = "E2E8F0"
+
+# ── typography (print scale: title 20 > section 12.5 > subhead 11 >
+#    body 10.5 > table 9.5/9 > caption 8.5) ────────────────────────────
+FONT = "Malgun Gothic"   # 맑은 고딕 — Windows-native, closest to Noto Sans KR
+SIZE_TITLE = Pt(20)
+SIZE_PERIOD = Pt(10)
+SIZE_SECTION = Pt(12.5)
+SIZE_SUBHEAD = Pt(11)
+SIZE_BODY = Pt(10.5)
+SIZE_TH = Pt(9)
+SIZE_TD = Pt(9.5)
+SIZE_KPI_LABEL = Pt(8.5)
+SIZE_KPI_VALUE = Pt(15)
+SIZE_KPI_DIFF = Pt(9.5)
+SIZE_CAPTION = Pt(8.5)
+SIZE_FOOTER = Pt(8.5)
+
+# ── page ───────────────────────────────────────────────────────────────
+PAGE_W = Cm(21.0)        # A4
+PAGE_H = Cm(29.7)
+MARGIN = Cm(1.6)
+CONTENT_W = Cm(21.0 - 2 * 1.6)   # 17.8cm usable width
+
+# large tables: body rows shown before truncating, after the zero-gross filter
+MAX_TABLE_ROWS = 50
+# tables larger than this get 매출 0원 rows removed before rendering
+ZERO_GROSS_FILTER_MIN_ROWS = 20
+
+
+def diff_color(diff_value):
+    """HTML changeColor(): green above zero, red below, gray at zero."""
+    if diff_value is None:
+        return None
+    if diff_value > 0:
+        return GREEN
+    if diff_value < 0:
+        return RED
+    return GRAY

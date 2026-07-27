@@ -11,6 +11,7 @@
 | 스킬 | render-chart | MCP 결과를 Chart.js 차트로 시각화 |
 | 스킬 | render-report | MCP 결과를 라이트하우스 Daily/MTD/Monthly/Executive-MTD 성과 보고서(HTML)로 렌더링 |
 | 스킬 | render-ppt | MCP 결과를 라이트하우스 스타일 16:9 발표용 PPT(.pptx)로 렌더링 |
+| 스킬 | render-report-docx | MCP 결과를 편집 가능한 Word(.docx) 보고서로 렌더링 |
 
 ## 사용법
 
@@ -28,8 +29,14 @@
 > "다형식품 MTD 성과를 PPT로 만들어줘"
 > "임원용 MTD 발표자료 만들어줘"
 
-`render-ppt`는 python 패키지 `python-pptx`가 필요합니다
-(`plugins/laighthouse-analytics-prod/skills/render-ppt/assets/pptx_report/requirements.txt`).
+### Word 문서 렌더링 (.docx)
+> "다형식품 MTD 보고서를 워드로 만들어줘"
+> "Monthly 보고서 docx로 저장해줘"
+
+대용량 표(키워드/캠페인 등)는 docx에서 매출 0원 행을 자동 제외하고 상위 50행까지 싣습니다.
+
+`render-ppt`는 `python-pptx`, `render-report-docx`는 `python-docx`가 필요합니다
+(각 스킬의 `assets/*/requirements.txt` 참고).
 
 ## MCP 서버
 
