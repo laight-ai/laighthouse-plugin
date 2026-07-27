@@ -65,29 +65,27 @@ def build_document(data, analysis=None):
     sec.setup_document(document)
     sec.add_title(document, data["title"], data.get("period"))
     sections = _fill_analysis_slots(data["sections"], analysis)
-    in_landscape = False  # restored lazily so the doc never ends on a blank page
+    heading_no = 0  # numbered section banners: 01, 02, ...
     for section in _merge_headings(sections):
         stype = section["type"]
-        if in_landscape:
-            sec.restore_portrait(document)
-            in_landscape = False
+        # headings render centrally so every banner gets a sequence number
+        heading = section["text"] if stype == "heading" else section.get("heading")
+        if heading:
+            heading_no += 1
+            sec.add_heading(document, heading, f"{heading_no:02d}")
         if stype == "heading":
-            sec.add_heading(document, section["text"])
-        elif stype == "kpi_cards":
-            if section.get("heading"):
-                sec.add_heading(document, section["heading"])
+            continue
+        if stype == "kpi_cards":
             sec.add_kpi_cards(document, section["cards"])
         elif stype == "table":
-            in_landscape = sec.add_data_table(
-                document, section.get("heading"),
-                section["headers"], section["rows"],
-                rows_total=section.get("rows_total"))
+            sec.add_data_table(document, None, section["headers"], section["rows"],
+                               rows_total=section.get("rows_total"))
         elif stype == "chart":
             sec.add_combo_chart_section(
-                document, section.get("heading"), section["categories"],
+                document, None, section["categories"],
                 section["bar_series"], section["line_series"])
         elif stype == "text":
-            sec.add_text_section(document, section.get("heading"), section["body"])
+            sec.add_text_section(document, None, section["body"])
         else:
             raise ValueError(f"unknown section type: {stype}")
     sec.add_footer(document)

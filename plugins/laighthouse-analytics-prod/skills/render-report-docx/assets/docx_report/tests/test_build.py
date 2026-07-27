@@ -31,10 +31,12 @@ def test_build_document_all_types_and_heading_merge():
     doc = build.build_document(_DATA, analysis)
     texts = [p.text for p in doc.paragraphs]
     assert "다형식품 MTD 보고서" in texts
-    assert "월 목표" in texts          # standalone heading became the kpi heading
+    # standalone heading became the kpi heading, with a sequence number
+    assert any(t.endswith("월 목표") and t[:2].isdigit() for t in texts)
     assert "요약 본문." in texts        # analysis slot filled
-    assert "목표 달성 현황" in texts
-    assert len(doc.tables) == 2        # kpi cards + data table
+    assert any("목표 달성 현황" in t for t in texts)
+    # kpi cards + data table + kpi progress bars don't add doc-level tables
+    assert len(doc.tables) == 2
 
 
 def test_unfilled_analysis_slot_degrades():

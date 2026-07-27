@@ -99,38 +99,63 @@ def test_column_widths_proportional_with_content():
     assert abs(sum(int(w) for w in widths) - int(theme.CONTENT_W)) <= 3
 
 
-def test_narrow_table_stays_portrait():
+def test_document_is_landscape_throughout():
     d = _doc()
-    landscape = sec.add_data_table(d, "표", ["지표", "실적"], [["매출", "₩ 500"]])
-    assert landscape is False
-    assert len(d.sections) == 1
-
-
-def test_wide_table_moves_to_landscape():
+    s = d.sections[0]
+    assert s.page_width > s.page_height
+    # wide 11-column table stays in the same (only) section, one line per cell
     headers = ["캠페인", "네이버 광고 채널명", "매출", "광고비", "ROAS",
                "노출", "클릭", "CTR", "CPC", "구매", "평균단가"]
     rows = [["01_커피믹스_NVSHOP", "PLINK", "152,667,168", "13,820,664", "1105%",
              "557,783", "16,398", "0.4%", "2,074.77", "149", "65,258"]] * 3
-    d = _doc()
-    landscape = sec.add_data_table(d, "캠페인별 성과", headers, rows)
-    assert landscape is True
-    s = d.sections[-1]
-    assert s.page_width > s.page_height  # landscape page
+    sec.add_data_table(d, "캠페인별 성과", headers, rows)
+    assert len(d.sections) == 1
     widths = [c.width for c in d.tables[0].columns]
     # column widths round-trip through twips, so allow half a twip per column
-    assert abs(sum(int(w) for w in widths) - int(theme.LANDSCAPE_CONTENT_W)) \
+    assert abs(sum(int(w) for w in widths) - int(theme.CONTENT_W)) \
         <= 635 * len(widths)
 
 
-def test_restore_portrait_after_landscape():
+def test_numbered_heading_banner():
     d = _doc()
-    sec.add_data_table(d, "표", ["캠페인", "네이버 광고 채널명", "매출", "광고비",
-                                 "ROAS", "노출", "클릭", "CTR", "CPC", "구매", "평균단가"],
-                       [["가나다라마바사아자차카타", "PLINK", "152,667,168", "13,820,664",
-                         "1105%", "557,783", "16,398", "0.4%", "2,074.77", "149", "65,258"]])
-    sec.restore_portrait(d)
-    s = d.sections[-1]
-    assert s.page_height > s.page_width  # back to portrait
+    p = sec.add_heading(d, "목표 달성 현황", "03")
+    runs = [(r.text, str(r.font.color.rgb)) for r in p.runs]
+    assert runs[0] == ("03", theme.ACCENT)
+    assert runs[-1][0] == "목표 달성 현황"
+
+
+def test_kpi_progress_bar_for_percentage_cards():
+    d = _doc()
+    sec.add_kpi_cards(d, [
+        {"label": "기간 예산대비 소진율", "value": "47.95%", "accent": "#3b82f6",
+         "diff": "목표 127,636,364 · 소진 61,196,570"},
+        {"label": "기간 누적 ROAS", "value": "559.62%", "accent": "#7c3aed",
+         "diff": "목표 425.43%"},
+        {"label": "월 매출 목표", "value": "₩ 543,000,000"},  # not a percentage
+    ])
+    cells = d.tables[0].rows[0].cells
+    assert len(cells[0].tables) == 1   # progress bar nested table
+    assert len(cells[2].tables) == 1   # ROAS card: value vs 목표 → bar
+    assert len(cells[4].tables) == 0   # money card: no bar
+
+
+def test_progress_pct_math():
+    # static goal cards (no diff) show no bar even when the value is a %
+    assert sec._progress_pct({"value": "425.43%"}) is None
+    assert sec._progress_pct({"value": "47.95%", "diff": "목표 127,636,364 · 소진 61,196,570"}) == 47.95
+    # ROAS vs target: 559.62 / 425.43 → capped at 100
+    assert sec._progress_pct({"value": "559.62%", "diff": "목표 425.43%"}) == 100.0
+    assert sec._progress_pct({"value": "63.07%", "diff": "목표 543,000,000 · 매출 342"}) == 63.07
+    assert sec._progress_pct({"value": "₩ 1,000"}) is None
+
+
+def test_text_section_keeps_reading_measure():
+    d = _doc()
+    sec.add_text_section(d, None, "본문 문장입니다.")
+    p = next(x for x in d.paragraphs if x.text == "본문 문장입니다.")
+    # indents round-trip through twips — allow sub-millimeter drift
+    assert abs(p.paragraph_format.left_indent - theme.TEXT_MEASURE_INDENT) < 1000
+    assert abs(p.paragraph_format.right_indent - theme.TEXT_MEASURE_INDENT) < 1000
 
 
 def test_zero_gross_filter_on_large_tables():

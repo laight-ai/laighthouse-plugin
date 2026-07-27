@@ -33,7 +33,7 @@ _LINE_VAL_AX = 333333333
 
 
 def add_combo_chart(document, categories, bar_series, line_series, title=None,
-                    width_emu=6400800, height_emu=3200400):
+                    width_emu=9000000, height_emu=3800000):
     package = document.part.package
     partname = _next_chart_partname(package)
     xml = _build_chart_xml(categories, bar_series, line_series, title)

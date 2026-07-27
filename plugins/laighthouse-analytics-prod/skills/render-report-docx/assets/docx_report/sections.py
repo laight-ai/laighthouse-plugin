@@ -9,7 +9,7 @@ drop 매출(gross) 0원 rows before rendering.
 """
 import re
 
-from docx.enum.section import WD_ORIENT, WD_SECTION
+from docx.enum.section import WD_ORIENT
 from docx.enum.table import WD_TABLE_ALIGNMENT
 from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_TAB_ALIGNMENT
 from docx.oxml import OxmlElement, parse_xml
@@ -138,6 +138,7 @@ def _fixed_layout(table, col_widths):
 
 def setup_document(document):
     section = document.sections[0]
+    section.orientation = WD_ORIENT.LANDSCAPE
     section.page_width = theme.PAGE_W
     section.page_height = theme.PAGE_H
     section.top_margin = section.bottom_margin = theme.MARGIN
@@ -163,11 +164,17 @@ def add_title(document, title, period=None):
     p.paragraph_format.element.get_or_add_pPr().append(pbdr)
 
 
-def add_heading(document, text):
-    """Section header: full-width tinted banner with an accent left bar —
-    the .section-title translated into a print-document device."""
-    p = _para(document, text, size=theme.SIZE_SECTION, color=theme.TEXT_STRONG,
-              bold=True, space_before=Pt(18), space_after=Pt(10))
+def add_heading(document, text, number=None):
+    """Section header: full-width tinted banner with an accent left bar and
+    an accent-colored section number — the .section-title translated into a
+    print-document device."""
+    p = _para(document, "", space_before=Pt(18), space_after=Pt(10))
+    if number:
+        _style_run(p.add_run(), size=theme.SIZE_SECTION_NO,
+                   color=theme.ACCENT, bold=True).text = f"{number}"
+        _style_run(p.add_run(), size=theme.SIZE_SECTION, bold=True).text = "  "
+    _style_run(p.add_run(), size=theme.SIZE_SECTION, color=theme.TEXT_STRONG,
+               bold=True).text = _prettify(text)
     ppr = p.paragraph_format.element.get_or_add_pPr()
     shd = OxmlElement("w:shd")
     shd.set(qn("w:val"), "clear")
@@ -203,16 +210,56 @@ def add_footer(document):
 
 # ── KPI cards ──────────────────────────────────────────────────────────
 
+_PCT_VALUE = re.compile(r"^(\d+(?:\.\d+)?)%$")
+_GOAL_IN_DIFF = re.compile(r"목표\s+([\d,]+(?:\.\d+)?)%")
+
+
+def _progress_pct(card):
+    """Progress ratio for a percentage KPI card: value alone when it already
+    IS a progress rate (소진율/달성률), value-vs-목표 when the diff line
+    carries a target (누적 ROAS 카드의 '목표 425.43%'). Static goal cards
+    (diff 없음 — 예: 월 ROAS 목표) get no bar: there is no progress to show."""
+    if not card.get("diff"):
+        return None
+    match = _PCT_VALUE.match(str(card.get("value", "")).strip())
+    if not match:
+        return None
+    value = float(match.group(1))
+    goal_match = _GOAL_IN_DIFF.search(str(card.get("diff", "")))
+    if goal_match:
+        goal = float(goal_match.group(1).replace(",", ""))
+        if goal > 0:
+            return min(value / goal * 100, 100.0)
+    return min(value, 100.0)
+
+
+def _card_progress_bar(cell, pct, color, card_w):
+    """Slim progress bar under the KPI value — 목표 대비 진척을 한눈에."""
+    bar_w = int(card_w * 0.72)
+    bar = cell.add_table(rows=1, cols=2)
+    bar.autofit = False
+    bar.alignment = WD_TABLE_ALIGNMENT.CENTER
+    filled = Emu(max(int(bar_w * pct / 100), 1))
+    track = Emu(bar_w - int(filled))
+    filled_cell, track_cell = bar.rows[0].cells
+    bar.columns[0].width = filled
+    bar.columns[1].width = track
+    filled_cell.width, track_cell.width = filled, track
+    _shade_cell(filled_cell, color)
+    _shade_cell(track_cell, theme.BORDER)
+
+
 def add_kpi_cards(document, cards):
     """Tinted, bordered card cells separated by spacer columns — the HTML
-    flex card row."""
+    flex card row. Percentage cards (소진율/달성률/누적 ROAS) get a slim
+    progress bar under the value so 목표 대비 진척이 시각적으로 읽힌다."""
     n = len(cards)
     cols = 2 * n - 1
-    gap = Cm(0.25)
+    gap = Cm(0.3)
     card_w = Emu(int((theme.CONTENT_W - gap * (n - 1)) / n))
     table = document.add_table(rows=1, cols=cols)
     _set_table_borders(table)  # all nil; card edges are per-cell
-    _set_cell_margins(table, top=130, bottom=130, left=110, right=110)
+    _set_cell_margins(table, top=150, bottom=150, left=110, right=110)
     _fixed_layout(table, [card_w if i % 2 == 0 else gap for i in range(cols)])
 
     for i, card in enumerate(cards):
@@ -225,13 +272,17 @@ def add_kpi_cards(document, cards):
               color=theme.TEXT_MUTED, align=WD_ALIGN_PARAGRAPH.CENTER,
               space_after=Pt(3), first=True)
         accent = card.get("accent")
+        accent_hex = accent.lstrip("#") if accent else None
         _para(cell, card["value"], size=theme.SIZE_KPI_VALUE, bold=True,
-              color=accent.lstrip("#") if accent else theme.TEXT_STRONG,
-              align=WD_ALIGN_PARAGRAPH.CENTER)
+              color=accent_hex or theme.TEXT_STRONG,
+              align=WD_ALIGN_PARAGRAPH.CENTER, space_after=Pt(4))
+        pct = _progress_pct(card)
+        if pct is not None:
+            _card_progress_bar(cell, pct, accent_hex or theme.ACCENT, int(card_w))
         if card.get("diff"):
             _para(cell, card["diff"], size=theme.SIZE_KPI_DIFF, bold=True,
                   color=theme.diff_color(card.get("diff_value")) or theme.GRAY,
-                  align=WD_ALIGN_PARAGRAPH.CENTER, space_before=Pt(3))
+                  align=WD_ALIGN_PARAGRAPH.CENTER, space_before=Pt(4))
     _para(document, "", space_after=Pt(4))  # breathing room below the row
 
 
@@ -290,27 +341,6 @@ def _column_widths(units, total_width):
     return widths
 
 
-def _begin_landscape(document):
-    """Wide tables get their own landscape page instead of wrapping cells."""
-    section = document.add_section(WD_SECTION.NEW_PAGE)
-    section.orientation = WD_ORIENT.LANDSCAPE
-    section.page_width = theme.PAGE_H
-    section.page_height = theme.PAGE_W
-    section.top_margin = section.bottom_margin = theme.MARGIN
-    section.left_margin = section.right_margin = theme.MARGIN
-    return section
-
-
-def restore_portrait(document):
-    """Return to portrait after a landscape table — called by build.py only
-    when more content follows, so the document never ends on a blank page."""
-    section = document.add_section(WD_SECTION.NEW_PAGE)
-    section.orientation = WD_ORIENT.PORTRAIT
-    section.page_width = theme.PAGE_W
-    section.page_height = theme.PAGE_H
-    section.top_margin = section.bottom_margin = theme.MARGIN
-    section.left_margin = section.right_margin = theme.MARGIN
-    return section
 
 
 def _is_total_row(row):
@@ -385,8 +415,6 @@ def _render_bar_cell(cell, pct, color, label):
 
 
 def add_data_table(document, heading, headers, rows, rows_total=None):
-    """Renders the table; returns True when it moved to a landscape page (the
-    caller restores portrait before the next section)."""
     original_count = rows_total if rows_total is not None \
         else sum(1 for row in rows if not _is_total_row(row))
     rows, zero_removed = filter_zero_gross(headers, rows)
@@ -394,19 +422,13 @@ def add_data_table(document, heading, headers, rows, rows_total=None):
     body_shown = sum(1 for row in shown if not _is_total_row(row))
     hidden = max(original_count - zero_removed - body_shown, 0)
 
-    # fit check: shrink toward MIN_TABLE_FONT first; a table that still
-    # cannot render one-line-per-cell moves to its own landscape page
+    # fit check: the landscape page is wide, but a pathological table can
+    # still need a slightly smaller size to keep one line per cell
     units = _column_units(headers, shown)
     fitted = _fitted_font_pt(units, theme.CONTENT_W)
-    landscape = fitted < theme.MIN_TABLE_FONT
-    if landscape:
-        _begin_landscape(document)
-        fitted = _fitted_font_pt(units, theme.LANDSCAPE_CONTENT_W)
-        content_w = theme.LANDSCAPE_CONTENT_W
-    else:
-        content_w = theme.CONTENT_W
-    td_size = Pt(round(min(9.5, max(fitted, theme.MIN_TABLE_FONT)), 1))
+    td_size = Pt(round(min(theme.SIZE_TD.pt, max(fitted, theme.MIN_TABLE_FONT)), 1))
     th_size = Pt(max(td_size.pt - 0.5, 7.5))
+    content_w = theme.CONTENT_W
 
     if heading:
         add_heading(document, heading)
@@ -455,7 +477,7 @@ def add_data_table(document, heading, headers, rows, rows_total=None):
     if notes:
         _para(document, " · ".join(notes), size=theme.SIZE_CAPTION,
               color=theme.TEXT_FAINT, space_before=Pt(3))
-    return landscape
+    return table
 
 
 # ── text & chart sections ──────────────────────────────────────────────
@@ -474,12 +496,15 @@ def add_text_section(document, heading, body):
     lines = str(body).split("\n")
     for i, line in enumerate(lines):
         if _is_subheading(line):
-            _para(document, line, size=theme.SIZE_SUBHEAD, color=theme.TEXT_STRONG,
-                  bold=True, space_before=Pt(10) if i else Pt(0), space_after=Pt(2))
+            p = _para(document, line, size=theme.SIZE_SUBHEAD, color=theme.TEXT_STRONG,
+                      bold=True, space_before=Pt(10) if i else Pt(0), space_after=Pt(2))
         else:
             p = _para(document, line, size=theme.SIZE_BODY, color=theme.TEXT_TABLE,
                       space_after=Pt(5))
-            p.paragraph_format.line_spacing = 1.3
+            p.paragraph_format.line_spacing = 1.35
+        # keep a readable line measure inside the wide landscape page
+        p.paragraph_format.left_indent = theme.TEXT_MEASURE_INDENT
+        p.paragraph_format.right_indent = theme.TEXT_MEASURE_INDENT
 
 
 def add_combo_chart_section(document, heading, categories, bar_series, line_series):

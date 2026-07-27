@@ -29,38 +29,40 @@ CHART_BAR_COLORS = ["94A3B8", "93C5FD", "3B82F6", "A855F7"]
 CHART_LINE_COLOR = "EF4444"
 CHART_GRID = "E2E8F0"
 
-# ── typography (print scale: title 20 > section 12.5 > subhead 11 >
-#    body 10.5 > table 9.5/9 > caption 8.5) ────────────────────────────
+# ── typography (print scale: title 22 > section 13 > subhead 11.5 >
+#    body 11 > table 9.5/9 > caption 8.5) ──────────────────────────────
 # the HTML stylesheet's own font stack ('Noto Sans KR'); Word substitutes a
 # system Korean face (typically 맑은 고딕) on machines without it
 FONT = "Noto Sans KR"
-SIZE_TITLE = Pt(20)
-SIZE_PERIOD = Pt(10)
-SIZE_SECTION = Pt(12.5)
-SIZE_SUBHEAD = Pt(11)
-SIZE_BODY = Pt(10.5)
+SIZE_TITLE = Pt(22)
+SIZE_PERIOD = Pt(10.5)
+SIZE_SECTION = Pt(13)
+SIZE_SECTION_NO = Pt(13)   # accent-colored section number in the banner
+SIZE_SUBHEAD = Pt(11.5)
+SIZE_BODY = Pt(11)
 SIZE_TH = Pt(9)
 SIZE_TD = Pt(9.5)
-SIZE_KPI_LABEL = Pt(8.5)
-SIZE_KPI_VALUE = Pt(15)
-SIZE_KPI_DIFF = Pt(9.5)
+SIZE_KPI_LABEL = Pt(9)
+SIZE_KPI_VALUE = Pt(16)
+SIZE_KPI_DIFF = Pt(10)
 SIZE_CAPTION = Pt(8.5)
 SIZE_FOOTER = Pt(8.5)
 
-# ── page ───────────────────────────────────────────────────────────────
-PAGE_W = Cm(21.0)        # A4
-PAGE_H = Cm(29.7)
+# ── page: A4 landscape throughout — every page shares the wide measure ──
+PAGE_W = Cm(29.7)
+PAGE_H = Cm(21.0)
 MARGIN = Cm(1.6)
-CONTENT_W = Cm(21.0 - 2 * 1.6)   # 17.8cm usable width
+CONTENT_W = Cm(29.7 - 2 * 1.6)   # 26.5cm usable width
+
+# analysis text keeps a readable line measure inside the wide page
+TEXT_MEASURE_INDENT = Cm(2.0)    # applied to both sides of body paragraphs
 
 # large tables: body rows shown before truncating, after the zero-gross filter
 MAX_TABLE_ROWS = 50
 # tables larger than this get 매출 0원 rows removed before rendering
 ZERO_GROSS_FILTER_MIN_ROWS = 20
-# tables whose content cannot fit portrait width without dropping below this
-# font size move to a landscape page instead of wrapping cells mid-word
+# minimum table font when a very wide table must shrink to fit on one line
 MIN_TABLE_FONT = 8.0
-LANDSCAPE_CONTENT_W = Cm(29.7 - 2 * 1.6)   # A4 landscape usable width
 
 
 def diff_color(diff_value):
