@@ -72,10 +72,10 @@ def build_document(data, analysis=None):
         heading = section["text"] if stype == "heading" else section.get("heading")
         if heading:
             heading_no += 1
-            # every section opens on a fresh page, except the first one
-            # (which shares the title page)
+            # every section opens on a fresh page — the title block stands
+            # alone as a cover page
             sec.add_heading(document, heading, f"{heading_no:02d}",
-                            page_break=heading_no > 1)
+                            page_break=True)
         if stype == "heading":
             continue
         if stype == "kpi_cards":
