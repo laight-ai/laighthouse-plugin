@@ -7,6 +7,8 @@ with content-proportional column widths, and a footer with live page
 numbers. Display rounding happens once in _prettify(), and large tables
 drop 매출(gross) 0원 rows before rendering.
 """
+import base64
+import io
 import re
 
 from docx.enum.section import WD_ORIENT
@@ -305,17 +307,39 @@ def _is_rich_cell(value):
     return isinstance(value, dict) and "text" in value
 
 
+def _is_image_cell(value):
+    return isinstance(value, dict) and value.get("type") == "image"
+
+
+def _render_image_cell(cell, data_url, width_cm=2.2):
+    """Embed a `data:image/...;base64,...` thumbnail (get_ad_creative_info's
+    thumbnail_image_data_url) into the cell; falls back to '-' when the
+    payload is missing or unreadable."""
+    try:
+        header, encoded = str(data_url).split(",", 1)
+        assert header.startswith("data:image/")
+        blob = io.BytesIO(base64.b64decode(encoded))
+        paragraph = cell.paragraphs[0]
+        paragraph.add_run().add_picture(blob, width=Cm(width_cm))
+    except Exception:
+        _para(cell, "-", size=theme.SIZE_TD, color=theme.TEXT_FAINT, first=True)
+
+
 def _cell_text(value):
     if _is_bar_cell(value):
         return str(value.get("label", ""))
     if _is_rich_cell(value):
         return str(value["text"])
+    if _is_image_cell(value):
+        return ""
     return str(value)
 
 
 def _display_width(value):
     """Rendered width in half-width character units — CJK glyphs count
     double, so Korean name columns get the room they need."""
+    if _is_image_cell(value):
+        return 13  # fixed thumbnail width (~2.2cm)
     return sum(2 if ord(ch) > 0x2E80 else 1 for ch in _prettify(_cell_text(value)))
 
 
@@ -517,6 +541,8 @@ def add_data_table(document, heading, headers, rows, rows_total=None,
             if _is_bar_cell(value):
                 _render_bar_cell(cell, value["pct"], value.get("color", theme.ACCENT),
                                  value.get("label", f"{value['pct']}%"))
+            elif _is_image_cell(value):
+                _render_image_cell(cell, value.get("data_url"))
             elif _is_rich_cell(value):
                 _para(cell, value["text"], size=td_size,
                       color=value.get("color", theme.TEXT_TABLE),

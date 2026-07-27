@@ -1384,7 +1384,211 @@ def map_daily_group_d_naver(data):
     return {"sections": [section], "digest": None}
 
 
+# ---------------------------------------------------------------------------
+# creative (소재 성과 보고서)
+# ---------------------------------------------------------------------------
+
+
+def _parse_md_table(payload):
+    """Parse a `{"result": "<markdown table>"}` tool response (the generic
+    `get_ad_*_table` family returns markdown, not JSON) into row dicts.
+    Returns [] for the tool's literal "_No data_" response."""
+    text = payload["result"] if isinstance(payload, dict) else payload
+    if not text or "_No data_" in text:
+        return []
+    lines = [line.strip() for line in str(text).splitlines() if line.strip().startswith("|")]
+    if len(lines) < 3:
+        return []
+    def _cells(line):
+        return [c.strip() for c in line.strip().strip("|").split("|")]
+    headers = _cells(lines[0])
+    rows = []
+    for line in lines[2:]:  # lines[1] is the --- separator
+        cells = _cells(line)
+        rows.append({h: (cells[i] if i < len(cells) else "") for i, h in enumerate(headers)})
+    return rows
+
+
+def _md_num(value):
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def _creative_identity(row):
+    """소재 식별자: ad_name 우선, 비어 있으면 asset_group(광고세트)로 폴백 —
+    실측상 group_by="ad-set" 응답은 ad_name이 빈 문자열이다."""
+    return row.get("ad_name") or row.get("asset_group") or "(이름 없음)"
+
+
+def _aggregate_creatives(rows):
+    """Daily rows -> per-소재 totals. Sums are plain additions; ctr/roas are
+    recomputed from the summed numerators/denominators (the daily ratios
+    cannot be averaged) — documented in creative-section-1.md."""
+    totals = {}
+    for row in rows:
+        key = _creative_identity(row)
+        t = totals.setdefault(key, {
+            "name": key, "campaign": row.get("campaign_name", ""),
+            "media": row.get("media", ""), "creative_id": row.get("creative_id", ""),
+            "cost": 0.0, "impression": 0.0, "click": 0.0,
+            "purchase_count": 0.0, "purchase_amount": 0.0, "video_view": 0.0,
+        })
+        for field in ("cost", "impression", "click", "purchase_count",
+                      "purchase_amount", "video_view"):
+            t[field] += _md_num(row.get(field))
+    for t in totals.values():
+        t["ctr"] = round(t["click"] / t["impression"] * 100, 2) if t["impression"] else 0.0
+        t["cpc"] = round(t["cost"] / t["click"], 2) if t["click"] else 0.0
+        t["roas"] = round(t["purchase_amount"] / t["cost"] * 100, 1) if t["cost"] else 0.0
+    return sorted(totals.values(), key=lambda t: t["cost"], reverse=True)
+
+
+def map_creative_group_a(data):
+    """creative-section-1 (소재별 성과 요약) + creative-section-2 (상위 소재
+    일별 매출 추이).
+
+    `data`: raw get_ad_performance_daily_table response
+    ({"result": "<markdown>"}, group_by="ad" — 서버가 ad 그레인을 못 내는
+    동안은 group_by="ad-set"을 소재 근사치로 쓴다, creative-section-1.md 참고).
+    """
+    rows = _parse_md_table(data)
+    creatives = _aggregate_creatives(rows)
+
+    total_cost = sum(t["cost"] for t in creatives)
+    total_amount = sum(t["purchase_amount"] for t in creatives)
+    overall_roas = round(total_amount / total_cost * 100, 1) if total_cost else 0.0
+    cards_section = {
+        "type": "kpi_cards",
+        "heading": "소재 성과 개요",
+        "cards": [
+            {"label": "집행 소재 수", "value": _fmt_amount(len(creatives))},
+            {"label": "총 광고비", "value": _fmt_amount(round(total_cost))},
+            {"label": "총 전환 매출", "value": _fmt_amount(round(total_amount))},
+            {"label": "전체 ROAS", "value": f"{overall_roas}%",
+             "accent": "#3b82f6", "diff": f"광고비 {_fmt_amount(round(total_cost))} 기준"},
+        ],
+    }
+
+    table_section = {
+        "type": "table",
+        "heading": "소재별 성과",
+        "headers": ["소재", "캠페인", "광고비", "노출", "클릭", "CTR", "CPC",
+                    "구매", "매출", "ROAS"],
+        "rows": [
+            [t["name"], t["campaign"], _fmt_amount(round(t["cost"])),
+             _fmt_amount(round(t["impression"])), _fmt_amount(round(t["click"])),
+             f"{t['ctr']}%", _fmt_amount(t["cpc"]), _fmt_amount(round(t["purchase_count"])),
+             _fmt_amount(round(t["purchase_amount"])), f"{t['roas']}%"]
+            for t in creatives
+        ],
+        "rows_total": len(creatives),
+    }
+
+    # daily revenue trend for the top-5 creatives by spend
+    top5 = [t["name"] for t in creatives[:5]]
+    by_date = {}
+    for row in rows:
+        key = _creative_identity(row)
+        if key in top5:
+            by_date.setdefault(row.get("logdate", ""), {}).setdefault(key, 0.0)
+            by_date[row["logdate"]][key] += _md_num(row.get("purchase_amount"))
+    labels = sorted(d for d in by_date if d)
+
+    def _short_date(iso):
+        parts = iso.split("-")
+        return f"{int(parts[1])}/{int(parts[2])}" if len(parts) == 3 else iso
+
+    chart_section = {
+        "type": "line_chart",
+        "heading": "상위 소재 일별 매출 추이",
+        "categories": [_short_date(d) for d in labels],
+        "series": [
+            {"name": name, "values": [round(by_date[d].get(name, 0.0)) for d in labels]}
+            for name in top5
+        ],
+    }
+
+    digest = {
+        "total_cost": round(total_cost), "total_amount": round(total_amount),
+        "overall_roas": overall_roas,
+        "top_creatives": creatives[:5],
+        "bottom_creatives": [t for t in creatives if t["cost"] > 0][-3:],
+    }
+    return {"sections": [cards_section, table_section, chart_section], "digest": digest}
+
+
+def _normalize_creative_id(value):
+    """creative_id normalization across sources: the markdown table may carry
+    '456' / '456.0' / '', the info response carries int 456."""
+    text = str(value).strip()
+    if not text:
+        return None
+    try:
+        return int(float(text))
+    except ValueError:
+        return None
+
+
+def map_creative_group_b(data):
+    """creative-section-3 (소재 썸네일 · 성과 매칭).
+
+    `data`: {"creative": <get_ad_creative_info 응답 그대로>, "performance":
+    <get_ad_performance_daily_table 응답 — 그룹 A와 동일 파일 재사용>}.
+
+    get_ad_creative_info 실측 스키마 (laighthouse-prism 1.27.0, 2026-07-27):
+    응답은 {"google": [...], "meta": [...], "tiktok": [...]}, 각 항목은
+    {account_id, creative_id, thumbnail_image_url, thumbnail_image_data_url}
+    — data URL은 base64 인라인 썸네일(최대 20개/호출, 실패 시 null).
+    성과와의 조인 키는 creative_id (성과 markdown의 creative_id 컬럼,
+    group_by="ad" 그레인에서만 채워진다).
+    """
+    creative_payload = data.get("creative") or {}
+    info_items = []
+    for platform in ("google", "meta", "tiktok"):
+        for item in creative_payload.get(platform, []) or []:
+            info_items.append({**item, "platform": platform})
+
+    perf = _aggregate_creatives(_parse_md_table(data.get("performance") or {}))
+    perf_by_id = {}
+    for t in perf:
+        cid = _normalize_creative_id(t.get("creative_id"))
+        if cid is not None:
+            perf_by_id[cid] = t
+
+    rows = []
+    for info in info_items:
+        cid = _normalize_creative_id(info.get("creative_id"))
+        match = perf_by_id.get(cid)
+        thumb = info.get("thumbnail_image_data_url")
+        rows.append([
+            {"type": "image", "data_url": thumb} if thumb else "-",
+            match["name"] if match else str(info.get("creative_id", "-")),
+            info["platform"],
+            _fmt_amount(round(match["cost"])) if match else "-",
+            _fmt_amount(round(match["purchase_amount"])) if match else "-",
+            f"{match['roas']}%" if match else "-",
+        ])
+
+    if not rows:
+        return {"sections": [{"type": "text", "heading": "소재 썸네일 · 성과 매칭",
+                              "body": "데이터 준비 중"}],
+                "digest": None}
+    section = {
+        "type": "table",
+        "heading": "소재 썸네일 · 성과 매칭",
+        "headers": ["썸네일", "소재", "플랫폼", "광고비", "매출", "ROAS"],
+        "rows": rows,
+    }
+    thumbs = sum(1 for r in rows if isinstance(r[0], dict))
+    return {"sections": [section],
+            "digest": {"creative_info_rows": len(rows), "thumbnails": thumbs}}
+
+
 MAPPERS = {
+    ("creative", "A"): map_creative_group_a,
+    ("creative", "B"): map_creative_group_b,
     ("mtd", "A"): map_mtd_group_a,
     ("mtd", "B"): map_mtd_group_b,
     ("mtd", "C"): map_mtd_group_c,

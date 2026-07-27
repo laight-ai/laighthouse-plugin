@@ -27,6 +27,11 @@ from section_mapping import MAPPERS  # noqa: E402
 # the LLM fills via build.py --analysis. Orders mirror the per-type section
 # tables in SKILL.md.
 ORDERS = {
+    "creative": [
+        ("group", "A"),
+        ("group", "B"),
+        ("analysis", "section4", "소재 분석 (Executive Summary)"),
+    ],
     "mtd": [
         ("group", "A"),
         ("analysis", "section3", "Executive Summary"),

@@ -3,11 +3,11 @@ name: render-report-docx
 description: >
   This skill should be used when the user asks to "워드로 만들어줘", "docx로 만들어줘",
   "워드 문서로 저장해줘", "문서 파일로 만들어줘", "Daily 보고서 docx", "MTD 보고서 워드",
-  "Monthly 보고서 docx", "Executive MTD 워드", "라이트하우스 보고서 워드", or wants MCP data
-  rendered as an editable Word (.docx) daily/MTD/monthly/executive-MTD performance report
+  "Monthly 보고서 docx", "Executive MTD 워드", "소재 보고서", "크리에이티브 보고서", "라이트하우스 보고서 워드", or wants MCP data
+  rendered as an editable Word (.docx) daily/MTD/monthly/executive-MTD/creative performance report
   matching the Laighthouse style.
 metadata:
-  version: "1.3.0"
+  version: "1.4.0"
 ---
 
 > ⚡ **thinking 지침**: 이 스킬 실행 시 thinking(추론)은 최대한 짧게 유지한다. 불필요한 단계 반복, 장황한 계획 수립 없이 바로 MCP 호출 → 데이터 수신 → 렌더링 순서로 진행한다.
@@ -30,6 +30,7 @@ MCP 데이터를 받아 **라이트하우스 스타일 성과 보고서 Word 문
 | `mtd` | naver 기반 브랜드 (다형식품 등) | `default` | `sections/mtd/` |
 | `monthly` | naver 기반 브랜드 (남양유업 등) | `default` | `sections/Monthly/` |
 | `executive-mtd` | naver 기반 브랜드 (남양유업 등, 임원 보고용) | `default` | `sections/executive-mtd/` |
+| `creative` | Google/Meta 소재 운영 브랜드 (더마토리, Saturday Skin 등) | — (generic 도구) | `sections/creative/` |
 
 `daily`는 다른 report_type과 달리 브랜드군별로 폴더를 나누지 않는다 — `sections/daily/`의 각
 섹션 파일 하나가 **분기 A(Google/Meta, `saturdayskin` generator)**와 **분기 B(naver,
@@ -721,6 +722,24 @@ brand_name의 report-backend generator로 판단한 분기 쪽 마크업만 렌�
 
 `sections/executive-mtd/` 폴더의 파일은 전부 naver 기반 default generator 브랜드 기준으로
 작성되어 있고, 다른 폴더를 import하지 않는다.
+
+---
+
+## creative 전용: 실행 방식 (소재 성과 보고서)
+
+**총 4개 섹션 = DATA 3개(그룹 A/B) + ANALYSIS 1개.** 어떤 소재(ad creative)가 어떤 성과를
+냈는지 보여주는 보고서다. 파라미터: brand_name, 기간(시작~종료 31일 이내), media(기본 meta).
+`고속 실행 공통 규칙(map_report.py --report-type creative)`을 그대로 따른다.
+
+| 그룹 | 담당 섹션 | MCP 호출 | digest 소비처 |
+|---|---|---|---|
+| A | 소재 성과 개요(kpi_cards) + 소재별 성과(table) + 상위 소재 일별 매출 추이(line_chart) | `get_ad_performance_daily_table` (`group_by="ad"`, 실패 시 `"ad-set"` 폴백 — `sections/creative/creative-section-1-summary.md` 참고) | section4 |
+| B | 소재 정보 · 성과 매칭(table) | `get_ad_creative_info` (+그룹 A 응답 재사용 — `creative-section-3-creative-info.md` 참고, 도구 미배포 시 그룹 생략) | section4 |
+
+- 응답이 `{"result": "<markdown 표>"}` 형태라는 점, 비율값(roas/ctr) 처리, 소재별 합산
+  규칙은 전부 매핑 스크립트가 처리한다 — LLM은 응답을 그대로 combined.json에 넣기만 한다.
+- ANALYSIS(소재 분석): digests.json의 A/B digest를 근거로
+  `creative-section-4-executive-summary.md` 지침대로 analysis.json의 `"section4"`를 작성한다.
 
 ---
 
