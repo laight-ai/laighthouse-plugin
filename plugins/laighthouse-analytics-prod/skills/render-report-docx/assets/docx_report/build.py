@@ -72,14 +72,18 @@ def build_document(data, analysis=None):
         heading = section["text"] if stype == "heading" else section.get("heading")
         if heading:
             heading_no += 1
-            sec.add_heading(document, heading, f"{heading_no:02d}")
+            # every section opens on a fresh page, except the first one
+            # (which shares the title page)
+            sec.add_heading(document, heading, f"{heading_no:02d}",
+                            page_break=heading_no > 1)
         if stype == "heading":
             continue
         if stype == "kpi_cards":
             sec.add_kpi_cards(document, section["cards"])
         elif stype == "table":
             sec.add_data_table(document, None, section["headers"], section["rows"],
-                               rows_total=section.get("rows_total"))
+                               rows_total=section.get("rows_total"),
+                               context=heading)
         elif stype == "chart":
             sec.add_combo_chart_section(
                 document, None, section["categories"],

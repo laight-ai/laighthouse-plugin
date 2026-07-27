@@ -170,6 +170,45 @@ def test_text_section_keeps_reading_measure():
     assert abs(p.paragraph_format.right_indent - theme.TEXT_MEASURE_INDENT) < 1000
 
 
+def test_ad_cost_threshold_by_heading():
+    assert sec.ad_cost_threshold("캠페인별 성과") == 500_000
+    assert sec.ad_cost_threshold("광고그룹별 성과") == 500_000
+    assert sec.ad_cost_threshold("키워드별 성과") == 50_000
+    assert sec.ad_cost_threshold("매체별 예산 소진 현황") is None
+    assert sec.ad_cost_threshold(None) is None
+
+
+def test_low_ad_cost_rows_filtered_with_note():
+    headers = ["캠페인", "매출", "광고비"]
+    rows = [["큰캠페인", "10,000,000", "₩ 8,420,000"],
+            ["작은캠페인", "100,000", "₩ 499,999"],
+            ["경계캠페인", "900,000", "500,000"],
+            ["합계", "11,000,000", "₩ 9,419,999"]]
+    d = _doc()
+    sec.add_data_table(d, None, headers, rows, context="캠페인별 성과")
+    table = d.tables[-1]
+    names = [table.rows[r].cells[0].paragraphs[0].text for r in range(1, len(table.rows))]
+    assert names == ["큰캠페인", "경계캠페인", "합계"]  # 50만 미만 제외, 합계 보존
+    notes = [p.text for p in d.paragraphs if "제외" in p.text]
+    assert notes == ["광고비 500,000원 미만 1행 제외"]
+
+
+def test_keyword_threshold_is_50k():
+    headers = ["키워드", "광고비", "매출"]
+    rows = [["비싼키워드", "353,722", "8,057,615"], ["싼키워드", "49,999", "0"]]
+    d = _doc()
+    sec.add_data_table(d, None, headers, rows, context="키워드별 성과")
+    assert len(d.tables[-1].rows) == 2  # header + 비싼키워드
+
+
+def test_section_heading_page_break():
+    d = _doc()
+    p1 = sec.add_heading(d, "첫 섹션", "01", page_break=False)
+    p2 = sec.add_heading(d, "둘째 섹션", "02", page_break=True)
+    assert not p1.paragraph_format.page_break_before
+    assert p2.paragraph_format.page_break_before is True
+
+
 def test_zero_gross_filter_on_large_tables():
     headers = ["키워드", "노출", "매출"]
     rows = [[f"kw{i}", "1", "0" if i % 2 else "1,000"] for i in range(30)]

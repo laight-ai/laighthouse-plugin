@@ -7,7 +7,7 @@ description: >
   rendered as an editable Word (.docx) daily/MTD/monthly/executive-MTD performance report
   matching the Laighthouse style.
 metadata:
-  version: "1.2.0"
+  version: "1.2.1"
 ---
 
 > ⚡ **thinking 지침**: 이 스킬 실행 시 thinking(추론)은 최대한 짧게 유지한다. 불필요한 단계 반복, 장황한 계획 수립 없이 바로 MCP 호출 → 데이터 수신 → 렌더링 순서로 진행한다.
@@ -15,9 +15,11 @@ metadata:
 ## 역할
 
 MCP 데이터를 받아 **라이트하우스 스타일 성과 보고서 Word 문서(A4 .docx)**로 렌더링하는
-오케스트레이터. 섹션 JSON이 문서 순서대로 흐르며, 대용량 표는 렌더러(`build.py`)가
-자동으로 ① **매출(gross) 0원 행 제외**(20행 초과 표 한정, 합계 행 보존) ② 상위 50행 +
-"외 n행 생략" 요약을 적용한다 (LLM이 미리 자르거나 걸러낼 필요 없음). 지원하는
+오케스트레이터. 섹션 JSON이 문서 순서대로 흐르며(섹션마다 새 페이지에서 시작), 표는
+렌더러(`build.py`)가 자동으로 필터·요약한다 (LLM이 미리 자르거나 걸러낼 필요 없음):
+① **광고비 필터** — 캠페인/광고그룹 표는 50만 원 미만, 키워드 표는 5만 원 미만 행 제외
+(합계 행 보존, 제외 내역은 캡션으로 표기) ② 그 외 20행 초과 표는 **매출(gross) 0원 행
+제외** ③ 상위 50행 + "외 n행 생략" 요약. 지원하는
 `report_type`은 `daily`/`mtd`/`monthly`/`executive-mtd` 네 가지다. 각각 완전히 독립된 폴더
 (`sections/daily/`, `sections/mtd/`, `sections/Monthly/`, `sections/executive-mtd/`)에서 자기
 완결적으로 섹션을 가져온다 — 폴더 간 import는 없다.

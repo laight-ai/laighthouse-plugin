@@ -64,6 +64,13 @@ TEXT_MEASURE_INDENT = Cm(2.0)    # applied to both sides of body paragraphs
 MAX_TABLE_ROWS = 50
 # tables larger than this get 매출 0원 rows removed before rendering
 ZERO_GROSS_FILTER_MIN_ROWS = 20
+# per-section 광고비 filter: rows spending below the threshold are dropped
+# (matched by section heading substring; 합계 rows always survive)
+AD_COST_FILTERS = {
+    "키워드": 50_000,
+    "캠페인": 500_000,
+    "광고그룹": 500_000,
+}
 # minimum table font when a very wide table must shrink to fit on one line
 MIN_TABLE_FONT = 8.0
 

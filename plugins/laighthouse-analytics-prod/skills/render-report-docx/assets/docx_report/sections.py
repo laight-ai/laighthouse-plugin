@@ -164,11 +164,13 @@ def add_title(document, title, period=None):
     p.paragraph_format.element.get_or_add_pPr().append(pbdr)
 
 
-def add_heading(document, text, number=None):
+def add_heading(document, text, number=None, page_break=False):
     """Section header: full-width tinted banner with an accent left bar and
     an accent-colored section number — the .section-title translated into a
-    print-document device."""
+    print-document device. page_break starts the section on a fresh page."""
     p = _para(document, "", space_before=Pt(18), space_after=Pt(10))
+    if page_break:
+        p.paragraph_format.page_break_before = True
     if number:
         _style_run(p.add_run(), size=theme.SIZE_SECTION_NO,
                    color=theme.ACCENT, bold=True).text = f"{number}"
@@ -362,6 +364,46 @@ def _is_zero_amount(value):
         return False
 
 
+def _parse_amount(value):
+    text = _cell_text(value).replace("₩", "").replace(",", "").replace("원", "").strip()
+    try:
+        return float(text)
+    except ValueError:
+        return None
+
+
+_AD_COST_HEADERS = {"광고비", "광고 비용", "ad_cost"}
+
+
+def ad_cost_threshold(heading):
+    """광고비 필터 기준액 for a section, by heading keyword (키워드 5만 원,
+    캠페인/광고그룹 50만 원). None when the section has no threshold."""
+    if not heading:
+        return None
+    for keyword, threshold in theme.AD_COST_FILTERS.items():
+        if keyword in str(heading):
+            return threshold
+    return None
+
+
+def filter_low_ad_cost(headers, rows, threshold):
+    """Drop rows spending below the 광고비 threshold — 합계/총계 rows always
+    survive. Returns (rows, removed_count)."""
+    cost_col = next((i for i, h in enumerate(headers)
+                     if str(h).strip() in _AD_COST_HEADERS), None)
+    if cost_col is None or threshold is None:
+        return rows, 0
+    kept = []
+    for row in rows:
+        if _is_total_row(row) or cost_col >= len(row):
+            kept.append(row)
+            continue
+        amount = _parse_amount(row[cost_col])
+        if amount is None or amount >= threshold:
+            kept.append(row)
+    return kept, len(rows) - len(kept)
+
+
 def filter_zero_gross(headers, rows):
     """대용량 표에서 매출(gross) 0원 행 제외 — only kicks in above
     ZERO_GROSS_FILTER_MIN_ROWS so small summary tables stay complete.
@@ -421,13 +463,22 @@ def _render_bar_cell(cell, pct, color, label):
     _para(cell, label, size=Pt(8), color=theme.TEXT_MUTED, space_before=Pt(2))
 
 
-def add_data_table(document, heading, headers, rows, rows_total=None):
+def add_data_table(document, heading, headers, rows, rows_total=None,
+                   context=None):
+    """context: the section heading when the banner is rendered by the
+    caller — used for the per-section 광고비 threshold lookup."""
     original_count = rows_total if rows_total is not None \
         else sum(1 for row in rows if not _is_total_row(row))
-    rows, zero_removed = filter_zero_gross(headers, rows)
+    threshold = ad_cost_threshold(context or heading)
+    has_cost_col = any(str(h).strip() in _AD_COST_HEADERS for h in headers)
+    cost_removed = zero_removed = 0
+    if threshold and has_cost_col:
+        rows, cost_removed = filter_low_ad_cost(headers, rows, threshold)
+    else:
+        rows, zero_removed = filter_zero_gross(headers, rows)
     shown, _ = _truncate_rows(rows, theme.MAX_TABLE_ROWS)
     body_shown = sum(1 for row in shown if not _is_total_row(row))
-    hidden = max(original_count - zero_removed - body_shown, 0)
+    hidden = max(original_count - cost_removed - zero_removed - body_shown, 0)
 
     # fit check: the landscape page is wide, but a pathological table can
     # still need a slightly smaller size to keep one line per cell
@@ -477,6 +528,8 @@ def add_data_table(document, heading, headers, rows, rows_total=None):
                 _shade_cell(cell, theme.FILL_HEADER)
 
     notes = []
+    if cost_removed:
+        notes.append(f"광고비 {threshold:,}원 미만 {cost_removed}행 제외")
     if zero_removed:
         notes.append(f"매출 0원 {zero_removed}행 제외")
     if hidden:
