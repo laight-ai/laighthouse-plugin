@@ -126,12 +126,12 @@ def test_map_mtd_group_c_daily_category_table_and_digest():
 
     assert result["sections"] == [
         {
-            "type": "table",
+            "type": "line_chart",
             "heading": "일일 카테고리별 매출 현황",
-            "headers": ["날짜", "국내분유", "커피"],
-            "rows": [
-                ["2026-05-01", "1,000,000", "500,000"],
-                ["2026-05-02", "1,200,000", "600,000"],
+            "categories": ["5/1", "5/2"],
+            "series": [
+                {"name": "국내분유", "values": [1000000, 1200000]},
+                {"name": "커피", "values": [500000, 600000]},
             ],
         }
     ]

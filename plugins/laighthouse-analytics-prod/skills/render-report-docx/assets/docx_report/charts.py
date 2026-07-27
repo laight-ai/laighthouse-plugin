@@ -43,6 +43,20 @@ def add_combo_chart(document, categories, bar_series, line_series, title=None,
     return rId
 
 
+def add_line_chart(document, categories, series, title=None,
+                   width_emu=9000000, height_emu=3800000):
+    """Multi-line chart (하루 단위 카테고리별 매출 추이 등) — the HTML
+    report's multi-line Chart.js sections, which the combo schema (bars +
+    one line) cannot express."""
+    package = document.part.package
+    partname = _next_chart_partname(package)
+    xml = _build_line_chart_xml(categories, series, title)
+    chart_part = Part(partname, CHART_CONTENT_TYPE, xml.encode("utf-8"), package)
+    rId = document.part.relate_to(chart_part, CHART_RELATIONSHIP_TYPE)
+    _append_chart_paragraph(document, rId, width_emu, height_emu)
+    return rId
+
+
 def _next_chart_partname(package):
     existing = [p for p in package.iter_parts() if "/word/charts/chart" in str(p.partname)]
     return PackURI(f"/word/charts/chart{len(existing) + 1}.xml")
@@ -68,7 +82,16 @@ def _append_chart_paragraph(document, rId, width_emu, height_emu):
     </wp:inline>
   </w:drawing></w:r>
 </w:p>'''.encode("utf-8")
-    document.element.body.append(parse_xml(xml))
+    body = document.element.body
+    sect_pr = body.find(
+        "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}sectPr")
+    el = parse_xml(xml)
+    if sect_pr is not None:
+        # content appended after w:sectPr renders at the END of the document
+        # regardless of call order — insert in flow position instead
+        sect_pr.addprevious(el)
+    else:
+        body.append(el)
 
 
 def _next_doc_pr_id(document):
@@ -135,8 +158,8 @@ def _bar_series_xml(idx, series, categories):
     </c:ser>'''
 
 
-def _line_series_xml(idx, series, categories):
-    color = series.get("color", theme.CHART_LINE_COLOR)
+def _line_series_xml(idx, series, categories, default_color=None):
+    color = series.get("color", default_color or theme.CHART_LINE_COLOR)
     fill = _solid_fill(color)
     return f'''
     <c:ser>
@@ -152,6 +175,73 @@ def _line_series_xml(idx, series, categories):
       {_cat_val_refs(idx, categories, series["values"])}
       <c:smooth val="0"/>
     </c:ser>'''
+
+
+def _build_line_chart_xml(categories, series, title):
+    lines_xml = "".join(
+        _line_series_xml(i, s, categories,
+                         theme.CHART_LINE_COLORS[i % len(theme.CHART_LINE_COLORS)])
+        for i, s in enumerate(series)
+    )
+    axis_text = _text_props(800, theme.TEXT_MUTED)
+    grid_line = (
+        '<c:majorGridlines><c:spPr><a:ln w="9525">'
+        f'{_solid_fill(theme.CHART_GRID)}</a:ln></c:spPr></c:majorGridlines>'
+    )
+    no_axis_line = '<c:spPr><a:ln><a:noFill/></a:ln></c:spPr>'
+    title_xml = ""
+    if title:
+        title_xml = (
+            "<c:title><c:tx><c:rich><a:bodyPr/><a:p><a:r><a:t>"
+            f"{xml_escape(title)}</a:t></a:r></a:p></c:rich></c:tx><c:overlay val=\"0\"/></c:title>"
+        )
+    return f'''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<c:chartSpace {_CHART_NS}>
+  <c:chart>
+    {title_xml}
+    <c:autoTitleDeleted val="1"/>
+    <c:plotArea>
+      <c:layout/>
+      <c:lineChart>
+        <c:grouping val="standard"/>
+        <c:varyColors val="0"/>
+        {lines_xml}
+        <c:axId val="{_CAT_AX}"/>
+        <c:axId val="{_BAR_VAL_AX}"/>
+      </c:lineChart>
+      <c:catAx>
+        <c:axId val="{_CAT_AX}"/>
+        <c:scaling><c:orientation val="minMax"/></c:scaling>
+        <c:delete val="0"/>
+        <c:axPos val="b"/>
+        <c:majorTickMark val="none"/>
+        <c:spPr><a:ln w="9525">{_solid_fill(theme.CHART_GRID)}</a:ln></c:spPr>
+        {axis_text}
+        <c:crossAx val="{_BAR_VAL_AX}"/>
+      </c:catAx>
+      <c:valAx>
+        <c:axId val="{_BAR_VAL_AX}"/>
+        <c:scaling><c:orientation val="minMax"/></c:scaling>
+        <c:delete val="0"/>
+        <c:axPos val="l"/>
+        {grid_line}
+        <c:numFmt formatCode="#,##0" sourceLinked="0"/>
+        <c:majorTickMark val="none"/>
+        {no_axis_line}
+        {axis_text}
+        <c:crossAx val="{_CAT_AX}"/>
+      </c:valAx>
+      <c:spPr><a:noFill/><a:ln><a:noFill/></a:ln></c:spPr>
+    </c:plotArea>
+    <c:legend>
+      <c:legendPos val="b"/>
+      <c:overlay val="0"/>
+      {_text_props(900, theme.TEXT_TH)}
+    </c:legend>
+    <c:plotVisOnly val="1"/>
+  </c:chart>
+  <c:spPr><a:noFill/><a:ln><a:noFill/></a:ln></c:spPr>
+</c:chartSpace>'''
 
 
 def _build_chart_xml(categories, bar_series, line_series, title):

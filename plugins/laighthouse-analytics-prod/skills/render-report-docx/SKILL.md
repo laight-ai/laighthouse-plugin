@@ -7,7 +7,7 @@ description: >
   rendered as an editable Word (.docx) daily/MTD/monthly/executive-MTD performance report
   matching the Laighthouse style.
 metadata:
-  version: "1.1.0"
+  version: "1.2.0"
 ---
 
 > ⚡ **thinking 지침**: 이 스킬 실행 시 thinking(추론)은 최대한 짧게 유지한다. 불필요한 단계 반복, 장황한 계획 수립 없이 바로 MCP 호출 → 데이터 수신 → 렌더링 순서로 진행한다.
@@ -753,7 +753,7 @@ python "<스킬 폴더 경로>/assets/docx_report/build.py" --data <temp.json> -
 - `build.py`는 이 스킬이 직접 실행하도록 허용된 유일한 재사용 스크립트다 (실행 방식 절대 지침
   참고) — 새 스크립트를 만드는 게 아니라 그대로 호출만 한다.
 - 출력 디렉터리(`~/Downloads/laighthouse-reports/`)가 없으면 `build.py`가 자동으로 만든다.
-- 각 섹션 타입(`kpi_cards`/`table`/`chart`/`text`/`heading`)의 정확한 필드 스키마는 각 섹션 파일의
+- 각 섹션 타입(`kpi_cards`/`table`/`chart`/`line_chart`/`text`/`heading`)의 정확한 필드 스키마는 각 섹션 파일의
   `## DOCX 섹션` 블록과 예시를 그대로 따른다 — 숫자 포맷(천 단위 콤마, `%`/`₩`/`$` 접미사)은
   JSON을 쓰기 전에 이 스킬(LLM)이 전부 끝낸 문자열로 넣는다.
 

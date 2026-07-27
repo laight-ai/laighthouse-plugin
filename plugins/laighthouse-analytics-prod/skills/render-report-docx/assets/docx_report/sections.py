@@ -215,10 +215,12 @@ _GOAL_IN_DIFF = re.compile(r"목표\s+([\d,]+(?:\.\d+)?)%")
 
 
 def _progress_pct(card):
-    """Progress ratio for a percentage KPI card: value alone when it already
-    IS a progress rate (소진율/달성률), value-vs-목표 when the diff line
-    carries a target (누적 ROAS 카드의 '목표 425.43%'). Static goal cards
-    (diff 없음 — 예: 월 ROAS 목표) get no bar: there is no progress to show."""
+    """(bar_fill_pct, achieved_pct) for a percentage KPI card, or None.
+    Rate cards (소진율/달성률) use the value itself; the 누적 ROAS card
+    compares value vs the 목표 in its diff line. The fill caps at 100% but
+    the achieved label keeps the real ratio (131% 초과 달성 등). Static
+    goal cards (diff 없음 — 예: 월 ROAS 목표) get no bar: there is no
+    progress to show."""
     if not card.get("diff"):
         return None
     match = _PCT_VALUE.match(str(card.get("value", "")).strip())
@@ -229,8 +231,9 @@ def _progress_pct(card):
     if goal_match:
         goal = float(goal_match.group(1).replace(",", ""))
         if goal > 0:
-            return min(value / goal * 100, 100.0)
-    return min(value, 100.0)
+            achieved = value / goal * 100
+            return min(achieved, 100.0), achieved
+    return min(value, 100.0), value
 
 
 def _card_progress_bar(cell, pct, color, card_w):
@@ -276,9 +279,13 @@ def add_kpi_cards(document, cards):
         _para(cell, card["value"], size=theme.SIZE_KPI_VALUE, bold=True,
               color=accent_hex or theme.TEXT_STRONG,
               align=WD_ALIGN_PARAGRAPH.CENTER, space_after=Pt(4))
-        pct = _progress_pct(card)
-        if pct is not None:
-            _card_progress_bar(cell, pct, accent_hex or theme.ACCENT, int(card_w))
+        progress = _progress_pct(card)
+        if progress is not None:
+            fill, achieved = progress
+            _card_progress_bar(cell, fill, accent_hex or theme.ACCENT, int(card_w))
+            _para(cell, f"목표 대비 {achieved:.1f}% 달성",
+                  size=theme.SIZE_CAPTION, color=theme.TEXT_MUTED,
+                  align=WD_ALIGN_PARAGRAPH.CENTER, space_before=Pt(2))
         if card.get("diff"):
             _para(cell, card["diff"], size=theme.SIZE_KPI_DIFF, bold=True,
                   color=theme.diff_color(card.get("diff_value")) or theme.GRAY,
@@ -511,3 +518,9 @@ def add_combo_chart_section(document, heading, categories, bar_series, line_seri
     if heading:
         add_heading(document, heading)
     charts.add_combo_chart(document, categories, bar_series, line_series)
+
+
+def add_line_chart_section(document, heading, categories, series):
+    if heading:
+        add_heading(document, heading)
+    charts.add_line_chart(document, categories, series)

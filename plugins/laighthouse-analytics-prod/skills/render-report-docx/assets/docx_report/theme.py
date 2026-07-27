@@ -27,6 +27,9 @@ GRAY = "6B7280"
 # first series slate gray (#94a3b8) and the second light blue (#93c5fd).
 CHART_BAR_COLORS = ["94A3B8", "93C5FD", "3B82F6", "A855F7"]
 CHART_LINE_COLOR = "EF4444"
+# multi-line charts (일일 카테고리별 매출 등): HTML section palette order
+CHART_LINE_COLORS = ["3B82F6", "22C55E", "F59E0B", "A855F7", "EF4444",
+                     "94A3B8", "EAB308"]
 CHART_GRID = "E2E8F0"
 
 # ── typography (print scale: title 22 > section 13 > subhead 11.5 >

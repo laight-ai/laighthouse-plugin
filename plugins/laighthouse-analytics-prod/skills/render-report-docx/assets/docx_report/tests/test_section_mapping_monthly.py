@@ -159,12 +159,13 @@ def test_map_monthly_group_c_category_comparison_and_daily_table():
     }
 
     assert section7 == {
-        "type": "table",
+        "type": "line_chart",
         "heading": "일일 카테고리별 매출 현황",
-        "headers": ["날짜"] + top5,
-        "rows": [
-            ["2026-03-01", "1,000,000", "500,000", "0", "0", "0"],
-            ["2026-03-02", "1,200,000", "600,000", "0", "0", "0"],
+        "categories": ["3/1", "3/2"],
+        "series": [
+            {"name": cat, "values": values}
+            for cat, values in zip(top5, [[1000000, 1200000], [500000, 600000],
+                                          [0, 0], [0, 0], [0, 0]])
         ],
     }
 

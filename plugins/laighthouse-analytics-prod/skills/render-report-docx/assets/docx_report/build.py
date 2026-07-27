@@ -84,6 +84,9 @@ def build_document(data, analysis=None):
             sec.add_combo_chart_section(
                 document, None, section["categories"],
                 section["bar_series"], section["line_series"])
+        elif stype == "line_chart":
+            sec.add_line_chart_section(
+                document, None, section["categories"], section["series"])
         elif stype == "text":
             sec.add_text_section(document, None, section["body"])
         else:

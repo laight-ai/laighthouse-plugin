@@ -161,16 +161,20 @@ def map_mtd_group_c(data):
         by_date.setdefault(row["logdate"], {})[row["product_category_3rd"]] = row["sales_amount"]
     labels = sorted(by_date.keys())
 
-    rows = [
-        [label] + [_fmt_amount(by_date[label].get(cat, 0)) for cat in top_categories]
-        for label in labels
-    ]
+    def _short_date(iso):
+        _, month, day = iso.split("-")
+        return f"{int(month)}/{int(day)}"
 
+    # the HTML original draws this as a 5-line daily trend chart; the docx
+    # renderer's line_chart type restores that instead of the table fallback
     section = {
-        "type": "table",
+        "type": "line_chart",
         "heading": "일일 카테고리별 매출 현황",
-        "headers": ["날짜"] + top_categories,
-        "rows": rows,
+        "categories": [_short_date(label) for label in labels],
+        "series": [
+            {"name": cat, "values": [by_date[label].get(cat, 0) for label in labels]}
+            for cat in top_categories
+        ],
     }
     digest = {
         "top_categories": top_categories,
@@ -480,15 +484,21 @@ def map_monthly_group_c(data):
     for row in daily_items:
         by_date.setdefault(row["logdate"], {})[row["product_category_3rd"]] = row["sales_amount"]
     date_labels = sorted(by_date.keys())
-    rows = [
-        [label] + [_fmt_amount(by_date[label].get(cat, 0)) for cat in top5]
-        for label in date_labels
-    ]
+
+    def _short_date(iso):
+        _, month, day = iso.split("-")
+        return f"{int(month)}/{int(day)}"
+
+    # multi-line daily trend, like the HTML original (see mtd group C)
     section7 = {
-        "type": "table",
+        "type": "line_chart",
         "heading": "일일 카테고리별 매출 현황",
-        "headers": ["날짜"] + top5,
-        "rows": rows,
+        "categories": [_short_date(label) for label in date_labels],
+        "series": [
+            {"name": cat,
+             "values": [by_date[label].get(cat, 0) for label in date_labels]}
+            for cat in top5
+        ],
     }
 
     digest = {

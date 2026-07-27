@@ -142,11 +142,23 @@ def test_kpi_progress_bar_for_percentage_cards():
 def test_progress_pct_math():
     # static goal cards (no diff) show no bar even when the value is a %
     assert sec._progress_pct({"value": "425.43%"}) is None
-    assert sec._progress_pct({"value": "47.95%", "diff": "목표 127,636,364 · 소진 61,196,570"}) == 47.95
-    # ROAS vs target: 559.62 / 425.43 → capped at 100
-    assert sec._progress_pct({"value": "559.62%", "diff": "목표 425.43%"}) == 100.0
-    assert sec._progress_pct({"value": "63.07%", "diff": "목표 543,000,000 · 매출 342"}) == 63.07
+    assert sec._progress_pct(
+        {"value": "47.95%", "diff": "목표 127,636,364 · 소진 61,196,570"}) == (47.95, 47.95)
+    # ROAS vs target: fill caps at 100, achieved keeps the real ratio
+    fill, achieved = sec._progress_pct({"value": "559.62%", "diff": "목표 425.43%"})
+    assert fill == 100.0 and round(achieved, 1) == 131.5
+    assert sec._progress_pct(
+        {"value": "63.07%", "diff": "목표 543,000,000 · 매출 342"}) == (63.07, 63.07)
     assert sec._progress_pct({"value": "₩ 1,000"}) is None
+
+
+def test_kpi_card_shows_achieved_label():
+    d = _doc()
+    sec.add_kpi_cards(d, [{"label": "기간 누적 ROAS", "value": "559.62%",
+                           "accent": "#7c3aed", "diff": "목표 425.43%"}])
+    cell = d.tables[0].rows[0].cells[0]
+    texts = [p.text for p in cell.paragraphs]
+    assert any("목표 대비 131.5% 달성" in t for t in texts)
 
 
 def test_text_section_keeps_reading_measure():
