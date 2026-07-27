@@ -18,6 +18,7 @@ def test_map_monthly_group_a_kpi_cards_and_digest():
     section1, section2 = result["sections"]
     assert section1 == {
         "type": "kpi_cards",
+        "heading": "월 목표 및 달성 현황",
         "cards": [
             {"label": "월 예산 목표", "value": "15,000,000"},
             {"label": "월 매출 목표", "value": "75,900,000"},
@@ -244,31 +245,23 @@ def test_map_monthly_group_d_media_comparison_table_and_digest():
 
     result = sm.map_monthly_group_d(data)
 
-    heading_section = result["sections"][0]
-    assert heading_section == {"type": "heading", "text": "매체 별 성과 비교"}
+    # one consolidated table: [매체, 월, 광고비, 매출, ROAS], two rows per channel
+    assert len(result["sections"]) == 1
+    table = result["sections"][0]
+    assert table["type"] == "table"
+    assert table["heading"] == "매체별 성과 비교"
+    assert table["headers"] == ["매체", "월", "광고비 (원)", "매출 (원)", "ROAS"]
+    assert len(table["rows"]) == 2 * 5  # 5 channel groups × (전월/이번 달)
 
-    brs_table = result["sections"][1]
-    assert brs_table["heading"] == "네이버 브랜드검색"
-    assert brs_table["headers"] == ["월", "광고비 (원)", "매출 (원)", "ROAS"]
-    assert brs_table["rows"] == [
-        ["2026년 2월", "13,625,164", "98,613,900", "723.76%"],
-        ["2026년 3월", "15,128,305", "92,365,460", "610.55%"],
-    ]
-
-    plink_table = result["sections"][2]
-    assert plink_table["heading"] == "네이버 파워링크"
-    assert plink_table["rows"] == [
-        ["2026년 2월", "0", "0", "0.00%"],
-        ["2026년 3월", "0", "0", "0.00%"],
-    ]
-
-    gfa_ad_table = result["sections"][4]
-    assert gfa_ad_table["heading"] == "네이버 GFA 애드부스트"
-    # VAT-inclusive raw cost / 1.1
-    assert gfa_ad_table["rows"][0][1] == _amount_close(5500000 / 1.1)
-    assert gfa_ad_table["rows"][1][1] == _amount_close(6050000 / 1.1)
-
-    assert len(result["sections"]) == 1 + 5  # heading + 5 channel groups
+    assert table["rows"][0] == ["네이버 브랜드검색", "2026년 2월", "13,625,164",
+                                "98,613,900", "723.76%"]
+    assert table["rows"][1] == ["네이버 브랜드검색", "2026년 3월", "15,128,305",
+                                "92,365,460", "610.55%"]
+    # absent channels still appear as zero-spend rows, per monthly-section-8.md
+    assert table["rows"][2] == ["네이버 파워링크", "2026년 2월", "0", "0", "0.00%"]
+    # VAT-inclusive raw cost / 1.1 for GFA rows
+    assert table["rows"][6][2] == _amount_close(5500000 / 1.1)
+    assert table["rows"][7][2] == _amount_close(6050000 / 1.1)
 
     digest = result["digest"]["media_monthly_comparison"]
     assert [c["channel_label"] for c in digest] == [

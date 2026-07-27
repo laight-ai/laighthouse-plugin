@@ -19,6 +19,7 @@ def test_map_execmtd_group_a_single_kpi_cards_section_and_digest():
     assert len(result["sections"]) == 1
     assert result["sections"][0] == {
         "type": "kpi_cards",
+        "heading": "목표 달성 현황",
         "cards": [
             {
                 "label": "기간 예산대비 소진율",
@@ -105,6 +106,7 @@ def test_map_execmtd_group_c_category_mom_highlights_matches_md_example_minus_be
     assert result["sections"] == [
         {
             "type": "kpi_cards",
+            "heading": "주요 카테고리별 월간 매출액 증감",
             "cards": [
                 {"label": "기타", "value": "+27.2%", "diff_value": 27.2},
                 {"label": "단백질보충제", "value": "+17.0%", "diff_value": 17.0},

@@ -30,6 +30,7 @@ def test_map_daily_group_a_google_meta_two_kpi_cards_sections_and_digest():
 
     assert result["sections"][0] == {
         "type": "kpi_cards",
+        "heading": "Monthly Goals & Achievement",
         "cards": [
             {"label": "Monthly Budget Plan", "value": "$15,000"},
             {"label": "Monthly Revenue Target", "value": "$75,000"},
@@ -91,6 +92,7 @@ def test_map_daily_group_a_naver_computes_period_progress_and_diffs():
     assert result["digest"] is None
     assert result["sections"][0] == {
         "type": "kpi_cards",
+        "heading": "월 목표 및 달성 현황",
         "cards": [
             {"label": "월 예산 목표", "value": "15,000,000"},
             {"label": "월 매출 목표", "value": "75,000,000"},

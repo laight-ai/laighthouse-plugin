@@ -30,6 +30,7 @@ def test_map_mtd_group_a_kpi_cards_and_digest():
     section1, section2 = result["sections"]
     assert section1 == {
         "type": "kpi_cards",
+        "heading": "월 목표 및 달성 현황",
         "cards": [
             {"label": "월 예산 목표", "value": "15,000,000"},
             {"label": "월 매출 목표", "value": "75,900,000"},

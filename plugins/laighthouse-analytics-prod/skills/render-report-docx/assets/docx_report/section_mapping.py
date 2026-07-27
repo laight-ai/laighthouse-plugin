@@ -73,6 +73,7 @@ def map_mtd_group_a(data):
 
     section1 = {
         "type": "kpi_cards",
+        "heading": "월 목표 및 달성 현황",
         "cards": [
             {"label": "월 예산 목표", "value": _fmt_amount(data["target_cost"])},
             {"label": "월 매출 목표", "value": _fmt_amount(data["target_revenue"])},
@@ -347,6 +348,7 @@ def map_monthly_group_a(data):
 
     section1 = {
         "type": "kpi_cards",
+        "heading": "월 목표 및 달성 현황",
         "cards": [
             {"label": "월 예산 목표", "value": _fmt_amount(data["target_cost"])},
             {"label": "월 매출 목표", "value": _fmt_amount(data["target_revenue"])},
@@ -595,24 +597,24 @@ def map_monthly_group_d(data):
             }
         )
 
-    sections = [{"type": "heading", "text": "매체 별 성과 비교"}]
+    # one consolidated table (docx layout): a per-channel mini-table each with
+    # its own numbered banner wasted a near-empty page per channel
+    table_rows = []
     for channel in rows_by_channel:
-        sections.append(
-            {
-                "type": "table",
-                "heading": channel["channel_label"],
-                "headers": ["월", "광고비 (원)", "매출 (원)", "ROAS"],
-                "rows": [
-                    [
-                        row["month_label"],
-                        _fmt_amount(row["cost"]),
-                        _fmt_amount(row["revenue"]),
-                        f"{row['roas']:.2f}%",
-                    ]
-                    for row in channel["rows"]
-                ],
-            }
-        )
+        for row in channel["rows"]:
+            table_rows.append([
+                channel["channel_label"],
+                row["month_label"],
+                _fmt_amount(row["cost"]),
+                _fmt_amount(row["revenue"]),
+                f"{row['roas']:.2f}%",
+            ])
+    sections = [{
+        "type": "table",
+        "heading": "매체별 성과 비교",
+        "headers": ["매체", "월", "광고비 (원)", "매출 (원)", "ROAS"],
+        "rows": table_rows,
+    }]
 
     digest = {"media_monthly_comparison": rows_by_channel}
     return {"sections": sections, "digest": digest}
@@ -638,6 +640,7 @@ def map_execmtd_group_a(data):
 
     section = {
         "type": "kpi_cards",
+        "heading": "목표 달성 현황",
         "cards": [
             {
                 "label": "기간 예산대비 소진율",
@@ -762,7 +765,7 @@ def map_execmtd_group_c(data):
             change_label = f"+{pct}%" if pct > 0 else f"{pct}%"
             cards.append({"label": item["category"], "value": change_label, "diff_value": pct})
 
-    section = {"type": "kpi_cards", "cards": cards}
+    section = {"type": "kpi_cards", "heading": "주요 카테고리별 월간 매출액 증감", "cards": cards}
     digest = {"category_mom_highlights": highlights}
     return {"sections": [section], "digest": digest}
 
@@ -891,6 +894,7 @@ def map_daily_group_a_google_meta(data):
 
     section1 = {
         "type": "kpi_cards",
+        "heading": "Monthly Goals & Achievement",
         "cards": [
             {"label": "Monthly Budget Plan", "value": f"${_fmt_amount(sales['budget_goal'])}"},
             {"label": "Monthly Revenue Target", "value": f"${_fmt_amount(sales['revenue_goal'])}"},
@@ -984,6 +988,7 @@ def map_daily_group_a_naver(data):
 
     section1 = {
         "type": "kpi_cards",
+        "heading": "월 목표 및 달성 현황",
         "cards": [
             {"label": "월 예산 목표", "value": _fmt_amount(data["target_cost"])},
             {"label": "월 매출 목표", "value": _fmt_amount(data["target_revenue"])},
