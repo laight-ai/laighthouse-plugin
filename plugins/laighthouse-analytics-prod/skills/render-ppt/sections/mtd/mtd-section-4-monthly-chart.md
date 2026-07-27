@@ -19,7 +19,7 @@
 > 그대로 재현한 신규 naver 전용 MCP 도구다. `laighthouse-prism/src/mcp_server/tools_naver.py`에
 > 정의돼 있다.
 > `as_of_date`는 범위의 마지막 달(당월)만 그 날짜까지로 자르고, 그 이전 달들은 항상 달력상 전체
-> 기간을 커버한다 — mtd-section-2(`get_naver_target_progress`)에 준 것과 같은 `target_date`를 준다.
+> 기간을 커버한다 — mtd-section-2(`get_target_progress_v2`)에 준 것과 같은 `target_date`를 준다.
 
 ## 필요 데이터 (MCP)
 최근 6개월 배열 (응답 `items[]`의 `month`/`cost`/`purchase_amount`/`roas` 필드에서 매핑):
@@ -28,7 +28,7 @@
 - `monthly_chart.revenue`: 매출 배열 (숫자, 원) ← `purchase_amount`
 - `monthly_chart.roas`: ROAS 배열 (숫자, %) ← `roas` **그대로** (이 도구는 report-backend의
   `_get_ad_performance_values_by_month`와 동일하게 이미 `sales/cost×100`으로 퍼센트 스케일로 반환한다
-  — `get_naver_target_progress`의 `target_roas`/`actual_roas`와 달리 ×100 변환이 필요 없다)
+  — `get_target_progress_v2`의 `target_roas`/`actual_roas`와 달리 ×100 변환이 필요 없다)
 
 ## PPT 섹션
 

@@ -20,7 +20,7 @@ mtd(MK)의 `mtd-section-3-executive-summary.md`와 HTML 골격(카드 + 불릿 �
 ```
 작성 순서:
 1. 수치 데이터 수집 — 별도 재호출 없이 이미 다른 섹션에서 받은 응답을 재사용한다:
-   - executive-mtd-section-1(목표 달성 현황)의 get_naver_target_progress 응답
+   - executive-mtd-section-1(목표 달성 현황)의 get_target_progress_v2 응답
    - executive-mtd-section-2(월별 광고 성과 차트)의 get_naver_monthly_ad_performance 응답
    - executive-mtd-section-4(주요 카테고리별 월간 매출액 증감)가 이미 가공한 카테고리별 MoM 비교 데이터
    - executive-mtd-section-5(매체별 성과 비교)가 이미 가공한 채널별 ROAS MoM 비교 데이터

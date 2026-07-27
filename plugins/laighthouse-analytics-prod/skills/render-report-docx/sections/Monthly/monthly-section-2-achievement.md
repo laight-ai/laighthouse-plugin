@@ -10,14 +10,19 @@
 
 ---
 
-## MCP 도구 호출: `get_naver_target_progress`
+## MCP 도구 호출: `get_target_progress_v2`
 
 ```json
-{ "brand_name": "...", "month": "YYYY-MM", "as_of_date": "해당 월의 마지막 날" }
+{ "brand_name": "...", "month": "YYYY-MM", "media": "naver", "as_of_date": "해당 월의 마지막 날" }
 ```
 
+> ℹ️ `get_target_progress_v2` 응답은 markdown이다 — `month`/`as_of_date`/`media` 헤더 라인 뒤에
+> 행(cost/revenue/roas) × 열(target|actual|progress_ratio) 표가 온다. `target_cost`는 cost 행의 target 열,
+> `actual_roas`는 roas 행의 actual 열에 대응하는 식으로 읽는다. 해당 월 예산(media_mix)이 없으면 예외 대신
+> "No naver budget/target available for {month}." 메시지 한 줄이 반환된다.
+
 > ⚠️ 범용 `target_progress` 툴을 여기 쓰지 않는다 — naver 전용 브랜드는 매출/ROAS가 전부 0으로
-> 나온다 (mtd-section-2와 동일한 이유). `get_naver_target_progress`는 target과 actual을 한 번의
+> 나온다 (mtd-section-2와 동일한 이유). `get_target_progress_v2`는 target과 actual을 한 번의
 > 호출로 모두 반환한다.
 
 ---
@@ -71,7 +76,7 @@
 
 ## 렌더링 규칙
 - 데이터가 비어있으면 "데이터 준비 중" 카드로 대체하고 임의로 채우지 않는다.
-- `get_naver_target_progress`가 `ValueError`(예산 미설정, 404 매핑)를 내면 목표 관련 필드 전체를
+- `get_target_progress_v2`가 예산 미설정 메시지("No naver budget/target available for {month}.")를 반환하면 목표 관련 필드 전체를
   "목표 미설정"으로 표시한다 — 임의로 0을 만들어 넣지 않는다.
 - `monthly-section-1-kpi-goals.md`는 이 섹션과 항상 쌍으로, 바로 위에 렌더링한다 (같은
-  `get_naver_target_progress` 응답 재사용, 별도 재호출 없음).
+  `get_target_progress_v2` 응답 재사용, 별도 재호출 없음).

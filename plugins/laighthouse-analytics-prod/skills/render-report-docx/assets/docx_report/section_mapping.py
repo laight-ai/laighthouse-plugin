@@ -64,7 +64,7 @@ def _ratio_to_pct(ratio):
 def map_mtd_group_a(data):
     """mtd-section-1 (월 목표 카드) + mtd-section-2 (목표 달성 현황).
 
-    `data`: raw get_naver_target_progress response.
+    `data`: dict parsed from the get_target_progress_v2 markdown response.
     """
     roas_goal_pct = _ratio_to_pct(data["target_roas"])
     roas_actual_pct = _ratio_to_pct(data["actual_roas"])
@@ -334,7 +334,7 @@ def map_mtd_group_g(data):
 def map_monthly_group_a(data):
     """monthly-section-1 (월 목표 카드) + monthly-section-2 (목표 달성 현황).
 
-    `data`: raw get_naver_target_progress response (as_of_date = 해당 월 말일).
+    `data`: dict parsed from the get_target_progress_v2 markdown response (as_of_date = 해당 월 말일).
     Identical field mapping to map_mtd_group_a -- the only documented
     difference between mtd and monthly for this pair is the card label prefix
     ("기간" -> "월") and that the caller passes as_of_date=month-end instead of
@@ -628,7 +628,7 @@ def map_monthly_group_d(data):
 def map_execmtd_group_a(data):
     """executive-mtd-section-1 (목표 달성 현황).
 
-    `data`: raw get_naver_target_progress response (as_of_date = target_date,
+    `data`: dict parsed from the get_target_progress_v2 markdown response (as_of_date = target_date,
     partial month -- same call shape as mtd's, but executive-mtd has no
     separate kpi-goals card section, so this produces a single kpi_cards
     section instead of mtd_group_a's pair.
@@ -951,7 +951,7 @@ def map_daily_group_a_google_meta(data):
 def map_daily_group_a_naver(data):
     """daily-section-1 (월 목표 카드) + daily-section-2 (목표 달성 현황), 분기 B (naver).
 
-    `data`: raw get_naver_target_progress response
+    `data`: dict parsed from the get_target_progress_v2 markdown response
     ({"target_cost","target_revenue","target_roas","actual_cost","actual_revenue",
     "actual_roas","cost_progress_ratio","revenue_progress_ratio"}) plus one
     caller-supplied field, "as_of_date" (the same target_date string already
@@ -966,7 +966,7 @@ def map_daily_group_a_naver(data):
     does NOT reuse this call at all -- its top_bullet is built from
     get_naver_daily_attributed_sales (daily-section-4's call, see
     map_daily_group_b_naver's digest) plus separate campaign/ad-group/promotion
-    calls, never from get_naver_target_progress. Documented explicitly so a
+    calls, never from get_target_progress_v2. Documented explicitly so a
     future editor doesn't assume symmetry with 분기 A.
     """
     as_of = _date.fromisoformat(data["as_of_date"])

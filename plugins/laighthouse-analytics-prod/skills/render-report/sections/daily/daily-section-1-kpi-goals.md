@@ -47,15 +47,20 @@
 mtd(MK)의 `mtd-section-1-kpi-goals.md`와 **완전히 동일한 포맷/HTML/도구**다 — daily는 하루 기준
 스냅샷이므로 `as_of_date`를 항상 사용자가 지정한 기준일(`target_date`) 그대로 쓴다.
 
-**MCP 도구 호출: `get_naver_target_progress`** (daily-section-2-overview.md와 동일 호출 재사용)
+**MCP 도구 호출: `get_target_progress_v2`** (daily-section-2-overview.md와 동일 호출 재사용)
 
 ```json
-{ "brand_name": "...", "month": "YYYY-MM", "as_of_date": "target_date" }
+{ "brand_name": "...", "month": "YYYY-MM", "media": "naver", "as_of_date": "target_date" }
 ```
+
+> ℹ️ `get_target_progress_v2` 응답은 markdown이다 — `month`/`as_of_date`/`media` 헤더 라인 뒤에
+> 행(cost/revenue/roas) × 열(target|actual|progress_ratio) 표가 온다. `target_cost`는 cost 행의 target 열,
+> `actual_roas`는 roas 행의 actual 열에 대응하는 식으로 읽는다. 해당 월 예산(media_mix)이 없으면 예외 대신
+> "No naver budget/target available for {month}." 메시지 한 줄이 반환된다.
 
 > ⚠️ **범용 `target-progress`(v1)를 naver 브랜드에 쓰지 않는다** — v1은 `aw_compiled`/
 > `fb_compiled`(Google/Meta) 실적 테이블만 보므로 naver 전용 브랜드는 매출/ROAS 목표·실적이
-> 전부 0으로 나온다. `get_naver_target_progress`(v2)가 유일한 정확한 소스다.
+> 전부 0으로 나온다. `get_target_progress_v2`(v2)가 유일한 정확한 소스다.
 
 ### 필요 데이터 (MCP)
 응답 필드를 그대로 매핑한다 (roas는 비율값이므로 표시 시 × 100):

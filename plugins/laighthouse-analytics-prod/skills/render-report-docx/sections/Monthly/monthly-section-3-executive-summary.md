@@ -19,7 +19,7 @@ mtd(MK)의 `mtd-section-3-executive-summary.md`와 HTML 골격은 동일하지�
 ```
 작성 순서:
 1. 수치 데이터 수집 — 모두 별도 재호출 없이 이미 다른 섹션에서 받은 응답을 재사용한다:
-   - monthly-section-2(목표 달성 현황)의 get_naver_target_progress 응답
+   - monthly-section-2(목표 달성 현황)의 get_target_progress_v2 응답
    - monthly-section-4(월별 광고 성과 차트)의 get_naver_monthly_ad_performance 응답 (최근 6개월 추이)
    - monthly-section-6(카테고리별 월간 매출액 비교)의 가공된 상위 5개+기타 비교 데이터
    - monthly-section-8(매체별 성과 비교)의 채널별 이번달/전월 비교 데이터

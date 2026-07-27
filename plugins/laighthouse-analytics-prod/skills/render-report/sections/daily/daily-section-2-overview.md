@@ -100,16 +100,21 @@ mtd(MK)의 `mtd-section-2-achievement.md`와 **거의 동일한 포맷**이지�
 진행바(분기 A의 Period Progress와 동일한 개념 — 이번 달 중 며칠이 지났는지)가 추가된다
 (스크린샷 Daily_1 참고: "기간 진척률 93.3% 28/30일").
 
-**MCP 도구 호출: `get_naver_target_progress`** (daily-section-1과 동일 호출 재사용, 별도
+**MCP 도구 호출: `get_target_progress_v2`** (daily-section-1과 동일 호출 재사용, 별도
 재호출 없음)
 
 ```json
-{ "brand_name": "...", "month": "YYYY-MM", "as_of_date": "target_date" }
+{ "brand_name": "...", "month": "YYYY-MM", "media": "naver", "as_of_date": "target_date" }
 ```
+
+> ℹ️ `get_target_progress_v2` 응답은 markdown이다 — `month`/`as_of_date`/`media` 헤더 라인 뒤에
+> 행(cost/revenue/roas) × 열(target|actual|progress_ratio) 표가 온다. `target_cost`는 cost 행의 target 열,
+> `actual_roas`는 roas 행의 actual 열에 대응하는 식으로 읽는다. 해당 월 예산(media_mix)이 없으면 예외 대신
+> "No naver budget/target available for {month}." 메시지 한 줄이 반환된다.
 
 ### 필요 데이터 (MCP)
 - `period_progress_pct` = `target_date.day / 그 달의 총 일수 × 100` (이 스킬이 직접 계산 —
-  `get_naver_target_progress` 응답에 없는 값이다. 예: 4월 28일 → 28/30 × 100 = 93.3%)
+  `get_target_progress_v2` 응답에 없는 값이다. 예: 4월 28일 → 28/30 × 100 = 93.3%)
 - `period_label` = `"{target_date.day}/{그 달의 총 일수}일"` (예: "28/30일")
 - `overview.budget_goal` ← `target_cost`
 - `overview.budget_spent` ← `actual_cost`
@@ -201,7 +206,7 @@ mtd(MK)의 `mtd-section-2-achievement.md`와 **거의 동일한 포맷**이지�
 ### 렌더링 규칙 (분기 B)
 - `diff_color(v)`: v < 0 → `#dc2626`, v > 0 → `#16a34a`, 0 → `#6b7280`
 - diff 값은 항상 부호 포함 표시 (예: `-7.1%p`, `+3.3%p`)
-- `get_naver_target_progress`가 `ValueError`(예산 미설정)를 내면 목표 관련 필드 전체를
+- `get_target_progress_v2`가 예산 미설정 메시지("No naver budget/target available for {month}.")를 반환하면 목표 관련 필드 전체를
   "목표 미설정"으로 표시한다.
 
 ## Script (두 분기 공통)
