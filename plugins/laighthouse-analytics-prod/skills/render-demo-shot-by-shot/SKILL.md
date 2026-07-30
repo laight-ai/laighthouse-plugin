@@ -1,11 +1,12 @@
 ---
 name: render-demo-shot-by-shot
 description: >
-  This skill should be used when the user asks to "Shot-by-Shot 데모 만들어줘", "샷바이샷 목업",
-  "데모 목업 만들어줘", "데모 시연 화면", "스토리보드 목업", "demo mockup", "Jericho 데모",
-  or wants the Laighthouse demo-video storyboard (Shot-by-Shot.pdf scenes #3–#8, the
-  blue-marked Claude chat scenes) rendered as a single HTML chat mockup with real MCP
-  performance data and real creative thumbnails.
+  This skill should be used when the user asks to "스토리보드대로 따라가줘", "스토리보드대로 해줘",
+  "스토리보드대로 진행해줘", "Shot-by-Shot대로 따라가줘", "샷바이샷대로 진행해",
+  "follow the storyboard", or wants the Laighthouse demo-video storyboard
+  (Shot-by-Shot.pdf scenes #3–#8, the blue-marked Claude chat scenes) followed
+  scene-by-scene and rendered as a single HTML chat mockup with real MCP performance
+  data and real creative thumbnails.
 metadata:
   version: "0.1.0"
 ---
