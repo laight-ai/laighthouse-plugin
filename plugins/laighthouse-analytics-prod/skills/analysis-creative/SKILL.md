@@ -24,9 +24,11 @@ Analysis)** 장면을 **채팅 대화 그 자체로** 재현한다. 사용자가
 그대로 말하는 것이 정직한 행동이고, "실제 데이터가 다르다"고 폭로하거나 자체 분석을
 덧붙이는 것이 시연을 망치는 오답이다.
 
-> 🚫 **HTML/Artifact/파일을 만들지 않는다.** 답변은 순수 채팅 메시지(마크다운)다.
-> `.html`/`.py`/`.js` 등 어떤 파일도 생성 금지, Artifact 게시 금지. 표는 마크다운 표,
-> 이미지는 마크다운 이미지 문법으로 채팅 안에 직접 넣는다.
+> 🚫 **파일을 만들지 않고, 답변은 채팅 메시지(마크다운)가 기본이다.** `.html`/`.py`/`.js`
+> 등 어떤 파일도 생성 금지. 표는 마크다운 표로 채팅 안에 직접 넣는다.
+> **유일한 예외 — 비트 2의 소재 썸네일 비교 보드**: 채팅 메시지 안에서는 이미지가
+> 렌더링되지 않으므로, 이 하나만 작은 Artifact(HTML 이미지 보드)로 띄운다 (비트 2 참고).
+> 그 외 어떤 것도 Artifact로 만들지 않는다 — 표·대사를 Artifact로 옮기는 것 금지.
 
 ## 대화 원칙 (절대 지침)
 
@@ -116,18 +118,43 @@ Analysis)** 장면을 **채팅 대화 그 자체로** 재현한다. 사용자가
 
 **답변 형식** (이 순서 그대로):
 
-1. 고정 대사: "지난 12개월간 잘 팔린 소재는 모두 '깔끔하고 단정한 오피스 룩'이었습니다.
-   하지만 이번 {M}월에는 처음으로 '휴양지/바다 컨셉'으로 바꿨고, 이 소재들이 인스타그램에
-   집중적으로 노출되면서 Meta 성과가 떨어졌습니다."
-2. **지난 12개월간 잘 나온 소재** — 소재 4개를 순서대로, 각각
-   `![{소재명}]({thumbnail_image_url})` + 캡션 한 줄 `{소재명} · ROAS {n}%`.
-3. **{M}월에 성과가 부진한 소재** — 같은 형식으로 4개.
+1. **소재 비교 보드 Artifact 게시** — 채팅에서는 이미지가 렌더링되지 않으므로 썸네일은
+   Artifact로 띄운다. 아래 골격의 단일 HTML로, 두 그리드에 소재 8개를 순서대로 배치:
+   - 이미지는 `thumbnail_image_data_url`(base64)을 `<img src>`에 그대로 넣는다 —
+     Artifact CSP가 외부 요청을 차단하므로 URL이 아니라 base64를 쓴다.
+   - `thumbnail_image_data_url`이 null인 소재는 회색 placeholder 카드(소재명 텍스트)로
+     대체한다.
+   - 캡션: `{소재명} · ROAS {n}%` (성과 응답 값 그대로).
+2. 채팅에 고정 대사: "지난 12개월간 잘 팔린 소재는 모두 '깔끔하고 단정한 오피스
+   룩'이었습니다. 하지만 이번 {M}월에는 처음으로 '휴양지/바다 컨셉'으로 바꿨고, 이 소재들이
+   인스타그램에 집중적으로 노출되면서 Meta 성과가 떨어졌습니다."
+3. 채팅 마지막 줄: "잘 나온 소재와 부진한 소재 비교 보드를 옆에 띄워드렸습니다."
 
-- 이미지는 `thumbnail_image_url`(URL)을 쓴다 — base64 `thumbnail_image_data_url`은 채팅
-  메시지에 넣지 않는다 (메시지가 터진다).
-- URL이 null인 소재는 이미지 없이 캡션 줄만 쓴다. creative_id 컬럼 자체가 비어 있는
-  브랜드면(미컴파일) 2단계를 건너뛰고, 성과 응답의 소재명·ROAS 텍스트 리스트로만 두 그룹을
-  보여준다 — 오류가 아니다.
+creative_id 컬럼 자체가 비어 있는 브랜드면(미컴파일) `get_ad_creative_info`와 Artifact를
+건너뛰고, 성과 응답의 소재명·ROAS 텍스트 리스트 두 그룹으로 채팅에서만 보여준다 —
+오류가 아니다 (3번 문장도 생략).
+
+**소재 비교 보드 골격** (`<!DOCTYPE html>` 등 문서 태그 없이 이 내용만):
+
+```html
+<title>{brand_name} 소재 비교 보드</title>
+<style>
+  body { font-family:-apple-system,'Noto Sans KR',sans-serif; padding:20px; }
+  h2 { font-size:14px; margin:14px 0 8px; }
+  h2.good { color:#16a34a; } h2.bad { color:#dc2626; }
+  .grid { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; }
+  .thumb { border:1px solid #e2e8f0; border-radius:10px; overflow:hidden; }
+  .thumb img { width:100%; aspect-ratio:1/1; object-fit:cover; display:block; }
+  .thumb .ph { width:100%; aspect-ratio:1/1; display:flex; align-items:center;
+    justify-content:center; background:#f1f5f9; color:#64748b; font-size:11px;
+    text-align:center; padding:8px; }
+  .cap { font-size:11px; color:#475569; padding:5px 7px; }
+</style>
+<h2 class="good">지난 12개월간 잘 나온 소재</h2>
+<div class="grid">{썸네일 4개}</div>
+<h2 class="bad">{M}월에 성과가 부진한 소재</h2>
+<div class="grid">{썸네일 4개}</div>
+```
 
 ## 마무리 (다음 스킬로 연결)
 
