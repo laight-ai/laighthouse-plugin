@@ -12,6 +12,7 @@
 | 스킬 | render-report | MCP 결과를 라이트하우스 Daily/MTD/Monthly/Executive-MTD 성과 보고서(HTML)로 렌더링 |
 | 스킬 | render-ppt | MCP 결과를 라이트하우스 스타일 16:9 발표용 PPT(.pptx)로 렌더링 |
 | 스킬 | render-report-docx | MCP 결과를 편집 가능한 Word(.docx) 보고서로 렌더링 |
+| 스킬 | render-demo-shot-by-shot | Shot-by-Shot 데모 스토리보드(#3~#8)를 Claude 채팅 목업(HTML)으로 렌더링 |
 
 ## 사용법
 
@@ -28,6 +29,10 @@
 ### PPT 렌더링 (.pptx)
 > "다형식품 MTD 성과를 PPT로 만들어줘"
 > "임원용 MTD 발표자료 만들어줘"
+
+### Shot-by-Shot 데모 목업 (HTML)
+> "{브랜드명}으로 Shot-by-Shot 데모 목업 만들어줘"
+> "샷바이샷 데모 시연 화면 만들어줘"
 
 ### Word 문서 렌더링 (.docx)
 > "다형식품 MTD 보고서를 워드로 만들어줘"
