@@ -12,7 +12,8 @@
 | 스킬 | render-report | MCP 결과를 라이트하우스 Daily/MTD/Monthly/Executive-MTD 성과 보고서(HTML)로 렌더링 |
 | 스킬 | render-ppt | MCP 결과를 라이트하우스 스타일 16:9 발표용 PPT(.pptx)로 렌더링 |
 | 스킬 | render-report-docx | MCP 결과를 편집 가능한 Word(.docx) 보고서로 렌더링 |
-| 스킬 | render-demo-shot-by-shot | Shot-by-Shot 데모 스토리보드(#3~#8)를 Claude 채팅 목업(HTML)으로 렌더링 |
+| 스킬 | analysis-creative | Shot-by-Shot 데모 #4~#5 — 성과 하락 진단·소재 원인 분석을 채팅 대화로 재현 (실데이터) |
+| 스킬 | create-creative | Shot-by-Shot 데모 #6~#8 — A/B 테스트·신규 시안 생성·스케일업을 채팅 대화로 재현 |
 
 ## 사용법
 
@@ -30,9 +31,9 @@
 > "다형식품 MTD 성과를 PPT로 만들어줘"
 > "임원용 MTD 발표자료 만들어줘"
 
-### Shot-by-Shot 데모 목업 (HTML)
-> "{브랜드명}으로 스토리보드대로 따라가줘"
-> "Shot-by-Shot 스토리보드대로 진행해줘"
+### Shot-by-Shot 데모 대화 (채팅 내 재현)
+> "{브랜드명}의 Meta 성과가 떨어졌어. 무슨 일이야?" → analysis-creative (#4~#5)
+> "빠른 A/B 테스트를 돌려줄 수 있어?" → create-creative (#6~#8)
 
 ### Word 문서 렌더링 (.docx)
 > "다형식품 MTD 보고서를 워드로 만들어줘"

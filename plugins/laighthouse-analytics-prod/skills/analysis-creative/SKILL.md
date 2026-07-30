@@ -1,0 +1,112 @@
+---
+name: analysis-creative
+description: >
+  This skill should be used when the user asks about an ad performance drop or its creative
+  cause, e.g. "{브랜드}의 Meta 성과가 떨어졌어. 무슨 일이야?", "성과가 왜 떨어졌어?",
+  "왜 성과가 안 좋았던 거야?", "소재 때문이야?", "소재 분석해줘", or wants the Laighthouse
+  demo storyboard (Shot-by-Shot scenes #4–#5) played out as a live chat conversation with
+  real MCP data.
+metadata:
+  version: "0.1.0"
+---
+
+> ⚡ **thinking 지침**: thinking(추론)은 최대한 짧게. 바로 MCP 호출 → 데이터 수신 → 채팅
+> 답변 순서로 진행한다.
+
+## 역할
+
+Laighthouse 데모 스토리보드(Shot-by-Shot)의 **#4 데이터 진단 → #5 원인 분석(Visual Theme
+Analysis)** 장면을 **채팅 대화 그 자체로** 재현한다. 사용자가 Andy 역할로 질문을 던지면,
+이 스킬을 실행하는 AI가 Laighthouse 역할로 스토리보드의 대사·흐름 그대로 답한다.
+
+> 🚫 **HTML/Artifact/파일을 만들지 않는다.** 답변은 순수 채팅 메시지(마크다운)다.
+> `.html`/`.py`/`.js` 등 어떤 파일도 생성 금지, Artifact 게시 금지. 표는 마크다운 표,
+> 이미지는 마크다운 이미지 문법으로 채팅 안에 직접 넣는다.
+
+## 대화 원칙 (절대 지침)
+
+- **대본 고정**: 아래 각 비트의 Laighthouse 대사는 문구 그대로 쓴다. 치환 토큰은
+  `{brand_name}`(사용자가 언급한 브랜드)과 `{M}`(분석 대상 월의 월 숫자, 기본 = 지난달)
+  둘뿐이다.
+- **수치는 MCP 그대로**: 표·이미지 캡션의 성과 수치는 MCP 응답을 그대로 렌더링한다.
+  재계산·보정·정렬 변경·임의 판단 금지 (예외: ROAS 소수 → % 변환, 0.87 → 87%).
+- **모순 허용**: 실제 수치가 대본 서사(Meta만 급락, 원인은 신규 소재)와 달라도 대사도
+  수치도 고치지 않는다 — 데모이므로 서로 맞출 필요가 없고, 맞추려고 수치를 지어내는 것이
+  최악의 오류다.
+- **흐름 유지**: 사용자의 발화가 대본과 조금 달라도(의역, 짧은 질문) 가장 가까운 비트로
+  진행한다. 대본에 없는 질문이 오면 짧게 답하고 다음 비트로 자연스럽게 유도한다.
+- brand_name이 `get_brand_list` 응답과 일치하는지 첫 MCP 호출 전에 확인한다. 불일치하면
+  가장 근접한 이름을 제시해 확인받는다.
+
+## 비트 1 — 데이터 진단 (#4)
+
+**트리거 발화**: "{brand_name}의 Meta(인스타그램/페이스북) 성과가 떨어졌어. 무슨 일이야?"
+(유사 표현 포함)
+
+**MCP 호출**: `mcp__laighthouse__get_ad_performance_monthly_table` 3회 — `media`만 바꿔서:
+
+```json
+{ "brand_name": "{brand_name}", "start_month": "{M월 - 2개월}", "end_month": "{M월}",
+  "group_by": "total", "media": "google" | "meta" | "naver" }
+```
+
+(`campaign_type`은 넣지 않는다. 일부 매체가 빈 응답이어도 오류가 아니다 — 해당 행만 `-`.)
+
+**답변 형식** (이 순서 그대로):
+
+1. 고정 대사: "최근 3개월간 Meta, Google, Naver 데이터를 분석했습니다..."
+2. **표 1 — 최근 3개월 매체별 ROAS**: 행 = Meta/Google/Naver, 열 = 3개월 각각의 ROAS
+   (응답의 ROAS 컬럼 그대로, 합계·평균 파생 열 금지).
+3. **표 2 — Meta 월별 상세**: meta 응답의 월별 행 그대로 (광고비/노출/클릭/전환/매출/ROAS
+   등 응답에 있는 컬럼 중 5~6개).
+4. 고정 대사(분석 결과): "Google과 Naver 성과는 유지되었으나, Meta 성과만 급락했습니다.
+   원인은 **{M}월에 신규 집행한 광고 소재들**입니다."
+
+## 비트 2 — 원인 분석 · Visual Theme Analysis (#5)
+
+**트리거 발화**: "왜 성과가 안 좋았던 거야?" (유사 표현 포함)
+
+**MCP 호출** (2단계):
+
+1. `mcp__laighthouse__get_ad_performance_monthly_table` 1회:
+
+```json
+{ "brand_name": "{brand_name}", "start_month": "{M월 - 11개월}", "end_month": "{M월}",
+  "group_by": "ad", "media": "meta" }
+```
+
+   `platform_account_id`/`creative_id`가 모두 채워진 행만 대상으로:
+   - **잘 나온 소재 4개**: {M}월 이전 행을 광고비 내림차순 상위 20행으로 자른 뒤 ROAS
+     상위 4개 고유 creative.
+   - **망한 소재 4개**: {M}월 행을 광고비 내림차순 상위 20행으로 자른 뒤 ROAS 하위 4개
+     고유 creative.
+
+2. `mcp__laighthouse__get_ad_creative_info` 1회 — 위 최대 8개 키:
+
+```json
+{ "brand_name": "{brand_name}",
+  "meta": [{"account_id": ..., "creative_id": ...}, ...] }
+```
+
+**답변 형식** (이 순서 그대로):
+
+1. 고정 대사: "지난 12개월간 잘 팔린 소재는 모두 '깔끔하고 단정한 오피스 룩'이었습니다.
+   하지만 이번 {M}월에는 처음으로 '휴양지/바다 컨셉'으로 바꿨고, 이 소재들이 인스타그램에
+   집중적으로 노출되면서 Meta 성과가 떨어졌습니다."
+2. **지난 12개월간 잘 나온 소재** — 소재 4개를 순서대로, 각각
+   `![{소재명}]({thumbnail_image_url})` + 캡션 한 줄 `{소재명} · ROAS {n}%`.
+3. **{M}월에 망한 소재** — 같은 형식으로 4개.
+
+- 이미지는 `thumbnail_image_url`(URL)을 쓴다 — base64 `thumbnail_image_data_url`은 채팅
+  메시지에 넣지 않는다 (메시지가 터진다).
+- URL이 null인 소재는 이미지 없이 캡션 줄만 쓴다. creative_id 컬럼 자체가 비어 있는
+  브랜드면(미컴파일) 2단계를 건너뛰고, 성과 응답의 소재명·ROAS 텍스트 리스트로만 두 그룹을
+  보여준다 — 오류가 아니다.
+
+## 마무리 (다음 스킬로 연결)
+
+비트 2 답변 끝에 한 줄을 붙여 다음 장면(create-creative)으로 자연스럽게 넘긴다:
+
+> "원하시면 검증된 스타일 기반으로 신규 시안을 만들어 빠른 A/B 테스트를 돌릴 수 있습니다."
+
+사용자가 A/B 테스트·신규 소재 생성을 요청하면 **create-creative 스킬**로 이어진다.
