@@ -71,22 +71,25 @@ Analysis)** 장면을 **채팅 대화 그 자체로** 재현한다. 사용자가
 **트리거 발화**: "{brand_name}의 Meta(인스타그램/페이스북) 성과가 떨어졌어. 무슨 일이야?"
 (유사 표현 포함)
 
-**MCP 호출**: `mcp__laighthouse__get_ad_performance_monthly_table` 3회 — `media`만 바꿔서:
+**MCP 호출**: `mcp__laighthouse__get_ad_performance_monthly_table` **1회** — `media`를
+넣지 않으면(None) google/meta/naver에 airbridge·ga4까지 전 매체가 한 번에 들어온다:
 
 ```json
 { "brand_name": "{brand_name}", "start_month": "{M월 - 2개월}", "end_month": "{M월}",
-  "group_by": "total", "media": "google" | "meta" | "naver" }
+  "group_by": "media" }
 ```
 
-(`campaign_type`은 넣지 않는다. 일부 매체가 빈 응답이어도 오류가 아니다 — 해당 행만 `-`.)
+(`media`와 `campaign_type`은 넣지 않는다. 응답에 없는 매체가 있어도 오류가 아니다 —
+해당 행만 `-`.)
 
 **답변 형식** (이 순서 그대로):
 
 1. 고정 대사: "최근 3개월간 Meta, Google, Naver 데이터를 분석했습니다..."
-2. **표 1 — 최근 3개월 매체별 ROAS**: 행 = Meta/Google/Naver, 열 = 3개월 각각의 ROAS
-   (응답의 ROAS 컬럼 그대로, 합계·평균 파생 열 금지).
-3. **표 2 — Meta 월별 상세**: meta 응답의 월별 행 그대로 (광고비/노출/클릭/전환/매출/ROAS
-   등 응답에 있는 컬럼 중 5~6개).
+2. **표 1 — 최근 3개월 매체별 ROAS**: 행 = 응답에 있는 매체 전부(Meta/Google/Naver/
+   GA4/Airbridge 등) 그대로, 열 = 3개월 각각의 ROAS (응답의 ROAS 컬럼 그대로, 합계·평균
+   파생 열 금지).
+3. **표 2 — Meta 월별 상세**: 같은 응답에서 meta 행만 골라 월별로 (광고비/노출/클릭/전환/
+   매출/ROAS 등 응답에 있는 컬럼 중 5~6개).
 4. 고정 대사(분석 결과): "Google과 Naver 성과는 유지되었으나, Meta 성과만 급락했습니다.
    원인은 **{M}월에 신규 집행한 광고 소재들**입니다."
 
