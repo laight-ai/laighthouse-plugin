@@ -9,12 +9,7 @@
 { "brand_name": "breezm", "start_month": "5개월 전 YYYY-MM", "end_month": "당월 YYYY-MM", "media": "airbridge", "group_by": "media", "day_offset": "target_date.day" }
 ```
 
-- 기간 span 6개월 (당월 포함, 고정). **`day_offset: target_date.day`를 반드시 넣는다** —
-  당월(진행 중인 달)은 이 값이 없으면 target_date가 아니라 실제 오늘 날짜까지 누적된 데이터를
-  반환해, 섹션 1(목표 달성 현황)·섹션 5(Channel별 성과 비교)의 target_date 기준 수치와
-  어긋나는 버그가 실제로 확인됐다 (예: 이 값 없이 조회한 당월 매출이 섹션 1의 "기간 매출"보다
-  큰 값으로 나옴). `day_offset`을 넣으면 당월 데이터가 다른 섹션과 동일하게 target_date까지만
-  잘려서 온다. ⚠️ `campaign-type` 금지.
+- 기간 span 6개월 (당월 포함, 고정). **`day_offset: target_date.day`를 반드시 넣는다**. ⚠️ `campaign-type` 금지.
 
 ## 필요 데이터 (월별 집계)
 
@@ -70,7 +65,14 @@
     },
     options: {
       responsive:true, maintainAspectRatio:false,
-      plugins:{ legend:{ display:false } },
+      plugins:{
+        legend:{ display:false },
+        tooltip:{
+          callbacks:{
+            label: ctx => `${ctx.dataset.label}: ₩${Number(ctx.parsed.y).toLocaleString()}`
+          }
+        }
+      },
       scales:{ y:{ ticks:{ callback: v => '₩' + Number(v).toLocaleString() } } }
     }
   });
@@ -82,6 +84,8 @@
 - **최근 6개월 고정 표시**: 데이터가 없는 월도 labels에서 제외하지 않고 값을 0으로 채워 항상
   6개월 전체를 표시한다 (데이터 적재가 늦게 시작된 브랜드에서 앞쪽 월들이 통째로 비는 경우 포함).
 - 실제 `channel` 값이 광고 채널 상수와 다르면 조용히 0을 만들지 말고 차트 아래에 불일치를 명시한다.
+- **커서를 올렸을 때 표시되는 tooltip에도** `₩` 접두어 + 천 단위 콤마를 붙인다 (위 Script의
+  `plugins.tooltip.callbacks.label` 참고).
 - 당월 레이블에 부분월임을 표기한다 (예: `26년 7월 (진행 중)`).
 - **차트 아래 각주**: 세 개의 독립된 줄(`*`로 시작하는 문장 세 개)을 아래 **순서 그대로**
   표시한다 — 하나로 이어 붙이지 않는다.

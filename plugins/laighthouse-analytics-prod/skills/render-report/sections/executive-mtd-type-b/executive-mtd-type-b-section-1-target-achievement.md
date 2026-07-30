@@ -34,9 +34,8 @@
 `get_ad_performance_daily_table`로 날짜별 행을 받아 직접 합산하는 것보다 훨씬 빠르다). 응답에서
 광고 채널(`Google Ads`/`Meta Ads`/`Naver Ads`) 행의 `airbridge_revenue`를 그대로 쓴다.
 `get_target_progress_v2` 응답의 `revenue` 행 `actual` 값은 **매출 실적으로 절대 쓰지 않는다**
-— 실제로 확인된 버그로, naver의 경우 이 값이 0으로 반환되지만 같은 기간 Airbridge에는 naver
-채널 매출이 정상적으로 존재한다(예: 하루 800만원 이상). google/meta도 이 값이 Airbridge와
-일치한다는 보장이 없으므로 셋 다 예외 없이 Airbridge를 원천으로 쓴다. 이 호출은 목표 유무와
+— google/meta도 이 값이 Airbridge와 일치한다는 보장이 없으므로 셋 다 예외 없이 Airbridge를
+원천으로 쓴다. 이 호출은 목표 유무와
 상관없이 **매번 1회 실행**한다.
 
 ```json

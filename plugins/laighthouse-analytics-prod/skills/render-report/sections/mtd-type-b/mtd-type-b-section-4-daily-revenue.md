@@ -104,7 +104,14 @@
     },
     options: {
       responsive:true, maintainAspectRatio:false,
-      plugins:{ legend:{ display:false } },
+      plugins:{
+        legend:{ display:false },
+        tooltip:{
+          callbacks:{
+            label: ctx => `${ctx.dataset.label}: ₩${Number(ctx.parsed.y).toLocaleString()}`
+          }
+        }
+      },
       scales:{
         x: { ticks: { maxRotation: 0, minRotation: 0, autoSkip: false } },
         y: { ticks: { stepSize: 5000000, callback: v => '₩' + Number(v).toLocaleString() } }
@@ -173,6 +180,8 @@
 - Y축 눈금은 **500만원(5,000,000원) 단위**로 고정한다(`stepSize: 5000000`)이며, 값은 원 단위
   숫자에 `₩` 접두어와 천 단위 콤마를 붙여 표시한다 (예: `₩15,000,000`) — 만원/억원 등 축약
   단위로 바꾸지 않는다.
+- **커서를 올렸을 때 표시되는 tooltip에도** `₩` 접두어 + 천 단위 콤마를 붙인다 (위 Script의
+  `plugins.tooltip.callbacks.label` 참고).
 - 데이터가 비어있으면 "데이터 준비 중" 카드로 대체하고 임의로 채우지 않는다 — 중간에 매출 0원인
   날이 있어도 그대로 0으로 그린다 (추정/보간 금지).
 - 실제 `channel` 값이 상수와 다르면 조용히 0을 만들지 말고 차트 아래에 불일치를 명시한다.

@@ -13,10 +13,7 @@
 { "brand_name": "breezm", "start_month": "5개월 전 YYYY-MM", "end_month": "당월 YYYY-MM", "media": "airbridge", "group_by": "media", "day_offset": "target_date.day" }
 ```
 
-- 기간 span은 6개월 (도구 제한 24개월 이내). **`day_offset: target_date.day`를 반드시 넣는다** —
-  당월(진행 중인 달)은 이 값이 없으면 target_date가 아니라 실제 오늘 날짜까지 누적된 데이터를
-  반환해, 섹션 1(목표 달성 현황)의 target_date 기준 수치와 어긋나는 버그가 있었다. `day_offset`
-  을 넣으면 당월 데이터가 다른 섹션과 동일하게 target_date까지만 잘려서 온다.
+- 기간 span은 6개월 (도구 제한 24개월 이내). **`day_offset: target_date.day`를 반드시 넣는다**.
 - ⚠️ `campaign-type`을 넣지 않는다 — airbridge 행이 조용히 누락된다.
 - ⚠️ `group_by`는 문자열 enum 그대로 보낸다 (`"total"`/`"media"`).
 
@@ -70,7 +67,19 @@
     },
     options: {
       responsive:true, maintainAspectRatio:false,
-      plugins:{ legend:{ display:false } },
+      plugins:{
+        legend:{ display:false },
+        tooltip:{
+          callbacks:{
+            label: ctx => {
+              const v = ctx.parsed.y;
+              return ctx.dataset.label === 'ROAS'
+                ? `ROAS: ${Number(v).toLocaleString()}%`
+                : `${ctx.dataset.label}: ₩${Number(v).toLocaleString()}`;
+            }
+          }
+        }
+      },
       scales:{
         y:  { position:'left',  ticks:{ callback: v => '₩' + Number(v).toLocaleString() } },
         y2: { position:'right', grid:{ drawOnChartArea:false },
@@ -92,6 +101,8 @@
 - 당월 레이블에 부분월임을 표기한다 (예: "26년 7월 (진행 중)").
 - Y축 눈금은 원래 숫자(천 단위 콤마)에 `₩` 접두어만 붙인다 (예: `₩64,845,000`). 억/천만원 같은
   축약 단위로 바꾸지 않는다.
+- **커서를 올렸을 때 표시되는 tooltip에도** 광고비/매출은 `₩` 접두어 + 천 단위 콤마, ROAS는
+  `%` 접미사를 붙인다 (위 Script의 `plugins.tooltip.callbacks.label` 참고).
 - **차트 아래 각주는 두 개의 독립된 줄**로 표시한다:
   - `{TYPE_B_MONTHLY_CHART_FOOTNOTE_CURRENT_MONTH}`: 항상 표시한다.
     `* 이번달({YY}년 {MM}월)의 데이터는 1일부터 기준일인 {MM}월 {DD}일까지의 수치입니다.` 형식

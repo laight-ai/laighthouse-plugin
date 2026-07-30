@@ -4,8 +4,8 @@ description: >
   브리즘(Google/Meta/Naver 광고 성과를 Airbridge 매출과 엮어 추적하는 airbridge 기반 브랜드)
   전용 보고서 생성 스킬. "보고서로 만들어줘", "레포트 형식으로 보여줘", "MTD 보고서",
   "Executive MTD 보고서", "임원용 MTD 보고서", "executive mtd", "라이트하우스 보고서",
-  "성과 분석 보고서" 요청 시 사용. 지원하는 report_type은 `mtd`/`executive-mtd` 두 가지뿐이며,
-  daily/monthly/weekly는 지원하지 않는다. 대상 브랜드는 브리즘 하나뿐이다.
+  "성과 분석 보고서" 요청 시 사용. 지원하는 report_type은 `mtd`/`executive-mtd`/`daily` 세
+  가지이며, monthly/weekly는 지원하지 않는다. 대상 브랜드는 브리즘 하나뿐이다.
 metadata:
   version: "1.0.0"
 ---
@@ -15,16 +15,18 @@ metadata:
 ## 역할
 
 MCP 데이터를 받아 **라이트하우스 스타일 성과 보고서**로 렌더링하는 오케스트레이터. **대상
-브랜드는 브리즘(airbridge 기반) 하나뿐이다.** 지원하는 `report_type`은 `mtd`/`executive-mtd`
-두 가지이며, 각각 완전히 독립된 폴더(`sections/mtd-type-b/`, `sections/executive-mtd-type-b/`)
-에서 자기 완결적으로 섹션을 가져온다 — 폴더 간 import는 없다.
+브랜드는 브리즘(airbridge 기반) 하나뿐이다.** 지원하는 `report_type`은
+`mtd`/`executive-mtd`/`daily` 세 가지이며, 각각 완전히 독립된 폴더(`sections/mtd-type-b/`,
+`sections/executive-mtd-type-b/`, `sections/daily-type-b/`)에서 자기 완결적으로 섹션을
+가져온다 — 폴더 간 import는 없다.
 
 | report_type | 목적 | 폴더 |
 |---|---|---|
 | `mtd` | 신규: airbridge 기반 브랜드(브리즘) — Google/Meta/Naver 광고 성과를 Airbridge에 기록된 매출과 엮어 보여주는 상세 MTD 보고서 (7개 섹션) | `sections/mtd-type-b/` |
 | `executive-mtd` | 신규: 브리즘 (airbridge 기반, 임원 보고용) — 위 `mtd`를 임원이 딥다이브 없이 훑어볼 수 있도록 5개 섹션으로 재구성한 보고서 | `sections/executive-mtd-type-b/` |
+| `daily` | 신규: 브리즘 (airbridge 기반, 실무자용 데일리 보고서) — 최근 7일 등 짧은 기간 단위로 매일 확인하는 일자별 성과 보고서 | `sections/daily-type-b/` |
 
-두 report_type 모두 `brand_name`은 `"브리즘"` 또는 `"breezm"` 둘 다 유효하고(같은 브랜드의 두 표기), naver 전용 도구를 일절 쓰지 않는다.
+세 report_type 모두 `brand_name`은 항상 `"breezm"`이고, naver 전용 도구를 일절 쓰지 않는다.
 generic 도구(`get_ad_performance_daily_table`/`get_ad_performance_monthly_table`)와
 `get_target_progress_v2`만 쓰며, 보고서의 모든 "매출"은 **Airbridge 매출**
 (`media="airbridge"` 응답의 `airbridge_revenue`)이다. 광고 채널은 airbridge 응답의 `channel`
@@ -44,9 +46,21 @@ report_type의 다른 섹션 응답을 재사용해 직접 작성한다 (각 섹
 프로모션/이벤트 정보만은 다른 섹션이 가져오지 않으므로 `list_promotions`를 Executive Summary
 섹션에서 별도로 1회 호출한다 (해당 섹션 파일에 상세 규칙이 있으면 그것을 따른다).
 
-`daily`/`monthly`/`weekly`는 이 스킬의 범위 밖이다 — 브리즘 외 다른 브랜드(naver 기반 브랜드,
-Google/Meta 기반 브랜드)는 현재 이 플러그인에서 지원하지 않는다. 사용자가 daily/monthly/weekly
-보고서를 요청하면, 아직 지원하지 않는다고 알리고 mtd/executive-mtd 중 무엇을 원하는지 확인한다.
+`daily`는 실무자가 매일 확인하는 짧은 기간(예: 최근 7일, 또는 D-1 vs D-0 이틀) 단위 보고서다.
+다만 목표 달성 현황(section-1)은 `mtd`와 동일하게 "월초부터 기준일까지"(당월 MTD)를 다룬다 —
+예산이 월 단위이므로 짧은 보고서에서도 이 지표는 그대로 유효하다. section-3(최근 7일 성과)과
+section-4/5(캠페인·광고그룹/광고 성과, D-1 vs D-0)는 `mtd`/`executive-mtd`와 달리 **기준일을
+포함한 고정 일수 구간**(각각 7일, 이틀)을 다룬다. section-2(Executive Summary)는 `df_dify`를
+호출하지 않고 다른 daily 섹션(1/3/4/5) 응답을 재사용해 AI가 직접 작성하며, "월초~기준일"
+페이싱이 아니라 **D-1 vs D-0 하루 단위 변화**와 캠페인/광고그룹 특이사항 중심으로 쓴다 — `mtd`
+의 Executive Summary와 분석 항목 구성이 다르다 (`daily-type-b-section-2-executive-summary.md`
+참고). 현재 확정된 섹션은 section-1~5 다섯 개 전부다. 사용자가 "데일리 보고서", "일간
+보고서", "daily 보고서" 등을 요청하면 이 report_type을 쓴다.
+
+`monthly`/`weekly`는 이 스킬의 범위 밖이다 — 브리즘 외 다른 브랜드(naver 기반 브랜드,
+Google/Meta 기반 브랜드)는 현재 이 플러그인에서 지원하지 않는다. 사용자가 monthly/weekly
+보고서를 요청하면, 아직 지원하지 않는다고 알리고 mtd/executive-mtd/daily 중 무엇을 원하는지
+확인한다.
 
 ---
 
@@ -81,19 +95,18 @@ Google/Meta 기반 브랜드)는 현재 이 플러그인에서 지원하지 않�
 
 | 파라미터 | 설명 | 예시 |
 |--------|------|------|
-| report_type | `mtd` 또는 `executive-mtd` | mtd |
+| report_type | `mtd`, `executive-mtd`, 또는 `daily` | mtd |
 | 보고서 제목 | 보고서 상단 타이틀 | 브리즘 MTD 보고서 |
-| brand_name | MCP 호출용 브랜드명 — `"브리즘"`(한글 표기) 또는 `"breezm"`(영문 표기) 둘 다 유효하며 `get_brand_list` 응답 기준 어느 쪽으로 호출해도 정상 동작한다 (아래 참고) | 브리즘 (또는 breezm) |
+| brand_name | MCP 호출용 브랜드명 — **항상 `breezm`**(`get_brand_list` 응답과 정확히 일치하는 값). 사람이 브랜드를 부를 때 쓰는 "브리즘"과는 다른 값이니 혼동하지 않는다 (아래 경고 참고) | breezm |
 | 기준 일자 | 보고서 기준 날짜 (`target_date`) | 2026-05-15 |
 
-> ℹ️ **"브리즘"과 `brand_name`은 둘 다 실제 호출 값으로 쓸 수 있다.** "브리즘"(한글)과
-> "breezm"(영문)은 같은 브랜드를 가리키는 두 표기이며, `get_brand_list` 기준 **둘 다 유효한
-> 등록명**이라 어느 쪽을 `brand_name` 파라미터에 넣어도 정상적으로 데이터가 반환된다 (2026-07-30
-> 확인 — 과거에는 `"브리즘"`을 넣으면 `Unknown brand` 에러가 났으나 현재는 해결됨). 사용자가
-> "브리즘", "breezm", "브리즘(breezm)" 등 어떤 표현으로 브랜드를 지칭하든 **전부 같은 브랜드를
-> 가리키는 것으로 인식**하고, 실제 도구 호출 시 그 표현 그대로(또는 둘 중 편한 쪽으로) 넣으면
-> 된다 — 굳이 한쪽으로 정규화할 필요는 없다. 보고서 제목·완료 메시지 등 사람이 읽는 텍스트에는
-> 계속 "브리즘"을 쓴다.
+> ⚠️ **"브리즘"과 `brand_name`을 혼동하지 않는다.** "브리즘"은 사람이 대화·보고서 제목에서
+> 브랜드를 부르는 **표시명**일 뿐이다. 어떤 MCP 도구를 호출하든 실제 파라미터에 넣는
+> `brand_name` 값은 **반드시 정확히 `"breezm"`**(영문 소문자, `get_brand_list` 응답 기준)
+> 이어야 한다 — `"브리즘"`을 그대로 넣으면 `Unknown brand '브리즘'` 에러로 호출 자체가
+> 실패한다. 사용자가 "브리즘", "breezm", "브리즘(breezm)" 등 어떤 표현으로 브랜드를 지칭하든
+> **전부 같은 브랜드를 가리키는 것으로 인식**하고, 실제 도구 호출 시에는 항상 `"breezm"`으로
+> 정규화해서 넣는다. 보고서 제목·완료 메시지 등 사람이 읽는 텍스트에는 계속 "브리즘"을 쓴다.
 
 `mtd`/`executive-mtd` 모두 **섹션 구성은 report_type이 전부 결정**하며 사용자가 섹션을 골라
 지정하는 개념이 없다 — 아래 표에 있는 파일을 항상 전부 렌더링한다.
@@ -102,14 +115,20 @@ Google/Meta 기반 브랜드)는 현재 이 플러그인에서 지원하지 않�
 
 ## 실행 순서
 
-1. 파라미터를 파싱하고 report_type을 확정한다 (`mtd`/`executive-mtd`만 유효).
+1. 파라미터를 파싱하고 report_type을 확정한다 (`mtd`/`executive-mtd`/`daily`만 유효).
 2. target/achievement 수치를 호출한다 — `mcp__laighthouse__get_target_progress_v2`를
    `{ "brand_name": "breezm", "month": "YYYY-MM", "media": "...", "as_of_date": "target_date" }`로
    **google/meta/naver 세 번**(`media`만 바꿔) 호출한다 — `mtd`/`executive-mtd` 공통 규칙이다
    (`sections/mtd-type-b/mtd-type-b-section-1-target-achievement.md` 참고). 세 매체 모두
-   `"No {media} budget/target available for {month}."` 메시지가 돌아오면(브리즘의 현재 기대
-   상태 — **오류가 아니다**) 목표 필드는 전부 N/A로 표시하고, 실적은
-   `get_ad_performance_daily_table`에서 대신 가져온다 (섹션 파일의 대체 규칙 참고).
+   `"No {media} budget/target available for {month}."` 메시지가 돌아오거나 `cost`/`revenue`
+   행의 `target`이 0이면(브리즘은 현재 `revenue` 목표가 세 매체 다 0이다) 해당 목표 필드는
+   N/A로 표시하고, 대체 값은 `get_ad_performance_daily_table`이 아니라
+   **`get_ad_performance_monthly_table`(`start_month`=`end_month`=당월,
+   `day_offset`=target_date.day)**로 가져온다 — 날짜별 행을 직접 합산하는 것보다 훨씬 빠르다
+   (섹션 파일의 대체 규칙 참고). 매출 실적(`기간 매출`/`광고 매출`)은 목표 유무와 무관하게
+   **항상** 이 방식(`media="airbridge"`, `group_by:"media"`, `day_offset`)으로 가져온다 —
+   `get_target_progress_v2`의 `revenue` 행 `actual`은 naver에서 0을 반환하는 버그가 확인되어
+   매출 실적으로 절대 쓰지 않는다.
    ⚠️ ROAS 관련 수치(`target_roas`/`actual_roas`)는 비율값(예: 0.87, 5.06)으로 반환되므로
    반드시 × 100 후 표시한다 (0.87 → 87%, 5.06 → 506%).
 3. 나머지 `mcp__laighthouse__*` generic 도구를 호출해 각 섹션 수치 데이터를 가져온다 (각 섹션
@@ -157,7 +176,8 @@ Google/Meta 기반 브랜드)는 현재 이 플러그인에서 지원하지 않�
 📁 {저장된 html 파일 경로}
 ```
 
-- `{report_type 한글명}`: `mtd` → "MTD 보고서", `executive-mtd` → "Executive MTD 보고서"
+- `{report_type 한글명}`: `mtd` → "MTD 보고서", `executive-mtd` → "Executive MTD 보고서",
+  `daily` → "데일리 보고서"
 - `{기준_일자}`: 사용자가 지정한 기준 일자 (예: 2026-05-15)
 - `{한 문장 하이라이트}`: 렌더링된 수치 중 가장 눈에 띄는 지표 한 가지만 골라 한 문장으로 (예: "Naver
   Ads ROAS가 5,036.7%로 가장 두드러졌습니다"). 여러 개 나열하지 않는다.
@@ -177,7 +197,7 @@ Google/Meta 기반 브랜드)는 현재 이 플러그인에서 지원하지 않�
 
 ### report_type: `mtd` (브리즘 전용, airbridge 기반, 항상 포함)
 
-**총 7개 섹션.** 모든 MCP 호출에 `brand_name: "브리즘"` 또는 `"breezm"`(둘 다 유효)을 넘기고, 보고서의 모든 "매출"은
+**총 7개 섹션.** 모든 MCP 호출에 `brand_name: "breezm"`을 넘기고, 보고서의 모든 "매출"은
 Airbridge 매출(`airbridge_revenue`)이다. 광고 채널 상수(`Google Ads`/`Meta Ads`/`Naver Ads`),
 첫 airbridge 응답 검증 규칙, `campaign-type` 금지 규칙은 위 「역할」의 설명을 따른다.
 
@@ -228,6 +248,49 @@ Airbridge 매출(`airbridge_revenue`)이다. 광고 채널 상수(`Google Ads`/`
 
 `sections/executive-mtd-type-b/` 폴더의 파일은 전부 브리즘(airbridge 기반) 기준으로 작성되어
 있고, 다른 폴더를 import하지 않는다.
+
+### report_type: `daily` (브리즘 전용, airbridge 기반, 실무자용 데일리 보고서, 항상 포함) ⭐ 신규
+
+**총 5개 섹션. 구성이 전부 확정됐다.**
+
+| 순서 | 섹션 | Import 경로 |
+|-----|------|------------|
+| 1 | 목표 달성 현황 | `@import sections/daily-type-b/daily-type-b-section-1-target-achievement.md` |
+| 2 | Executive Summary | `@import sections/daily-type-b/daily-type-b-section-2-executive-summary.md` |
+| 3 | 최근 7일 성과 | `@import sections/daily-type-b/daily-type-b-section-3-daily-performance-7days.md` |
+| 4 | 캠페인 성과 (D-1 vs D-0) | `@import sections/daily-type-b/daily-type-b-section-4-campaign-performance.md` |
+| 5 | 광고그룹 및 광고 성과 (D-1 vs D-0) | `@import sections/daily-type-b/daily-type-b-section-5-ad-performance.md` |
+
+section-1(목표 달성 현황)은 `mtd-type-b-section-1-target-achievement.md`와 **완전히 동일한
+데이터·계산 로직**을 쓴다 — "월초~기준일" 당월 MTD 목표 대비 진행 상황이다 (예산이 월 단위로
+설정되므로, 데일리 보고서에서도 이 지표는 그대로 유효하다). section-3(최근 7일 성과)·
+section-4(캠페인 성과)·section-5(광고그룹 및 광고 성과)는 `mtd`/`executive-mtd`의
+"월초~기준일" 범위가 아니라 각각 **기준일을 포함한 고정 구간**(section-3은 7일, section-4/5는
+D-1~D-0 딱 이틀)을 다룬다 — 다른 report_type과 기간 정의 자체가 다르다는 점에 유의한다.
+section-3은 매체별 일자별 광고비(`get_ad_performance_daily_table`, `group_by:"total"`)와
+airbridge 채널별 일자별 매출(같은 도구, `group_by:"media"`)을, section-4는 같은 도구를
+`group_by:"campaign"`으로, section-5는 google/meta/naver는 `group_by:"ad"`(캠페인/광고그룹/
+광고 3단계가 한 응답에 다 들어있음)로, airbridge는 `group_by:"campaign"`으로 호출한다 —
+전부 section-1과 달리 `get_target_progress_v2`나 `day_offset`을 쓰지 않는다(고정 일수
+구간이라 MTD 컷오프 개념이 없다). section-3의 프로모션 오버레이는
+`mtd-type-b-section-4-daily-revenue.md`와 같은 브래킷 방식이며, 카테고리 축 밴드 폭 보정
+(좌우 경계를 정확히 날짜 영역에 맞추는 것)까지 동일하게 적용한다. section-3의 Legend는
+광고비/매출은 박스, ROAS는 라인 마커 순서(광고비 → 매출 → ROAS)로 고정한다. section-4/5는
+캠페인(또는 광고그룹/광고)별로 D-1/D-0 값을 절대 합산하지 않고 날짜별로 각각 유지하며, D-0
+값 아래에 D-1 대비 변화량(광고비/예약 CPA는 %, CTR/ROAS는 %p)을 **괄호로 감싸서** 표시한다 —
+색상 규칙은 두 파일이 동일하다(양수=빨강/음수=파랑 조합이 지표별로 다르다는 점에 유의:
+예약 CPA는 감소가 빨강이다). **두 파일 모두 D-0 광고비가 ₩10,000 이하인 행은 표에서 제외**
+한다(조용히 제외 — 각주로만 안내). **section-5는 Airbridge가 캠페인보다 아래(광고그룹/광고) 단위로
+매출을 귀속하지 않으므로, 같은 캠페인 아래 모든 광고그룹/광고 행이 그 캠페인의 매출/예약
+완료/CPA/ROAS를 동일하게 공유한다** — section-4와 달리 이 부분은 진짜 캠페인별 매출이 아니라
+상위 캠페인 값을 재사용한 것임에 유의한다. **section-2(Executive Summary)는 새 MCP 호출이
+전혀 없다** — section-1/3/4/5 응답만 재사용해 AI가 직접 작성한다. `mtd`의 Executive
+Summary와 달리 페이싱/매체별 특이사항 항목이 없고, 대신 ROAS는 목표가 없으면(현재 기본 상태)
+**D-1 vs D-0**로 비교하며(mtd는 전월 동기 비교), 캠페인/광고그룹 특이사항 항목은 section-4/5의
+D-1 vs D-0 변화량이 큰 캠페인·광고그룹 2~4개를 골라 원인 가설과 해결 방향까지 붙여 서술한다
+(자세한 내용은 `daily-type-b-section-2-executive-summary.md` 참고).
+
+`sections/daily-type-b/` 폴더의 파일도 다른 폴더를 import하지 않는다.
 
 ---
 
@@ -348,4 +411,5 @@ function downloadReport(){
 ## 데이터 부족 시
 
 - 해당 섹션은 `<div class="card"><p style="color:#94a3b8;font-size:13px;">데이터 준비 중</p></div>` 로 대체
-- 섹션을 임의로 생략하지 않는다 — `mtd`는 7개, `executive-mtd`는 5개 전부 항상 렌더링한다.
+- 섹션을 임의로 생략하지 않는다 — `mtd`는 7개, `executive-mtd`는 5개, `daily`는 5개 전부
+  항상 렌더링한다.

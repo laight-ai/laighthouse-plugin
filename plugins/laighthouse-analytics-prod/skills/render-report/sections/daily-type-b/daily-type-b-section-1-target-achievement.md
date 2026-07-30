@@ -1,7 +1,10 @@
-# Breezm MTD Section 1: 목표 달성 현황 (Target Achievement)
+# Breezm Daily Section 1: 목표 달성 현황 (Target Achievement)
 
-**report_type:** `mtd` — **브리즘(airbridge 기반, type-b) 전용** (항상 포함).
-모든 "매출"은 Airbridge 매출(`airbridge_revenue`), 광고 채널은 airbridge 응답
+**report_type:** `daily` — **브리즘(airbridge 기반, type-b) 전용** (항상 포함). 데일리
+보고서에서도 이 카드는 **당월 MTD 목표 대비 진행 상황**을 그대로 보여준다 (`mtd`와 동일한
+데이터·계산 로직 — 데일리 보고서는 예산이 일 단위가 아니라 월 단위로 설정되므로, 짧은 기간
+보고서에서도 "이번 달 전체 진행 상황"은 여전히 매일 확인할 가치가 있는 지표다). 모든 "매출"은
+Airbridge 매출(`airbridge_revenue`), 광고 채널은 airbridge 응답
 `channel` ∈ {`Google Ads`, `Meta Ads`, `Naver Ads`} 행이다 (SKILL.md 공통 규칙 참고).
 
 ---
@@ -22,7 +25,9 @@
 > 등록돼 있지만 `revenue`(매출) 목표는 `target: 0`으로 비어 있는 상태다. 이 두 경우를 구분하지
 > 않고 "표를 반환했으니 다 유효하다"고 가정하면 안 된다 (아래 계산 규칙 참고).
 
-이 세 응답은 섹션 6(Channel별 예산 소진 현황)이 그대로 재사용한다 — 별도 재호출 없음.
+이 세 응답은 이 섹션에서만 쓴다 — `daily` 보고서에는 아직 이 응답을 공유할 다른 섹션(예:
+`mtd`의 Channel별 예산 소진 현황 같은)이 정의되어 있지 않다. 나중에 그런 섹션이 추가되면
+재사용하도록 갱신한다.
 
 ## ⚠️ 매출(실적)은 항상 Airbridge에서만 가져온다 — `get_target_progress_v2`의 revenue actual 금지
 
@@ -35,7 +40,8 @@
 `get_target_progress_v2` 응답의 `revenue` 행 `actual` 값은 **매출 실적으로 절대 쓰지 않는다**
 — google/meta도 이 값이 Airbridge와 일치한다는 보장이 없으므로 셋 다 예외 없이 Airbridge를
 원천으로 쓴다. 이 호출은 목표 유무와
-상관없이 **매번 1회 실행**한다(섹션 6도 이 응답을 재사용한다 — 별도 재호출 없음).
+상관없이 **매번 1회 실행**한다 (현재 `daily` 보고서에는 이 응답을 공유할 다른 섹션이 없다 —
+나중에 추가되면 재사용하도록 갱신한다).
 
 ```json
 { "brand_name": "breezm", "start_month": "당월 YYYY-MM", "end_month": "당월 YYYY-MM", "media": "airbridge", "group_by": "media", "day_offset": "target_date.day" }
@@ -88,7 +94,7 @@
 ## HTML
 
 ```html
-<!-- BREEZM MTD SECTION 1: 목표 달성 현황 (TARGET ACHIEVEMENT) -->
+<!-- BREEZM DAILY SECTION 1: 목표 달성 현황 (TARGET ACHIEVEMENT) -->
 <div class="card" style="margin-bottom:16px;">
   <div class="section-title">목표 달성 현황 ({MM}월 1일~{MM}월 {DD}일)</div>
   <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:0; border:1px solid #e2e8f0; border-radius:8px; overflow:hidden;">
