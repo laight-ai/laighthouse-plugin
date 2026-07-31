@@ -67,26 +67,22 @@ D-0을 각각 독립적으로 조인**한다 (어떤 캠페인이 D-0에는 airb
     <table>
       <thead>
         <tr>
-          <th rowspan="2">매체</th>
-          <th rowspan="2">캠페인</th>
-          <th style="color:#94a3b8; font-weight:500; font-size:11px; border-bottom:none; text-align:center;">{D1_M}/{D1_D}</th>
-          <th style="color:#94a3b8; font-weight:500; font-size:11px; border-bottom:none; text-align:center; border-right:1px solid #e2e8f0;">{D0_M}/{D0_D}</th>
-          <th style="color:#94a3b8; font-weight:500; font-size:11px; border-bottom:none; text-align:center;">{D1_M}/{D1_D}</th>
-          <th style="color:#94a3b8; font-weight:500; font-size:11px; border-bottom:none; text-align:center; border-right:1px solid #e2e8f0;">{D0_M}/{D0_D}</th>
-          <th style="color:#94a3b8; font-weight:500; font-size:11px; border-bottom:none; text-align:center;">{D1_M}/{D1_D}</th>
-          <th style="color:#94a3b8; font-weight:500; font-size:11px; border-bottom:none; text-align:center; border-right:1px solid #e2e8f0;">{D0_M}/{D0_D}</th>
-          <th style="color:#94a3b8; font-weight:500; font-size:11px; border-bottom:none; text-align:center;">{D1_M}/{D1_D}</th>
-          <th style="color:#94a3b8; font-weight:500; font-size:11px; border-bottom:none; text-align:center;">{D0_M}/{D0_D}</th>
+          <th rowspan="2" style="text-align:center;">매체</th>
+          <th rowspan="2" style="text-align:center; border-right:1px solid #e2e8f0;">캠페인</th>
+          <th colspan="2" style="text-align:center; border-bottom:none; padding-bottom:2px; border-right:1px solid #e2e8f0;">광고비</th>
+          <th colspan="2" style="text-align:center; border-bottom:none; padding-bottom:2px; border-right:1px solid #e2e8f0;">CTR</th>
+          <th colspan="2" style="text-align:center; border-bottom:none; padding-bottom:2px; border-right:1px solid #e2e8f0;">예약 CPA</th>
+          <th colspan="2" style="text-align:center; border-bottom:none; padding-bottom:2px;">ROAS</th>
         </tr>
         <tr>
-          <th style="text-align:center;">광고비</th>
-          <th style="text-align:center; border-right:1px solid #e2e8f0;">광고비</th>
-          <th style="text-align:center;">CTR</th>
-          <th style="text-align:center; border-right:1px solid #e2e8f0;">CTR</th>
-          <th style="text-align:center;">예약 CPA</th>
-          <th style="text-align:center; border-right:1px solid #e2e8f0;">예약 CPA</th>
-          <th style="text-align:center;">ROAS</th>
-          <th style="text-align:center;">ROAS</th>
+          <th style="text-align:center; font-size:11px; font-weight:500; padding-top:2px;">{D1_M}/{D1_D}</th>
+          <th style="text-align:center; font-size:11px; font-weight:500; padding-top:2px; border-right:1px solid #e2e8f0;">{D0_M}/{D0_D}</th>
+          <th style="text-align:center; font-size:11px; font-weight:500; padding-top:2px;">{D1_M}/{D1_D}</th>
+          <th style="text-align:center; font-size:11px; font-weight:500; padding-top:2px; border-right:1px solid #e2e8f0;">{D0_M}/{D0_D}</th>
+          <th style="text-align:center; font-size:11px; font-weight:500; padding-top:2px;">{D1_M}/{D1_D}</th>
+          <th style="text-align:center; font-size:11px; font-weight:500; padding-top:2px; border-right:1px solid #e2e8f0;">{D0_M}/{D0_D}</th>
+          <th style="text-align:center; font-size:11px; font-weight:500; padding-top:2px;">{D1_M}/{D1_D}</th>
+          <th style="text-align:center; font-size:11px; font-weight:500; padding-top:2px;">{D0_M}/{D0_D}</th>
         </tr>
       </thead>
       <tbody>
@@ -94,23 +90,23 @@ D-0을 각각 독립적으로 조인**한다 (어떤 캠페인이 D-0에는 airb
         <tr>
           <td style="text-align:left; border-right:1px solid #e2e8f0;">{channel}</td>
           <td style="text-align:left; border-right:1px solid #e2e8f0;">{campaign}</td>
-          <td style="text-align:right;">{d1_광고비}</td>
-          <td style="text-align:right; border-right:1px solid #e2e8f0;">
+          <td style="text-align:center;">{d1_광고비}</td>
+          <td style="text-align:center; border-right:1px solid #e2e8f0;">
             {d0_광고비}
             <div style="font-size:10.5px; text-align:center; color:{광고비_변화_색상};">{광고비_변화율}</div>
           </td>
-          <td style="text-align:right;">{d1_CTR}</td>
-          <td style="text-align:right; border-right:1px solid #e2e8f0;">
+          <td style="text-align:center;">{d1_CTR}</td>
+          <td style="text-align:center; border-right:1px solid #e2e8f0;">
             {d0_CTR}
             <div style="font-size:10.5px; text-align:center; color:{CTR_변화_색상};">{CTR_변화}</div>
           </td>
-          <td style="text-align:right;">{d1_예약_CPA}</td>
-          <td style="text-align:right; border-right:1px solid #e2e8f0;">
+          <td style="text-align:center;">{d1_예약_CPA}</td>
+          <td style="text-align:center; border-right:1px solid #e2e8f0;">
             {d0_예약_CPA}
             <div style="font-size:10.5px; text-align:center; color:{예약_CPA_변화_색상};">{예약_CPA_변화율}</div>
           </td>
-          <td style="text-align:right;">{d1_ROAS}</td>
-          <td style="text-align:right;">
+          <td style="text-align:center;">{d1_ROAS}</td>
+          <td style="text-align:center;">
             {d0_ROAS}
             <div style="font-size:10.5px; text-align:center; color:{ROAS_변화_색상};">{ROAS_변화}</div>
           </td>
@@ -138,7 +134,12 @@ D-0을 각각 독립적으로 조인**한다 (어떤 캠페인이 D-0에는 airb
 - 카드 제목·각주의 `{D1_MM}/{D1_DD}` = target_date의 하루 전날, `{D0_MM}/{D0_DD}` = target_date
   그 자체다. 표 헤더의 `{D1_M}/{D1_D}`, `{D0_M}/{D0_D}`는 같은 날짜를 `M/D`(0 없이) 형식으로
   줄여서 쓴다 (예: `7/14`, `7/15`).
-- 모든 열 헤더(날짜 줄·지표명 줄, 매체·캠페인 포함)는 **중앙 정렬**한다.
+- **헤더 구조**: 지표명(광고비/CTR/예약 CPA/ROAS)을 위쪽 행에 `colspan="2"`로 한 번만 합쳐
+  표시하고, 날짜(D-1/D-0)를 아래쪽 행에 표시한다 — 지표명을 D-1/D-0 두 칸에 각각 반복하지
+  않는다. **헤더 텍스트는 전부 기본 검정 색상**(`#1e293b`)이다 — 날짜 줄도 회색으로 옅게
+  처리하지 않는다.
+- **매체/캠페인 열은 좌측 정렬**하고, **그 외 모든 지표 값(광고비/CTR/예약 CPA/ROAS의
+  D-1·D-0 값과 변화량)은 전부 중앙 정렬**한다.
 - **정렬 순서**: 매체별로 묶지 않고, **D-0 광고비 내림차순**으로 전체 캠페인을 한 줄로 정렬한다.
 - **필터**: D-0 광고비가 ₩10,000 이하인 캠페인은 렌더링하지 않는다 (조용히 제외 — 각주로만
   안내한다).

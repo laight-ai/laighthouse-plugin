@@ -76,27 +76,23 @@
     <table>
       <thead>
         <tr>
-          <th rowspan="2" style="border-right:1px solid #e2e8f0; width:150px;">매체 / 캠페인</th>
-          <th rowspan="2" style="border-right:1px solid #e2e8f0; width:150px;">광고그룹</th>
-          <th rowspan="2" style="border-right:1px solid #e2e8f0; width:150px;">광고</th>
-          <th style="color:#94a3b8; font-weight:500; font-size:11px; border-bottom:none; text-align:center;">{D1_M}/{D1_D}</th>
-          <th style="color:#94a3b8; font-weight:500; font-size:11px; border-bottom:none; text-align:center; border-right:1px solid #e2e8f0;">{D0_M}/{D0_D}</th>
-          <th style="color:#94a3b8; font-weight:500; font-size:11px; border-bottom:none; text-align:center;">{D1_M}/{D1_D}</th>
-          <th style="color:#94a3b8; font-weight:500; font-size:11px; border-bottom:none; text-align:center; border-right:1px solid #e2e8f0;">{D0_M}/{D0_D}</th>
-          <th style="color:#94a3b8; font-weight:500; font-size:11px; border-bottom:none; text-align:center;">{D1_M}/{D1_D}</th>
-          <th style="color:#94a3b8; font-weight:500; font-size:11px; border-bottom:none; text-align:center; border-right:1px solid #e2e8f0;">{D0_M}/{D0_D}</th>
-          <th style="color:#94a3b8; font-weight:500; font-size:11px; border-bottom:none; text-align:center;">{D1_M}/{D1_D}</th>
-          <th style="color:#94a3b8; font-weight:500; font-size:11px; border-bottom:none; text-align:center;">{D0_M}/{D0_D}</th>
+          <th rowspan="2" style="text-align:center; border-right:1px solid #e2e8f0; width:150px;">매체 / 캠페인</th>
+          <th rowspan="2" style="text-align:center; border-right:1px solid #e2e8f0; width:150px;">광고그룹</th>
+          <th rowspan="2" style="text-align:center; border-right:1px solid #e2e8f0; width:150px;">광고</th>
+          <th colspan="2" style="text-align:center; border-bottom:none; padding-bottom:2px; border-right:1px solid #e2e8f0;">광고비</th>
+          <th colspan="2" style="text-align:center; border-bottom:none; padding-bottom:2px; border-right:1px solid #e2e8f0;">CTR</th>
+          <th colspan="2" style="text-align:center; border-bottom:none; padding-bottom:2px; border-right:1px solid #e2e8f0;">예약 CPA</th>
+          <th colspan="2" style="text-align:center; border-bottom:none; padding-bottom:2px;">ROAS</th>
         </tr>
         <tr>
-          <th style="text-align:center;">광고비</th>
-          <th style="text-align:center; border-right:1px solid #e2e8f0;">광고비</th>
-          <th style="text-align:center;">CTR</th>
-          <th style="text-align:center; border-right:1px solid #e2e8f0;">CTR</th>
-          <th style="text-align:center;">예약 CPA</th>
-          <th style="text-align:center; border-right:1px solid #e2e8f0;">예약 CPA</th>
-          <th style="text-align:center;">ROAS</th>
-          <th style="text-align:center;">ROAS</th>
+          <th style="text-align:center; font-size:11px; font-weight:500; padding-top:2px;">{D1_M}/{D1_D}</th>
+          <th style="text-align:center; font-size:11px; font-weight:500; padding-top:2px; border-right:1px solid #e2e8f0;">{D0_M}/{D0_D}</th>
+          <th style="text-align:center; font-size:11px; font-weight:500; padding-top:2px;">{D1_M}/{D1_D}</th>
+          <th style="text-align:center; font-size:11px; font-weight:500; padding-top:2px; border-right:1px solid #e2e8f0;">{D0_M}/{D0_D}</th>
+          <th style="text-align:center; font-size:11px; font-weight:500; padding-top:2px;">{D1_M}/{D1_D}</th>
+          <th style="text-align:center; font-size:11px; font-weight:500; padding-top:2px; border-right:1px solid #e2e8f0;">{D0_M}/{D0_D}</th>
+          <th style="text-align:center; font-size:11px; font-weight:500; padding-top:2px;">{D1_M}/{D1_D}</th>
+          <th style="text-align:center; font-size:11px; font-weight:500; padding-top:2px;">{D0_M}/{D0_D}</th>
         </tr>
       </thead>
       <tbody>
@@ -105,23 +101,23 @@
           <td style="text-align:left; border-right:1px solid #e2e8f0; width:150px;"><div>{channel} /</div><div>{campaign}</div></td>
           <td style="text-align:left; border-right:1px solid #e2e8f0; width:150px;">{asset_group}</td>
           <td style="text-align:left; border-right:1px solid #e2e8f0; width:150px;">{ad_name}</td>
-          <td style="text-align:right;">{d1_광고비}</td>
-          <td style="text-align:right; border-right:1px solid #e2e8f0;">
+          <td style="text-align:center;">{d1_광고비}</td>
+          <td style="text-align:center; border-right:1px solid #e2e8f0;">
             {d0_광고비}
             <div style="font-size:10.5px; text-align:center; color:{광고비_변화_색상};">({광고비_변화율})</div>
           </td>
-          <td style="text-align:right;">{d1_CTR}</td>
-          <td style="text-align:right; border-right:1px solid #e2e8f0;">
+          <td style="text-align:center;">{d1_CTR}</td>
+          <td style="text-align:center; border-right:1px solid #e2e8f0;">
             {d0_CTR}
             <div style="font-size:10.5px; text-align:center; color:{CTR_변화_색상};">({CTR_변화})</div>
           </td>
-          <td style="text-align:right;">{d1_예약_CPA}</td>
-          <td style="text-align:right; border-right:1px solid #e2e8f0;">
+          <td style="text-align:center;">{d1_예약_CPA}</td>
+          <td style="text-align:center; border-right:1px solid #e2e8f0;">
             {d0_예약_CPA}
             <div style="font-size:10.5px; text-align:center; color:{예약_CPA_변화_색상};">({예약_CPA_변화율})</div>
           </td>
-          <td style="text-align:right;">{d1_ROAS}</td>
-          <td style="text-align:right;">
+          <td style="text-align:center;">{d1_ROAS}</td>
+          <td style="text-align:center;">
             {d0_ROAS}
             <div style="font-size:10.5px; text-align:center; color:{ROAS_변화_색상};">({ROAS_변화})</div>
           </td>
@@ -151,8 +147,15 @@
 - **첫 3열(매체/캠페인, 광고그룹, 광고)은 폭을 동일하게(각 150px) 맞추고, 열 사이에 구분선을
   넣는다** — "매체 / 캠페인" 열은 한 셀 안에서 **매체 뒤에 `/`를 붙인 줄(위)**과 **캠페인
   (아래)**을 줄바꿈으로 분리한다 (예: "Naver Ads /" / "파워링크_단백질보충제") — 두 줄 모두
-  **기본 텍스트 색상**(`#374151`)이며, 캠페인 줄을 회색 등으로 옅게 처리하지 않는다.
-- 모든 열 헤더(날짜 줄·지표명 줄, 첫 3열 포함)는 **중앙 정렬**한다.
+  **기본 텍스트 색상**(`#374151`)이며, 캠페인 줄을 회색 등으로 옅게 처리하지 않는다. 이 3개
+  열은 **좌측 정렬**한다.
+- **헤더 구조**: 지표명(광고비/CTR/예약 CPA/ROAS)을 위쪽 행에 `colspan="2"`로 한 번만 합쳐
+  표시하고, 날짜(D-1/D-0)를 아래쪽 행에 표시한다 — 지표명을 D-1/D-0 두 칸에 각각 반복하지
+  않는다. **헤더 텍스트는 전부 기본 검정 색상**(`#1e293b`)이다 — 날짜 줄도 회색으로 옅게
+  처리하지 않는다. 식별 열(매체/캠페인, 광고그룹, 광고) 헤더도 포함해 모든 헤더 셀은 중앙
+  정렬한다.
+- **그 외 모든 지표 값(광고비/CTR/예약 CPA/ROAS의 D-1·D-0 값과 변화량)은 전부 중앙 정렬**
+  한다.
 - `asset_group`(광고그룹)/`ad_name`(광고)이 빈 값이면 `-`로 표시한다.
 - **정렬 순서**: D-0 광고비 내림차순으로 전체 행을 한 줄로 정렬한다 (매체·캠페인별로 묶지 않음).
 - **필터**: D-0 광고비가 ₩10,000 이하인 행은 렌더링하지 않는다 (조용히 제외 — 별도 표시 없음,

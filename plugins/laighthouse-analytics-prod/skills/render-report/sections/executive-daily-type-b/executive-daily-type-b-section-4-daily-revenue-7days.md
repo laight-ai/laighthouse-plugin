@@ -1,20 +1,23 @@
-# Breezm MTD Section 4: 일일 매출 현황 (Daily Revenue)
+# Breezm Executive Daily Section 4: 일일 매출 현황 (최근 7일)
 
-**report_type:** `mtd` — **브리즘(airbridge 기반, type-b) 전용** (항상 포함). 월초~target_date
-일별 광고 매출 vs 전체 매출. 매출은 Airbridge 매출.
+**report_type:** `executive-daily` — **브리즘(airbridge 기반, type-b) 전용** (항상 포함).
+기준일을 포함한 **최근 7일** 일별 광고 매출 vs 전체 매출. 매출은 Airbridge 매출. `daily`
+report_type의 section-3(최근 7일 성과, 광고비/매출/ROAS 혼합 차트)보다 더 간결하게, 임원이
+한눈에 매출 추이만 보도록 만든 라인 차트다 (executive-mtd의 매출 추이 섹션과 같은 관계).
 
 ## MCP 도구 호출: `get_ad_performance_daily_table` × 1
 
 ```json
-{ "brand_name": "breezm", "start_date": "월초 YYYY-MM-01", "end_date": "target_date", "media": "airbridge", "group_by": "media" }
+{ "brand_name": "breezm", "start_date": "기준일 6일 전 YYYY-MM-DD", "end_date": "target_date", "media": "airbridge", "group_by": "media" }
 ```
 
-- MTD 범위이므로 도구 제한(31일 이내)을 항상 만족한다. ⚠️ `campaign-type` 금지.
+- **기준일(target_date)을 포함해 정확히 7일**(기준일-6일 ~ 기준일)이다 — `mtd`처럼 월초부터가
+  아니다. 도구 제한(31일 이내)을 항상 만족한다. ⚠️ `campaign-type` 금지.
 
 ## MCP 도구 호출: `list_promotions`
 
 ```json
-{ "brand_name": "breezm", "start_date": "월초 YYYY-MM-01", "end_date": "target_date" }
+{ "brand_name": "breezm", "start_date": "기준일 6일 전 YYYY-MM-DD", "end_date": "target_date" }
 ```
 - 위 `get_ad_performance_daily_table`과 정확히 같은 날짜 범위로 1회만 추가 호출한다.
 
@@ -26,8 +29,9 @@
 
 `{TYPE_B_DAILY_REVENUE_DATA}.labels`의 각 원소는 문자열이 아니라 **`[날짜, 요일]` 2개짜리
 배열**이어야 한다 (Chart.js가 배열 라벨을 두 줄로 렌더링하는 것을 이용해 날짜 아래에 요일을
-표시한다). 날짜는 `M/D` 형식(예: `7/1`), 요일은 `(요일)` 형식(예: `(수)`)이다. 월초부터
-기준일까지 **하루도 건너뛰지 않고 전부** 포함한다(격일 표기 금지).
+표시한다). 날짜는 `M/D` 형식(예: `7/1`), 요일은 `(요일)` 형식(예: `(수)`)이다. **기준일을
+포함한 최근 7일을 하루도 건너뛰지 않고 전부** 포함한다(격일 표기 금지, `daily` 섹션-3과 동일한
+7일 윈도우).
 
 ## 프로모션 오버레이
 
@@ -64,9 +68,9 @@
 ## HTML
 
 ```html
-<!-- BREEZM MTD SECTION 4: 일일 매출 현황 (DAILY REVENUE) -->
+<!-- BREEZM EXECUTIVE DAILY SECTION 4: 일일 매출 현황 (최근 7일, DAILY REVENUE 7-DAY) -->
 <div class="card" style="margin-bottom:16px;">
-  <div class="section-title">일일 매출 현황 ({MM}월 1일~{MM}월 {DD}일)</div>
+  <div class="section-title">일일 매출 현황 (최근 7일)</div>
   <div style="display:flex; justify-content:center; flex-wrap:wrap; gap:20px; margin-bottom:16px; font-size:12px; color:#334155;">
     <span style="display:flex; align-items:center; gap:6px;"><span style="width:16px; height:2px; background:#3b82f6; display:inline-block;"></span>전체 매출</span>
     <span style="display:flex; align-items:center; gap:6px;"><span style="width:16px; height:2px; background:#16a34a; display:inline-block;"></span>광고 매출</span>
@@ -84,7 +88,7 @@
 ## Script
 
 ```javascript
-// Breezm MTD Section 4: 일일 매출 라인 차트
+// Breezm Executive Daily Section 4: 일일 매출 라인 차트 (최근 7일)
 (function(){
   const ctx = document.getElementById('typeBDailyRevenueChart');
   if(!ctx) return;
@@ -167,14 +171,13 @@
 ```
 
 ## 렌더링 규칙
-- 카드 제목의 `{MM}`/`{DD}`는 데이터 기간에 맞춰 채운다 — 둘 다 `target_date` 기준이며, 시작은
-  항상 당월 1일이므로 `{MM}월 1일~{MM}월 {DD}일` 형식에서 두 `{MM}`은 같은 값(당월)이고 `{DD}`는
-  `target_date`의 일(day)이다 (예: 기준일이 7월 15일이면 "7월 1일~7월 15일").
+- 카드 제목은 "일일 매출 현황 (최근 7일)"로 고정한다 — `mtd` 버전과 달리 기준일별 날짜 범위를
+  제목에 넣지 않는다 (X축 라벨에 이미 날짜가 다 나오므로).
 - 차트 아래 "'전체 매출'은 오거닉 매출과 광고 매출을 합친 전체 매출을 의미합니다." 각주는
   **항상** 표시한다 (조건부 아님).
 - 전체 매출/광고 매출 모두 **라인**으로 그린다 (막대 아님). Legend는 Chart.js 기본 legend를 쓰지
   않고, 위 HTML의 커스텀 라인 legend(두 항목 모두 짧은 선 마커)를 쓴다.
-- X축은 월초~기준일 **하루도 건너뛰지 않고 전부** 표시한다(`autoSkip: false`). 각 눈금은 위쪽에
+- X축은 **기준일을 포함한 최근 7일** 전부 표시한다(`autoSkip: false`). 각 눈금은 위쪽에
   날짜(`M/D`), 아래쪽에 요일(`(요일)`)을 두 줄로 중앙 정렬 표시한다(`labels`를 `[날짜, 요일]`
   배열로 준다 — 위 "필요 데이터" 참고).
 - Y축 눈금은 **500만원(5,000,000원) 단위**로 고정한다(`stepSize: 5000000`)이며, 값은 원 단위
