@@ -1,20 +1,8 @@
-# Daily Section 4: 최근 7일 성과
+# Daily Section 4: 최근 7일 성과 — DOCX 출력 스펙
 
-**report_type:** `daily` (항상 포함) — daily-section-1과 동일한 분기 규칙을 따른다.
+> 데이터 스펙: 스킬 폴더 기준 `../../shared/sections/daily/daily-section-4-sales-daily-chart.md` 를 **먼저** 읽고, 이 파일의 출력 스펙을 적용한다.
 
----
-
-## 분기 A: Google/Meta 브랜드
-
-**MCP 도구:** `get_sales_performance_daily` (start_date=week_start, end_date=target_date)
-
-### 필요 데이터
-- `sales_daily.labels`: 날짜 레이블 배열 — 예: `["3/26(Thu)", ..., "4/1(Wed)"]`
-- `sales_daily.revenue`: 매출 배열 ($)
-- `sales_daily.ad_spend`: 광고비 배열 ($)
-- `sales_daily.roas`: ROAS 배열 (%)
-
-### DOCX 섹션 (분기 A)
+## DOCX 섹션 (분기 A)
 
 ```json
 {

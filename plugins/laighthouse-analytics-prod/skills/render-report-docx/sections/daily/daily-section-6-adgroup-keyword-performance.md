@@ -1,35 +1,8 @@
-# Daily Section 6: 광고 그룹 및 키워드 성과
+# Daily Section 6: 광고 그룹 및 키워드 성과 — DOCX 출력 스펙
 
-**report_type:** `daily` (항상 포함) — daily-section-1과 동일한 분기 규칙을 따른다.
+> 데이터 스펙: 스킬 폴더 기준 `../../shared/sections/daily/daily-section-6-adgroup-keyword-performance.md` 를 **먼저** 읽고, 이 파일의 출력 스펙을 적용한다.
 
-⚠️ **이 파일은 기존 "daily-section-7-asset-group-table.md"를 대체한다.** 번호가 하나 당겨졌고
-(옛 section 5 DTC Revenue 삭제로), naver 분기는 **4단계 트리(채널→캠페인→광고그룹→키워드) →
-2단계 트리(광고그룹→키워드)**로 축소 재설계되었다 — 채널/캠페인 레벨은 이제
-daily-section-5(캠페인 성과)가 전담하므로, 이 섹션은 그보다 한 단계 더 깊은 광고그룹/키워드
-드릴다운만 담당한다.
-
----
-
-## 분기 A: Google/Meta 브랜드 (변경 없음)
-
-⚠️ "Asset Group"은 Google Performance Max 캠페인 전용 개념이라 naver에는 대응 개념이 없고,
-PMax는 키워드 타겟팅 자체가 없는 상품이라 "키워드" 열은 이 분기에는 적용되지 않는다 (에셋그룹
-레벨까지만 존재).
-
-**MCP 도구:** `get_sales_by_asset_group_monthly` (start_month=current_month, end_month=current_month, day_offset=target_date.day)
-
-### 필요 데이터
-- `sales_by_asset_group`: 에셋그룹 배열
-  ```json
-  [
-    { "media": "Google Ads", "campaign": "Auto_Gen_D2C_BottomFunnel_Rev_PerfMax - High Performing + Other",
-      "asset_group": "CITRUS Kiwi overlay pack assets", "impression": 509, "click": 15, "ctr": 2.95,
-      "cost": 10, "revenue": 0 }
-  ]
-  ```
-  ※ ROAS 컬럼 없음 (이미지 참조)
-
-### DOCX 섹션 (분기 A)
+## DOCX 섹션 (분기 A)
 
 ```json
 {
@@ -168,4 +141,3 @@ PMax는 키워드 타겟팅 자체가 없는 상품이라 "키워드" 열은 이
 - (참고, HTML 시절 UI 사양 — 정적 문서에는 적용되지 않음) 원본 HTML에는 광고그룹 단위
   페이지네이션(10/20/50개)과 광고그룹명/채널·캠페인 컬럼 기준 검색 기능이 있었으나, DOCX
   섹션에서는 위 "DOCX 섹션 (분기 B)"의 판단대로 전체 트리를 flat 표 하나로 이미 펼쳐서 낸다.
-

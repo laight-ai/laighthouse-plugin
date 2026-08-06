@@ -1,30 +1,8 @@
-# Daily Section 5: 캠페인 성과
+# Daily Section 5: 캠페인 성과 — DOCX 출력 스펙
 
-**report_type:** `daily` (항상 포함) — daily-section-1과 동일한 분기 규칙을 따른다.
+> 데이터 스펙: 스킬 폴더 기준 `../../shared/sections/daily/daily-section-5-campaign-performance.md` 를 **먼저** 읽고, 이 파일의 출력 스펙을 적용한다.
 
-⚠️ **이 파일은 기존 "daily-section-6-campaign-table.md"를 대체한다.** 섹션 재구성으로 옛
-section 5(Daily Revenue in DTC, daily-section-4와 내용이 겹쳐 완전히 삭제됨)가 없어지면서
-번호가 하나씩 당겨졌고, naver 분기의 설계도 **채널 단위 표 → 캠페인 단위 표**로 바뀌었다
-(예전엔 5개 채널 요약 + 불확실한 "적정 광고비" 컬럼이 있었으나, 그 컬럼의 계산식을 확인할 수
-없었고 mtd(MK)의 캠페인별 성과(mtd-section-9)와도 형식이 달라 일관성이 없었다 — 이번 재설계로
-mtd-section-9와 동일한 패턴을 그대로 재사용하도록 정리했다).
-
----
-
-## 분기 A: Google/Meta 브랜드 (변경 없음)
-
-**MCP 도구:** `get_sales_by_campaign_monthly` (start_month=current_month, end_month=current_month, day_offset=target_date.day)
-
-### 필요 데이터
-- `sales_by_campaign`: 캠페인 배열
-  ```json
-  [
-    { "media": "Google Ads", "campaign": "Auto_Gen_D2C_BottomFunnel_Rev_PerfMax - High Performing + Other",
-      "impression": 3548, "click": 62, "ctr": 1.75, "cost": 53, "revenue": 46, "roas": 86.8 }
-  ]
-  ```
-
-### DOCX 섹션 (분기 A)
+## DOCX 섹션 (분기 A)
 
 ```json
 {
