@@ -18,13 +18,13 @@
 - ⚠️ `campaign-type`을 넣지 않는다 — airbridge 행이 조용히 누락된다.
 - ⚠️ `group_by`는 문자열 enum 그대로 보낸다 (`"total"`/`"media"`).
 
-## MCP 도구 호출: `list_promotions`
+## `list_promotions` — 별도 호출 없음, section-2의 공유 응답을 재사용
 
-```json
-{ "brand_name": "breezm", "start_date": "기준일 6일 전 YYYY-MM-DD", "end_date": "target_date" }
-```
-
-- 위 `get_ad_performance_daily_table`과 정확히 같은 날짜 범위로 1회만 추가 호출한다.
+- 이 섹션은 `list_promotions`를 직접 호출하지 않는다 — `daily-summary-section-2-executive-summary.md`가
+  3단계에서 1회 호출한 `list_promotions`(기준일 7일 전 ~ target_date) 응답을 그대로 재사용한다.
+  이 섹션이 필요로 하는 범위(기준일 6일 전 ~ target_date)는 그 안에 완전히 포함되며, 범위
+  밖(7일 전 하루치)에 걸리는 프로모션이 있어도 아래 인덱스 clamp 로직(`raw_end_idx < 0`이면
+  제외)이 자동으로 걸러내므로 렌더링 결과는 별도 호출했을 때와 동일하다.
 
 ## 필요 데이터 (일자별 집계)
 
