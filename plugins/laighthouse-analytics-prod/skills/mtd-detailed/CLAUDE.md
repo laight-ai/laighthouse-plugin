@@ -3,6 +3,41 @@
 `daily-summary`에서 검증된 최적화(`daily-summary/CLAUDE.md` 참고)를 `mtd-detailed`에 구조적으로
 적용 가능한 범위 내에서 이식한 작업 기록.
 
+## 2026-08-09 (2차) — section-7 `media` 생략 통합 되돌림 + Bash 집계 예외 추가
+
+같은 날 앞선 최적화(아래 "2026-08-09" 항목의 1번, section-7 부분)에서 섹션 7의
+`get_ad_performance_daily_table` 4회(google/meta/naver/airbridge, `group_by:"campaign"`) 호출을
+`media` 생략 1회 호출로 통합했었다. 이는 잘못된 일반화였다 — **되돌림**.
+
+- **문제**: 이 통합 논리("`media`가 `None`이면 모든 `DataSource`를 순회해 합치므로 안전하다")는
+  `group_by`가 `total`/`media`처럼 저(低)카디널리티일 때만 응답 크기 면에서 안전하다. `campaign`/
+  `ad-set`/`ad`처럼 행 단위가 세분화되는 `group_by`에서는 `media`를 생략하면 불필요한 매체의
+  행까지 한 응답에 전부 섞여 응답 크기가 매체 수만큼 곱해진다. 형제 스킬 `creative-summary`
+  (`group_by:"ad"`)의 실제 운영 사례에서, 7일치 기간만으로도 `media` 생략 응답이 766,576자에
+  달해 모델 컨텍스트에 담기 어려웠고, 모델이 큰 표를 bash heredoc 파일로 손수 나눠 옮기고
+  일부 합계를 근사치로 채우는 correctness 위반까지 발생했다(해당 단계에 약 6분 소요). 섹션
+  7은 MTD(월초~target_date, 최대 한 달치) 기간에 캠페인 단위 granularity이므로 같은 위험이
+  있다.
+- **변경**: `mtd-detailed-section-7-campaign-performance.md`의 MCP 호출을 `media` 생략 1회
+  호출에서 **매체별 4회 명시적 호출**(google/meta/naver/airbridge, 각각 `group_by:"campaign"`,
+  동일 날짜 범위)로 되돌렸다. `SKILL.md`의 「실행 방식 절대 지침」 근처 서술과 「병렬 호출
+  지침」 절에서 섹션 7을 "media 생략 1회 통합" 사례로 언급하던 부분도 함께 수정했다.
+- **section-1/2/3의 `group_by:"media"` 통합은 영향받지 않음**: 이들은 저카디널리티
+  `group_by:"media"`(또는 `"total"`) 호출이라 `media` 생략이 여전히 안전하다 — 손대지
+  않았다.
+- **section-6(광고 매체별 현황) 확인**: section-6은 section-7의 데이터를 전혀 참조하지 않고,
+  section-1이 호출한 `get_ad_performance_monthly_table`(`group_by:"media"`, `media` 생략)
+  응답만 무조건 재사용한다. section-7의 되돌림과 무관한 별개 호출이므로 **영향 없음** —
+  section-6 파일 자체는 수정하지 않았다.
+- **`SKILL.md`「실행 방식 절대 지침」에 Bash 집계 예외 추가**: 스크립트 금지 원칙이 "Bash를
+  절대 쓰지 말라"는 뜻으로 과잉 적용되어, 큰 응답을 모델이 손으로 옮겨 적거나 머릿속으로
+  합산하게 만드는 문제(위 `creative-summary` 사례)를 막기 위해, `group_by`가 `ad`/`campaign`/
+  `ad-set`인 섹션에서는 **파일로 남기지 않는 1회성 Bash 명령**(grep/awk/jq 등)으로 매체
+  필터링·캠페인별 합산·정렬을 수행한 뒤 그 결과 소표만 컨텍스트에 남기도록 명시적으로
+  허용했다. 재사용 가능한 파이프라인 스크립트 파일을 만드는 것과는 구분되며, 근사치로
+  채우는 것은 여전히 금지한다.
+- **영향받은 파일**: `mtd-detailed-section-7-campaign-performance.md`, `SKILL.md`.
+
 ## 2026-08-09
 
 ### 1. `media` 파라미터 생략으로 다중 호출 → 단일 호출 통합

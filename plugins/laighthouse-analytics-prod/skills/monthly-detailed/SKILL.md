@@ -53,6 +53,13 @@ MCP 데이터를 받아 **라이트하우스 스타일 성과 보고서**로 렌
 > 가공·집계·검증용 임시 스크립트를 만들거나 실행하지 않는다 (Claude Code에서 코워크/서브에이전트를
 > 쓰더라도 동일하게 적용됨). 이 스킬이 만드는 파일은 오직 최종 보고서 HTML 하나뿐이다.
 >
+> ⚠️ **예외 — 위 스크립트 금지 원칙은 재사용 가능한 파이프라인 파일을 만들지 말라는 것이다.**
+> `group_by`가 `ad`/`campaign`/`ad-set`처럼 응답 행이 많아질 수 있는 섹션(예: section-5)에서는,
+> MCP 응답을 받은 즉시 **파일로 남기지 않는 1회성 Bash 명령**(grep/awk/jq 등)으로 필요한 매체
+> 필터링·캠페인별 합산·정렬을 수행하고, 그 결과로 나온 작은 요약표만 컨텍스트에 남긴다 —
+> 원본 테이블 전체를 손으로 옮겨 적거나 머릿속으로 합산하지 않는다. 이건 재사용 가능한
+> 스크립트 파일을 만드는 것과 다르다. **절대 근사치로 채우지 않는다.**
+>
 > ⏱ **긴 대기 없이 스켈레톤을 먼저 보여준다.** 2단계(target/achievement 호출) 응답을 받는 즉시,
 > 나머지 섹션은 전부 "데이터 준비 중" placeholder(§ 데이터 부족 시 규칙과 동일한 마크업)로 채운
 > 전체 골격을 1차로 Artifact에 게시한다. 이후 3단계에서 각 섹션 데이터가 준비되는 대로 같은
@@ -183,11 +190,14 @@ MCP 데이터를 받아 **라이트하우스 스타일 성과 보고서**로 렌
      fallback 소진액 후보
   3. `get_ad_performance_monthly_table` × 1 (`media` 생략, `group_by:"media"`,
      `start_month`=5개월 전, `end_month`=당월, `day_offset`=target_date.day) — section-3/4 공유
-  4. `get_ad_performance_monthly_table` × 1 (`media` 생략, `group_by:"campaign"`,
-     `start_month`=전월, `end_month`=당월, `day_offset`=target_date.day) — section-5
+  4. `get_ad_performance_monthly_table` × 4 (google/meta/naver/airbridge 각각, `group_by:"campaign"`,
+     `start_month`=전월, `end_month`=당월, `day_offset`=target_date.day) — section-5. **이
+     4개는 `media`를 생략하지 않는다** — `campaign` 단위 응답은 매체를 합치면 행 수가 크게
+     불어나 컨텍스트를 넘길 위험이 있다(아래 「실행 방식 절대 지침」 예외 참고).
   5. `list_promotions` × 1 (당월 1일 30일 전 ~ target_date) — section-2
-- 결과적으로 이 스킬의 데이터 호출은 **총 7회**(모두 한 배치)로 끝난다 — 예전에는 매체별
-  분리 호출(3+3(조건부)+4+4+4) + `list_promotions` 1회로 최대 19회에 달했다.
+- 결과적으로 이 스킬의 데이터 호출은 **총 10회**(모두 한 배치)로 끝난다 — 예전에는 매체별
+  분리 호출(3+3(조건부)+4+4+4) + `list_promotions` 1회로 최대 19회에 달했다. section-5는
+  응답 크기 위험 때문에 통합하지 않고 매체별 4회를 유지한다(2026-08-09 CLAUDE.md 참고).
 
 > 🚫 **MCP 응답을 스크래치패드/임시 파일에 썼다가 다시 읽어오지 않는다.** 각 MCP 호출 결과는
 > 이미 그 턴의 대화 컨텍스트 안에 있으므로, HTML을 조합할 때 그 값을 직접 참조해서 쓴다.

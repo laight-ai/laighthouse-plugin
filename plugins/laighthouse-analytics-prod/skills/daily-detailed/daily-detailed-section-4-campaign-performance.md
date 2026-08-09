@@ -4,17 +4,22 @@
 단위로 **전날(D-1)과 기준일(D-0) 딱 이틀만** 비교한다 — `mtd` 섹션 7(캠페인 성과)처럼 월초부터
 누적 합산하지 않는다.
 
-## MCP 도구 호출: `get_ad_performance_daily_table` × 1 (`group_by: "campaign"`, D-1~D0 이틀만)
+## MCP 도구 호출: `get_ad_performance_daily_table` × 4 (`group_by: "campaign"`, D-1~D0 이틀만, 매체별 각각 호출)
 
 ```json
-{ "brand_name": "breezm", "start_date": "target_date-1일 YYYY-MM-DD", "end_date": "target_date", "group_by": "campaign" }
+{ "brand_name": "breezm", "start_date": "target_date-1일 YYYY-MM-DD", "end_date": "target_date", "media": "google", "group_by": "campaign" }
+{ "brand_name": "breezm", "start_date": "target_date-1일 YYYY-MM-DD", "end_date": "target_date", "media": "meta", "group_by": "campaign" }
+{ "brand_name": "breezm", "start_date": "target_date-1일 YYYY-MM-DD", "end_date": "target_date", "media": "naver", "group_by": "campaign" }
+{ "brand_name": "breezm", "start_date": "target_date-1일 YYYY-MM-DD", "end_date": "target_date", "media": "airbridge", "group_by": "campaign" }
 ```
 
-- **`media` 파라미터를 생략한다** — 이 섹션에 필요한 google/meta/naver/airbridge 네 매체 모두
-  `group_by`가 똑같이 `"campaign"`이므로, `media`를 생략하면 이 한 번의 호출이 예전에 매체별로
-  4번(각각 `media`만 바꿔) 부르던 것과 정확히 같은 행을 전부 반환한다 — 매체별로 나눠 부를
-  필요가 없다. 응답에는 `media`가 위 네 가지 외의 값(예: `ga4`)인 행도 섞여 올 수 있는데, 이
-  섹션이 쓰지 않으므로 무시한다.
+- **`media`를 생략하지 않고 이 섹션에 필요한 google/meta/naver/airbridge 네 매체를 각각 별도로
+  호출한다.** 예전에는 네 매체 모두 `group_by`가 `"campaign"`으로 같다는 이유로 `media`를
+  생략한 1회 호출로 통합했었지만, `group_by:"campaign"`처럼 행 수가 많아질 수 있는 호출에서
+  `media`를 생략하면 이 섹션에 필요 없는 매체(예: `ga4`)의 행까지 같은 응답에 섞여 들어와
+  응답 크기가 불필요하게 커진다 — 실제 프로덕션 실행에서 이런 유형의 응답이 모델 컨텍스트를
+  넘어설 정도로 커진 사례가 확인되어, 매체별로 필요한 것만 받도록 되돌렸다. 네 번의 호출은
+  서로 데이터 의존성이 없으므로 한 메시지 안에서 병렬로 발사한다(위 "병렬 호출 지침" 참고).
 - `start_date`는 항상 `target_date`의 하루 전날이다 (기간 span 2일 → 31일 제한을 항상 만족).
 - **이 도구는 원래도 날짜별로 행을 나눠서 반환한다** — mtd 섹션 7에서 "캠페인별로 일별 행을
   합산한다"고 한 것 자체가 날짜별 행이 따로 온다는 뜻이다. 여기서는 그 날짜별 행을 **합산하지
@@ -26,11 +31,11 @@
 
 각 날짜(D-1, D-0) 각각에 대해, 캠페인별로:
 
-**매체 지표** (공유 응답에서 `media`가 google/meta/naver인 행의 해당 날짜 행):
+**매체 지표** (google/meta/naver 각 호출 응답의 해당 날짜 행):
 - `광고비` = `cost` / `노출` = `impression` / `클릭` = `click`
 - `CTR` = 클릭 ÷ 노출 × 100 (노출 0이면 N/A)
 
-**airbridge 지표** (공유 응답에서 `media`가 airbridge인 행의 해당 날짜 행):
+**airbridge 지표** (airbridge 호출 응답의 해당 날짜 행):
 - `매출` = `airbridge_revenue` / `예약 완료` = `reservation`
 
 **조인**: 캠페인 이름 **정확 일치(exact match)**로 매체 행과 airbridge 행을 잇는다 — **D-1과

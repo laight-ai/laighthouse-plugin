@@ -5,30 +5,39 @@
 7일**을 통째로 합산해서, 그 기간 소재(개별 광고) 단위 **ROAS 1·2위**와 **CTR 1·2위**를 각각
 카드로 보여준다. 날짜별 비교가 아니라 **7일 전체를 하나로 합친 누적 값** 기준이다.
 
-## MCP 도구 호출: `get_ad_performance_daily_table` × 1 (`media` 생략, `group_by: "ad"`, 최근 7일)
+## MCP 도구 호출: `get_ad_performance_daily_table` × 2 (`media="meta"` / `media="airbridge"`, `group_by: "ad"`, 최근 7일)
 
 ```json
-{ "brand_name": "breezm", "start_date": "기준일 6일 전 YYYY-MM-DD", "end_date": "target_date", "group_by": "ad" }
+{ "brand_name": "breezm", "media": "meta", "start_date": "기준일 6일 전 YYYY-MM-DD", "end_date": "target_date", "group_by": "ad" }
+```
+```json
+{ "brand_name": "breezm", "media": "airbridge", "start_date": "기준일 6일 전 YYYY-MM-DD", "end_date": "target_date", "group_by": "ad" }
 ```
 
 - 기간은 기준일을 포함해 정확히 7일이다(daily 섹션-3과 동일한 7일 윈도우).
-- ⚠️ **`media` 파라미터를 생략한다** — 생략하면 등록된 모든 매체(google/meta/naver/airbridge
-  등)의 행이 한 응답에 함께 온다. 예전에는 `media="meta"` 1회 + `media="airbridge"` 1회로
-  나눠 불렀지만, 이제 이 호출 1개로 동일한 정보를 전부 얻는다 — 응답에서 `media`가 정확히
-  `"meta"`인 행과 `"airbridge"`인 행만 걸러 쓰고, 그 외 매체 행(google/naver 등)은 이 스킬이
-  쓰지 않으므로 무시한다.
-  - `media`가 `"meta"`인 행에는 날짜별·소재(`campaign_name`+`asset_group`+`ad_name`)별
+- ⚠️ **`media`를 반드시 명시한다 — 생략하지 않는다.** `media`를 생략하면 등록된 모든 매체
+  (google/meta/naver/airbridge 등)의 행이 한 응답에 함께 온다. 한때 이렇게 1회로 통합했었지만,
+  `group_by:"ad"`는 원래도 행 수가 많은 응답(meta 단독만으로도 7일 윈도우 기준 13만 자를
+  넘음)인데 `media` 생략으로 그 위에 다른 매체 행까지 얹으면 응답이 5~6배(76만 자 이상)까지
+  불어나 모델이 컨텍스트에 제대로 들고 있을 수 없다 — 실제 프로덕션 실행에서 이 크기 때문에
+  모델이 표를 손으로 옮겨 적어 합산하다 일부 값을 근사치로 채우는 사고가 발생했다(정확성
+  위반). 두 호출은 서로 결과에 의존하지 않으므로 한 메시지에 동시에(병렬 tool call로) 낸다.
+  - `media="meta"` 응답에는 날짜별·소재(`campaign_name`+`asset_group`+`ad_name`)별
     `cost`/`impression`/`click`과, 소재 이미지 조회에 필요한 `creative_id`/
     `platform_account_id`가 들어있다.
-  - `media`가 `"airbridge"`인 행에는 날짜별·소재별 `airbridge_revenue`/`reservation`이
+  - `media="airbridge"` 응답에는 날짜별·소재별 `airbridge_revenue`/`reservation`이
     들어있다. **실제로 소재(ad) 단위까지 매출/예약이 정상 귀속됨을 확인했다**(2026-08-03) —
     캠페인 값을 공유하는 게 아니라 진짜 소재별 값이다.
-- **이 호출의 응답은 `creative-detailed-section-3-daily-CTR.md`(section-3),
+- **이 두 호출의 응답은 `creative-detailed-section-3-daily-CTR.md`(section-3),
   `creative-detailed-section-4-daily-ROAS.md`(section-4),
   `creative-detailed-section-5-daily-creative-performance.md`(section-5)가 그대로
-  재사용한다** — 네 섹션이 각자 호출하지 않는다. section-3은 이 응답의 meta 행을,
-  section-4는 airbridge 행을, section-5는 meta+airbridge 행 전체를 가져다 쓴다.
+  재사용한다** — 네 섹션이 각자 다시 호출하지 않는다. section-3은 meta 응답을,
+  section-4는 airbridge 응답을, section-5는 두 응답 전체를 가져다 쓴다.
 - ⚠️ `campaign-type` 금지. ⚠️ `group_by`는 문자열 `"ad"` 그대로 보낸다.
+- ⚠️ **응답 행 수가 많으면(예: 소재가 많은 브랜드), 두 응답을 그대로 컨텍스트에 붙잡고 손으로
+  합산/조인하지 말고 1회성 Bash 명령(grep/awk/jq 등, 파일로 남기지 않음)으로 필터링·조인·집계·
+  정렬까지 마친 뒤 그 결과만 사용한다** — `SKILL.md`의 "실행 방식 절대 지침" 중 Bash 집계
+  예외 항목 참고. 근사치로 채우거나 일부만 계산하지 않는다.
 
 ## MCP 도구 호출: `get_ad_creative_info` × 1 (최종 선정된 소재만)
 

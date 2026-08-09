@@ -4,25 +4,31 @@
 광고그룹-광고 단위로 **전날(D-1)과 기준일(D-0) 딱 이틀만** 비교한다 — section-4(캠페인 성과)
 보다 한 단계 더 깊이(광고그룹/광고) 들어간 버전이며, 지표·색상·정렬 규칙은 section-4와 동일하다.
 
-## MCP 도구 호출: `get_ad_performance_daily_table` × 2 (D-1~D0 이틀만)
+## MCP 도구 호출: `get_ad_performance_daily_table` × 4 (D-1~D0 이틀만, 매체별 각각 호출)
 
 ```json
-{ "brand_name": "breezm", "start_date": "target_date-1일 YYYY-MM-DD", "end_date": "target_date", "group_by": "ad" }
+{ "brand_name": "breezm", "start_date": "target_date-1일 YYYY-MM-DD", "end_date": "target_date", "media": "google", "group_by": "ad" }
+{ "brand_name": "breezm", "start_date": "target_date-1일 YYYY-MM-DD", "end_date": "target_date", "media": "meta", "group_by": "ad" }
+{ "brand_name": "breezm", "start_date": "target_date-1일 YYYY-MM-DD", "end_date": "target_date", "media": "naver", "group_by": "ad" }
 { "brand_name": "breezm", "start_date": "target_date-1일 YYYY-MM-DD", "end_date": "target_date", "media": "airbridge", "group_by": "campaign" }
 ```
 
 - `start_date`는 항상 `target_date`의 하루 전날이다.
-- **google/meta/naver 세 번을 각각 부르지 않고, 첫 번째 호출에서 `media` 파라미터를
-  생략한다** — google/meta/naver 세 매체 모두 필요한 `group_by`가 `"ad"`(가장 세부 단위)로
-  동일하므로, `media`를 생략하면 이 한 번의 호출로 세 매체 행을 전부 받는다. 이 응답 행에는
-  `ad_name`(광고)뿐 아니라 상위 차원인 `campaign_name`(캠페인)과 `asset_group`(광고그룹)도
-  함께 들어있으므로, 이 한 번의 호출로 캠페인/광고그룹/광고 3단계를 전부 얻는다 (광고그룹만
-  따로 `group_by: "ad-set"`로 재호출할 필요 없음). 이 응답에는 `media`가 `airbridge`인 행과
-  그 외(예: `ga4`) 행도 함께 섞여 올 수 있는데, **이 섹션은 이 첫 번째 호출의 airbridge 행은
-  쓰지 않는다** — airbridge는 `group_by`가 `"ad"`가 아니라 `"campaign"`이어야 캠페인 단위로
-  정확히 집계되므로, 아래 두 번째 호출(`media: "airbridge"`, `group_by: "campaign"`)을 그대로
-  유지해 별도로 받는다. 즉 이 섹션은 이제 **2회 호출**(google/meta/naver 통합 1회 +
-  airbridge 1회)로 끝난다 — group_by가 서로 다르므로 이 두 호출을 하나로 더 합칠 수는 없다.
+- **google/meta/naver를 각각 별도로 부른다 — `media`를 생략하지 않는다.** 예전에는 세 매체
+  모두 필요한 `group_by`가 `"ad"`(가장 세부 단위)로 같다는 이유로 `media`를 생략한 1회
+  호출로 통합했었지만, `group_by:"ad"`처럼 광고 단위 행이 나오는 호출은 매체 하나만으로도
+  응답이 매우 커질 수 있고(같은 세션 실측: `media:"meta"` 단독, `group_by:"ad"`, 7일
+  범위에서 132,913자), `media`를 생략해 불필요한 매체(예: `ga4`)까지 같이 받으면 응답이
+  더 커진다 — 실제 프로덕션 실행에서 이 유형의 응답이 모델 컨텍스트를 넘어설 정도로 커진
+  사례가 확인되어 매체별 개별 호출로 되돌렸다. 각 호출의 응답 행에는 `ad_name`(광고)뿐 아니라
+  상위 차원인 `campaign_name`(캠페인)과 `asset_group`(광고그룹)도 함께 들어있으므로, 매체별
+  호출 각각이 캠페인/광고그룹/광고 3단계를 전부 준다 (광고그룹만 따로 `group_by: "ad-set"`로
+  재호출할 필요 없음).
+- **airbridge는 `media: "airbridge"`, `group_by: "campaign"`으로 별도 호출한다** — airbridge는
+  `group_by`가 `"ad"`가 아니라 `"campaign"`이어야 캠페인 단위로 정확히 집계되므로, 위
+  google/meta/naver 호출과 합칠 수 없다(예전부터 유지되던 부분이며 이번 되돌림과 무관하다).
+  즉 이 섹션은 **4회 호출**(google/meta/naver 각각 1회 + airbridge 1회)이다. 네 호출은 서로
+  데이터 의존성이 없으므로 한 메시지 안에서 병렬로 발사한다(위 "병렬 호출 지침" 참고).
 - **매체에 따라 `asset_group`/`ad_name`이 비어 있을 수 있다** (예: naver는 캠페인 단위까지만
   제공하고 광고그룹/광고 차원이 없는 경우가 있다) — 이 경우 해당 칸을 `-`로 표시한다(오류
   아님).
@@ -38,12 +44,12 @@
 
 각 날짜(D-1, D-0) 각각에 대해:
 
-**매체 지표** (첫 번째 호출(media 생략) 응답에서 `media`가 google/meta/naver인 행의 해당 날짜
-행, `campaign_name`+`asset_group`+`ad_name` 단위):
+**매체 지표** (google/meta/naver 각 호출 응답의 해당 날짜 행, `campaign_name`+`asset_group`+
+`ad_name` 단위):
 - `광고비` = `cost` / `노출` = `impression` / `클릭` = `click`
 - `CTR` = 클릭 ÷ 노출 × 100 (노출 0이면 N/A)
 
-**airbridge 지표** (두 번째 호출(`media: "airbridge"`, `group_by: "campaign"`) 응답의 해당
+**airbridge 지표** (airbridge 호출(`media: "airbridge"`, `group_by: "campaign"`) 응답의 해당
 날짜 행, `campaign_name` 단위 — section-4와 동일):
 - `매출` = `airbridge_revenue` / `예약 완료` = `reservation`
 

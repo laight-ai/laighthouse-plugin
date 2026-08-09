@@ -3,28 +3,38 @@
 **report_type:** `mtd-detailed` — **브리즘(airbridge 기반) 전용** (항상 포함). 매체-캠페인 단위, MTD
 (월초~target_date).
 
-## MCP 도구 호출: `get_ad_performance_daily_table` × 1 (`group_by: "campaign"`, `media` 생략)
+## MCP 도구 호출: `get_ad_performance_daily_table` × 4 (google/meta/naver/airbridge, 각각 `group_by: "campaign"`)
 
 ```json
-{ "brand_name": "breezm", "start_date": "월초 YYYY-MM-01", "end_date": "target_date", "group_by": "campaign" }
+{ "brand_name": "breezm", "start_date": "월초 YYYY-MM-01", "end_date": "target_date", "media": "google", "group_by": "campaign" }
+{ "brand_name": "breezm", "start_date": "월초 YYYY-MM-01", "end_date": "target_date", "media": "meta", "group_by": "campaign" }
+{ "brand_name": "breezm", "start_date": "월초 YYYY-MM-01", "end_date": "target_date", "media": "naver", "group_by": "campaign" }
+{ "brand_name": "breezm", "start_date": "월초 YYYY-MM-01", "end_date": "target_date", "media": "airbridge", "group_by": "campaign" }
 ```
 
-- **`media` 파라미터를 생략한다** — 생략하면 이 도구는 google/meta/naver/airbridge(및 이
-  보고서가 쓰지 않는 다른 매체, 예: `ga4`)를 **한 번의 호출로 전부** 반환한다. 예전에는
-  매체별로 4번 나눠 불렀지만, 이제 이 호출 1개로 동일한 캠페인별 행을 전부 얻는다 — 각 매체의
-  캠페인별 합산 로직은 매체를 지정해서 부르든 생략해서 부르든 동일하다(내부적으로 매체별
-  쿼리를 그대로 실행해 합치는 구조이므로 결과가 달라지지 않는다).
+- **매체별로 4번 나눠 부른다 — `media`를 생략하지 않는다.** `group_by:"campaign"`처럼 행
+  granularity가 캠페인 단위인 호출은, `total`/`media` 같은 저(低)카디널리티 `group_by`와
+  달리 `media`를 생략하면 응답에 불필요한 매체의 행까지 전부 섞여 응답 크기가 매체 수만큼
+  곱해진다 — MTD처럼 날짜 범위가 길면(월초~target_date, 최대 한 달치) 캠페인 수가 많은
+  브랜드에서 응답이 모델 컨텍스트에 담기 어려울 정도로 커질 수 있다(실측: 같은 도구 계열의
+  `group_by:"ad"` 호출이 7일치만으로도 76만자를 넘긴 사례가 있었다). 이 섹션은 캠페인 단위
+  granularity이므로 매체별 개별 호출로 응답을 각 매체 범위 안으로 좁게 유지한다.
 - ⚠️ `campaign-type` 금지 — 넣으면 airbridge 행이 조용히 누락된다.
 - ⚠️ `group_by`는 문자열 `"campaign"` 그대로 보낸다.
 
 ## 필요 데이터 (캠페인별 집계)
 
-**매체 지표** (공유 응답에서 `media`가 `google`/`meta`/`naver`인 행, 캠페인별로 일별 행을 합산):
+**매체 지표** (google/meta/naver 각 응답에서, 캠페인별로 일별 행을 합산):
 - `노출` = `impression` 합 / `클릭` = `click` 합 / `광고비` = `cost` 합
 - `CTR` = 클릭 ÷ 노출 × 100 (노출 0이면 N/A)
 
-**airbridge 지표** (공유 응답에서 `media`가 `airbridge`인 행, 캠페인별 합산):
+**airbridge 지표** (airbridge 응답에서 캠페인별 합산):
 - `매출` = `airbridge_revenue` 합 / `예약 완료` = `reservation` 합
+
+⚠️ **응답 행이 많을 때(캠페인 수가 많거나 기간이 길 때)는 SKILL.md의 「실행 방식 절대
+지침」에 추가된 Bash 예외를 따른다** — 각 매체 응답을 받은 즉시 파일로 남기지 않는 1회성
+Bash 명령(grep/awk/jq 등)으로 캠페인별 합산·정렬까지 마친 뒤, 그 결과 소표만 컨텍스트에
+올린다. 원본 행을 손으로 옮겨 적거나 머릿속으로 합산하지 않으며, 절대 근사치로 채우지 않는다.
 
 **조인**: 캠페인 이름 **정확 일치(exact match)**로 매체 행과 airbridge 행을 잇는다.
 - 매체 쪽에만 있는 캠페인 → 매출/예약 완료 칸은 `-`

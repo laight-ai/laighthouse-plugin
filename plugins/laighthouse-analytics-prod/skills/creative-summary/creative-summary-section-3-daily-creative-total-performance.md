@@ -10,12 +10,15 @@
 
 ## MCP 도구 호출: 신규 호출 없음 — section-1의 응답을 그대로 재사용
 
-이 섹션은 section-1(최우수 소재)이 이미 호출한 아래 응답(`media` 생략, `group_by: "ad"`,
-최근 7일)을 section-4/5가 걸러낸 `media === "meta"`/`media === "airbridge"` 행 그대로
-재사용한다 — **다시 호출하지 않는다**:
+이 섹션은 section-1(최우수 소재)이 이미 호출한 아래 두 응답(`media="meta"`/`media="airbridge"`
+각 1회, `group_by: "ad"`, 최근 7일)을 section-4/5가 걸러낸 `media === "meta"`/
+`media === "airbridge"` 행 그대로 재사용한다 — **다시 호출하지 않는다**:
 
 ```json
-{ "brand_name": "breezm", "start_date": "기준일 6일 전 YYYY-MM-DD", "end_date": "target_date", "group_by": "ad" }
+{ "brand_name": "breezm", "media": "meta", "start_date": "기준일 6일 전 YYYY-MM-DD", "end_date": "target_date", "group_by": "ad" }
+```
+```json
+{ "brand_name": "breezm", "media": "airbridge", "start_date": "기준일 6일 전 YYYY-MM-DD", "end_date": "target_date", "group_by": "ad" }
 ```
 
 (참고: section-4/5는 이 응답의 `meta` 행에서 "광고비 상위 5개 소재"만 뽑아 썼지만, 이

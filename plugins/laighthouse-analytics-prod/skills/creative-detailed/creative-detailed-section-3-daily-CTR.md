@@ -7,12 +7,12 @@
 ## MCP 도구 호출: 신규 호출 없음 — section-1의 공유 응답을 재사용
 
 이 섹션은 별도로 호출하지 않는다. `creative-detailed-section-1-top-creatives.md`(section-1)가
-이미 받아둔 `get_ad_performance_daily_table`(`media` 생략, `group_by:"ad"`, 기준일 6일 전 ~
-target_date) 공유 응답에서 **`media`가 `"meta"`인 행만** 가져다 쓴다. 이 응답은
-**section-4(일별 ROAS)도 그대로 재사용한다**(section-4는 같은 응답의 airbridge 행을 쓴다).
+이미 받아둔 `get_ad_performance_daily_table`(`media="meta"`, `group_by:"ad"`, 기준일 6일 전 ~
+target_date) 공유 응답을 그대로 가져다 쓴다. section-1은 이 응답을 위해 `media="airbridge"`
+호출도 별도로 하는데, 그 응답은 **section-4(일별 ROAS)가 재사용한다**.
 
 - 기간은 기준일을 포함해 정확히 7일이다(section-1과 동일한 7일 윈도우).
-- meta 행에는 날짜별·소재(`campaign_name`+`asset_group`+`ad_name`)별 `cost`/`impression`/
+- meta 응답에는 날짜별·소재(`campaign_name`+`asset_group`+`ad_name`)별 `cost`/`impression`/
   `click`/`ctr`이 들어있다. `ctr` 필드가 이미 계산되어 있으므로 그대로 쓴다(직접 계산하지
   않아도 된다 — 단, 값이 비율(0.021 등)로 오는지 %(2.1 등)로 오는지 실제 응답을 확인해서
   일관되게 ×100 처리 여부를 판단한다).

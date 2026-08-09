@@ -88,6 +88,46 @@
   확인된 "배치의 진짜 효과" 오해를 새 스킬에도 반복하지 않기 위해 daily-summary의 정정
   설명을 그대로 가져왔다.
 
+## 2026-08-09 (추가) — section-5의 `media` 통합 되돌림 + Bash 집계 예외 추가
+
+### 6. section-5(`group_by:"campaign"`) 통합을 4회 매체별 호출로 되돌림
+
+- **무엇**: 위 "1." 항목에서 `media` 생략 1회 호출로 통합했던 section-5
+  (`monthly-detailed-section-5-campaign-performance.md`)를 **google/meta/naver/airbridge
+  4회 매체별 호출로 되돌렸다.** SKILL.md의 병렬 호출 지침(4번 항목, 호출 총 개수)도 7회 →
+  10회로 다시 수정했다.
+- **왜**: 실제 운영 중 형제 스킬 `creative-summary`(같은 도구 계열, `group_by:"ad"`)에서
+  `media` 생략 1회 호출이 **7일 창만으로도 766,576자** 응답을 만들어낸 사례가 발견됐다.
+  모델이 이 거대한 응답을 컨텍스트에 담지 못해 bash heredoc으로 표 일부를 손으로 옮겨 적고
+  머릿속으로 합산하다가 **일부 합계를 근사치로 채우는 실제 정확성 사고**로 이어졌다(해당
+  단계에 ~6분 소요). `group_by`가 `total`/`media`처럼 저-카디널리티인 경우(section-1/3/4가
+  쓰는 `group_by:"media"`)는 매체 수만큼만 행이 늘어나 안전하지만, `campaign`/`ad`/`ad-set`
+  단위는 캠페인/광고 수만큼 행이 곱해져 위험이 다르다. `monthly-detailed`는 날짜 span이
+  daily 계열보다 넓은 월 단위라 이 위험이 daily보다 더 크다. section-1(`group_by:"media"`,
+  1번 항목)과 section-3/4(같은 `group_by:"media"` 공유)는 저-카디널리티이므로 **손대지
+  않았다** — `campaign` 단위인 section-5만 되돌렸다.
+- **영향 범위 확인**: `monthly-detailed-section-2-executive-summary.md`(Executive Summary)가
+  section-5의 **계산된 캠페인별 데이터**를 재사용하지만, 이는 section-5가 만들어낸 결과값을
+  재사용하는 것이지 section-5의 원본 MCP 응답(호출 방식)을 재사용하는 게 아니다 — 데이터
+  내용은 4회 매체별 호출이든 1회 통합 호출이든 동일하므로, 이 되돌림이 section-2에 영향을
+  주지 않는다. section-3/4는 `group_by:"media"` 응답을 쓰고 section-5와 애초에 공유하지
+  않으므로(위 "적용하지 않은 항목" 참고) 마찬가지로 영향 없음.
+- **영향받은 파일**: `monthly-detailed-section-5-campaign-performance.md`, `SKILL.md`
+  (병렬 호출 지침 4번 항목·총 호출 수).
+
+### 7. "실행 방식 절대 지침" 스크립트 금지에 1회성 Bash 집계 예외 추가
+
+- **무엇**: SKILL.md의 "🚫 별도 스크립트·노트북 파일을 절대 생성하지 않는다" 문단 바로
+  아래에, `group_by`가 `ad`/`campaign`/`ad-set`인 섹션에서는 MCP 응답을 받은 즉시 **파일로
+  남기지 않는 1회성 Bash 명령**(grep/awk/jq 등)으로 매체 필터링·캠페인별 합산·정렬을 수행하고
+  그 결과 요약표만 컨텍스트에 남기라는 예외를 추가했다.
+- **왜**: 위 6번 항목의 사고 원인 중 하나가 "스크립트 금지 = Bash도 쓰면 안 된다"는 과잉
+  해석이었다 — 재사용 가능한 파이프라인 파일을 만들지 말라는 원래 취지와, "큰 표를 손으로
+  옮겨 적거나 머릿속으로 합산하지 말라"는 요구가 충돌하면서 모델이 후자를 손으로 하려다
+  근사치를 채웠다. 1회성·파일 미생성 Bash 집계는 기존 금지 원칙(재사용 가능한 스크립트
+  파일 생성 금지)을 위반하지 않으면서 이 문제를 해결한다.
+- **영향받은 파일**: `SKILL.md` ("실행 방식 절대 지침" 섹션).
+
 ## 적용하지 않은 항목 (검토했으나 구조상 해당 없음/보류)
 
 - **`get_target_progress_v2` 3회 통합**: `daily-summary`와 동일하게 `media`가 필수 enum이라

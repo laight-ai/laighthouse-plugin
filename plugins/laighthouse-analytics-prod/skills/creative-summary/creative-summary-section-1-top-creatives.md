@@ -6,17 +6,21 @@
 7일**을 통째로 합산해서, 그 기간 소재(개별 광고) 단위 **ROAS 1·2위**와 **CTR 1·2위**를 각각
 카드로 보여준다. 날짜별 비교가 아니라 **7일 전체를 하나로 합친 누적 값** 기준이다.
 
-## MCP 도구 호출: `get_ad_performance_daily_table` × 1 (`media` 생략, `group_by: "ad"`, 최근 7일)
+## MCP 도구 호출: `get_ad_performance_daily_table` × 2 (`media="meta"` / `media="airbridge"`, `group_by: "ad"`, 최근 7일)
 
 ```json
-{ "brand_name": "breezm", "start_date": "기준일 6일 전 YYYY-MM-DD", "end_date": "target_date", "group_by": "ad" }
+{ "brand_name": "breezm", "media": "meta", "start_date": "기준일 6일 전 YYYY-MM-DD", "end_date": "target_date", "group_by": "ad" }
+```
+```json
+{ "brand_name": "breezm", "media": "airbridge", "start_date": "기준일 6일 전 YYYY-MM-DD", "end_date": "target_date", "group_by": "ad" }
 ```
 
-- ⚠️ **`media` 파라미터를 생략한다** — 생략하면 등록된 모든 매체(google/meta/naver/airbridge
-  등)가 한 응답에 함께 온다. 이 응답에서 `media === "meta"`인 행과 `media === "airbridge"`인
-  행을 각각 걸러내 아래처럼 쓴다(예전에는 `media="meta"`/`media="airbridge"`로 각각 따로
-  호출했지만, 값은 동일하다). **이 응답은 이 report_type의 section-3/4/5도 그대로
-  재사용한다** — 섹션마다 다시 호출하지 않는다.
+- ⚠️ **`media`를 생략하지 않고 `meta`/`airbridge` 각각 명시해서 2회 호출한다.** `group_by:"ad"`에서
+  `media`를 생략하면 google/naver/tiktok/ga4까지 한 응답에 섞여 들어와 응답 크기가 수십만
+  자로 폭증한다(실측 76만+자 — `media="meta"` 단독 호출만도 이미 13만자대로 큰데, 생략 시
+  5~6배로 커진다). 그 결과 모델이 표를 손으로 옮겨 적고 머릿속으로 합산하려다 근사값으로
+  때우는 등 정확도 사고로 이어진 사례가 실제로 있었다. **이 2회 호출 응답은 이 report_type의
+  section-3/4/5도 그대로 재사용한다** — 섹션마다 다시 호출하지 않는다.
 - 기간은 기준일을 포함해 정확히 7일이다(daily 섹션-3과 동일한 7일 윈도우).
 - `media === "meta"` 행에는 날짜별·소재(`campaign_name`+`asset_group`+`ad_name`)별
   `cost`/`impression`/`click`과, 소재 이미지 조회에 필요한 `creative_id`/

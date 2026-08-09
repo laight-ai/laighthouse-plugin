@@ -54,6 +54,14 @@ MCP 데이터를 받아 **라이트하우스 스타일 성과 보고서**로 렌
 > 가공·집계·검증용 임시 스크립트를 만들거나 실행하지 않는다 (Claude Code에서 코워크/서브에이전트를
 > 쓰더라도 동일하게 적용됨). 이 스킬이 만드는 파일은 오직 최종 보고서 HTML 하나뿐이다.
 >
+> ℹ️ **위 스크립트 금지 원칙은 재사용 가능한 파이프라인 파일을 만들지 말라는 것이다.**
+> `group_by:"ad"` 응답처럼 행이 많은 데이터를 받으면, 그 즉시 **파일로 남기지 않는 1회성
+> Bash 명령**(grep/awk/jq 등)으로 media 필터링, `campaign_name`+`asset_group`+`ad_name`
+> 조인, 소재별 합산, 정렬까지 수행하고, 그 결과로 나온 작은 요약표만 컨텍스트에 남긴다 —
+> 원본 테이블 전체를 손으로 옮겨 적거나 머릿속으로 합산하지 않는다. 이건 재사용 가능한
+> 스크립트 파일을 만드는 것과 다르다 — 결과가 나오면 버려지는 즉석 명령이다. **절대
+> 근사치로 채우거나 일부만 계산하고 나머지를 추정하지 않는다.**
+>
 > ⏱ **긴 대기 없이 스켈레톤을 먼저 보여준다.** 2단계(소재 데이터 호출) 응답을 받는 즉시,
 > 나머지 섹션은 전부 "데이터 준비 중" placeholder(§ 데이터 부족 시 규칙과 동일한 마크업)로 채운
 > 전체 골격을 1차로 Artifact에 게시한다. 이후 3단계에서 각 섹션 데이터가 준비되는 대로 같은
@@ -86,15 +94,19 @@ MCP 데이터를 받아 **라이트하우스 스타일 성과 보고서**로 렌
 ## 실행 순서
 
 1. 파라미터를 파싱한다. report_type은 `creative-detailed`로 고정되어 있다.
-2. 소재 데이터를 호출한다 — `get_ad_performance_daily_table`을 **`media` 파라미터를 생략하고**
-   `group_by:"ad"`로 **단 한 번만**(기준일 6일 전 ~ target_date, 7일 범위) 호출한다. `media`를
-   생략하면 등록된 모든 매체(google/meta/naver/airbridge 등)의 행이 한 응답에 함께 온다 — 이
-   응답에서 `media`가 정확히 `"meta"`인 행과 `"airbridge"`인 행만 걸러 쓴다(그 외 매체 행은
-   이 스킬이 쓰지 않으므로 무시한다). **이 호출 1회를 section-1/3/4/5가 전부 공유해서
-   재사용한다** — 매체별로 나눠 여러 번 부르지 않는다(예전에는 section별로 최대 4번까지
-   나눠 불렀다). meta 행과 airbridge 행을 `campaign_name`+`asset_group`+`ad_name` 세 필드로
-   조인해서 소재별 노출/클릭/광고비(메타 쪽)와 매출/예약 완료(airbridge 쪽)를 구한다 —
-   Airbridge가 소재(ad) 단위까지 매출/예약을 정상적으로 귀속한다(`creative-detailed-section-1-top-creatives.md`
+2. 소재 데이터를 호출한다 — `get_ad_performance_daily_table`을 `group_by:"ad"`로
+   **`media="meta"` 1회 + `media="airbridge"` 1회, 총 2회**(기준일 6일 전 ~ target_date, 7일
+   범위) 호출한다. ⚠️ **`media`를 생략해서 한 번에 받지 않는다** — 한때 이렇게 통합했었지만,
+   `media`를 생략하면 등록된 모든 매체(google/meta/naver/airbridge 등)의 행이 한 응답에
+   함께 실려 응답 크기가 실측상 5~6배까지 커진다(`group_by:"ad"`는 원래도 행 수가 많아, 7일
+   윈도우 기준 meta 단독 호출만으로도 13만 자를 넘는데 media 생략 시 76만 자를 넘어 모델이
+   응답을 컨텍스트에 제대로 들고 있을 수 없게 된다 — 실제 프로덕션 실행에서 이 문제로 모델이
+   표를 손으로 옮겨 적다 합산값을 근사치로 채우는 사고가 발생했다). **이 2회 호출을
+   section-1/3/4/5가 전부 공유해서 재사용한다** — 섹션마다 나눠 다시 부르지 않는다(meta 응답은
+   section-1/3/5가, airbridge 응답은 section-1/4/5가 재사용). meta 응답과 airbridge 응답을
+   `campaign_name`+`asset_group`+`ad_name` 세 필드로 조인해서 소재별 노출/클릭/광고비(메타
+   쪽)와 매출/예약 완료(airbridge 쪽)를 구한다 — Airbridge가 소재(ad) 단위까지 매출/예약을
+   정상적으로 귀속한다(`creative-detailed-section-1-top-creatives.md`
    참고). 소재 이미지는 `get_ad_creative_info`(메타 행의 `creative_id`/`platform_account_id`를
    그대로 전달)로 가져온 `thumbnail_image_url`을 쓴다 — 이 호출은 위 소재 데이터 호출 결과로
    ROAS/CTR 랭킹이 정해진 뒤에만 나갈 수 있으므로 순차적으로 의존한다(병렬 배치 대상 아님).
@@ -157,15 +169,16 @@ MCP 데이터를 받아 **라이트하우스 스타일 성과 보고서**로 렌
 > 단, `daily-summary`(동일 플러그인, `daily-summary/CLAUDE.md` 참고)에서 실측으로 확인된 바
 > 있듯 배치해도 MCP 호출 자체가 네트워크 레벨에서 진짜 동시 실행되는 것은 아니다 — 배치의
 > 실제 효과는 "턴 오버헤드 제거"이지 "네트워크 동시 실행"이 아니며, 진짜 속도 개선은 **호출
-> 총 개수를 줄이는 것**에서 나온다(위 2단계의 `media` 생략 통합이 그 예다).
+> 총 개수를 줄이는 것**에서 나온다(section-1/3/4/5가 2단계의 2회 호출을 공유·재사용하는 것이
+> 그 예다).
 >
-> ⚠️ **이 스킬은 애초에 배치할 독립 호출이 거의 없다.** 데이터 호출이 2단계의 소재 데이터
-> 호출(`get_ad_performance_daily_table`, `media` 생략 1회) 하나뿐이고, `get_ad_creative_info`는
-> 그 응답으로 정해진 ROAS/CTR 랭킹 소재의 `creative_id`/`platform_account_id`가 있어야 부를 수
-> 있으므로 **순차적으로 의존**한다 — 둘을 한 메시지에 동시에 낼 수 없다. 3단계의 나머지 섹션
-> 호출도 이 스킬에는 존재하지 않는다(section-3/4/5는 모두 2단계 응답을 재사용하며 신규 호출이
-> 없다). 억지로 "병렬 배치"를 적용할 대상 자체가 없다는 점을 명시한다 — 없는 병렬성을 있는
-> 것처럼 서술하지 않는다.
+> ⚠️ **이 스킬에서 배치할 수 있는 독립 호출은 2단계의 `media="meta"`/`media="airbridge"`
+> 두 호출뿐이다.** 이 둘은 서로 결과에 의존하지 않으므로 한 메시지에 동시에 낼 수 있다.
+> `get_ad_creative_info`는 그 두 응답으로 정해진 ROAS/CTR 랭킹 소재의
+> `creative_id`/`platform_account_id`가 있어야 부를 수 있으므로 **순차적으로 의존**한다 —
+> 앞의 2회와 한 메시지에 동시에 낼 수 없다. 3단계의 나머지 섹션 호출도 이 스킬에는 존재하지
+> 않는다(section-3/4/5는 모두 2단계 응답을 재사용하며 신규 호출이 없다). 억지로 "병렬 배치"를
+> 적용할 대상을 부풀리지 않는다 — 없는 병렬성을 있는 것처럼 서술하지 않는다.
 
 > 🚫 **MCP 응답을 스크래치패드/임시 파일에 썼다가 다시 읽어오지 않는다.** 각 MCP 호출 결과는
 > 이미 그 턴의 대화 컨텍스트 안에 있으므로, HTML을 조합할 때 그 값을 직접 참조해서 쓴다.
@@ -236,15 +249,15 @@ section-2(Executive Summary)는 `mtd-detailed`/`daily-detailed`/`monthly-detaile
 
 section-3(일별 CTR)과 section-4(일별 ROAS)는 **같은 "광고비 상위 5개 소재"(7일 합산 기준)를
 공유**한다 — section-3이 소재 선정을 담당하고, section-4는 그 선정 결과를 재사용한다. 매체
-(meta)/airbridge 데이터 자체는 둘 다 새로 호출하지 않고, section-1이 받아둔 `media` 생략 1회
-호출의 공유 응답에서 각자 필요한 행(meta 행은 section-3, airbridge 행은 section-4)만 꺼내
-쓴다. 두 차트는 색상·범례 순서가 정확히 일치해야 한다(같은 소재 = 같은 색). 날짜별로 데이터가
-없는 지점은 0이 아니라 `null`로 두어 차트에서 끊긴 구간으로 표시한다(`spanGaps:false`) —
-추정해서 이어 그리지 않는다.
+(meta)/airbridge 데이터 자체는 둘 다 새로 호출하지 않고, section-1이 받아둔 `media="meta"`/
+`media="airbridge"` 2회 호출의 공유 응답에서 각자 필요한 응답(meta 응답은 section-3,
+airbridge 응답은 section-4)을 꺼내 쓴다. 두 차트는 색상·범례 순서가 정확히 일치해야 한다
+(같은 소재 = 같은 색). 날짜별로 데이터가 없는 지점은 0이 아니라 `null`로 두어 차트에서 끊긴
+구간으로 표시한다(`spanGaps:false`) — 추정해서 이어 그리지 않는다.
 
-section-5(소재 단위 누적 성과 표)는 **section-1이 이미 받아둔 `media` 생략 1회 호출의 공유
-응답(meta 행 + airbridge 행, `group_by:"ad"`, 최근 7일)을 그대로 재사용**한다 — 새 MCP
-호출이 없다. section-1은 그 데이터에서 랭킹 1·2위만 뽑아 카드로 보여줬지만, section-5는
+section-5(소재 단위 누적 성과 표)는 **section-1이 이미 받아둔 `media="meta"`/
+`media="airbridge"` 2회 호출의 공유 응답(`group_by:"ad"`, 최근 7일)을 그대로 재사용**한다 —
+새 MCP 호출이 없다. section-1은 그 데이터에서 랭킹 1·2위만 뽑아 카드로 보여줬지만, section-5는
 **모든 소재를 전부** 표로 나열한다는 점이 다르다(같은 원본 데이터의 다른 가공). 지표는
 노출/클릭/CTR/광고비/매출/예약 완료/예약 완료 CPA/ROAS 8개, 7일 합산 광고비 내림차순
 정렬이며, 다른 report_type의 캠페인/광고그룹 단위 표들과 동일하게 검색+페이지네이션이
@@ -256,12 +269,14 @@ section-5(소재 단위 누적 성과 표)는 **section-1이 이미 받아둔 `m
   헤더의 `{기간}`은 이 7일 범위가 아니라 **기준일 하나만** 표기한다(`daily-detailed`와 동일한 단일
   일자 형식) — 헤더 표기와 실제 데이터 기간이 다르다는 점에 유의한다.
 - 보고서 제목은 항상 "소재 보고서"로 고정한다.
-- 소재별 매출/ROAS는 `get_ad_performance_daily_table`을 `media` 생략, `group_by:"ad"`로
-  **1회만** 호출한 응답에서 `media`가 `"meta"`인 행과 `"airbridge"`인 행을
+- 소재별 매출/ROAS는 `get_ad_performance_daily_table`을 `group_by:"ad"`로
+  `media="meta"` 1회 + `media="airbridge"` 1회, **총 2회** 호출한 응답을
   `campaign_name`+`asset_group`+`ad_name` 세 필드로 조인해서 구한다 — Airbridge가 소재(ad)
   단위까지 매출/예약을 정상적으로 귀속한다는 것을 실제 API 호출로 확인했다(2026-08-03).
-  매체 쪽 행에 이미 `creative_id`/`platform_account_id`가 포함되어 있다. 이 응답 1개를
-  section-1/3/4/5가 전부 공유한다(예전에는 section마다 최대 4번까지 나눠 호출했다).
+  매체 쪽 응답에 이미 `creative_id`/`platform_account_id`가 포함되어 있다. 이 2회 호출을
+  section-1/3/4/5가 전부 공유한다(예전에는 section마다 최대 4번까지 나눠 호출했었고, 이후
+  한때 `media` 생략 1회 호출로 통합했으나 응답 크기가 5~6배로 커져 되돌렸다 — 아래 실행 방식
+  절대 지침의 Bash 집계 예외 및 `CLAUDE.md` 2026-08-09 항목 참고).
 - 소재 이미지는 `get_ad_creative_info`(meta 파라미터에 위 `creative_id`/`platform_account_id`
   를 그대로 전달)로 받은 `thumbnail_image_url`을 `<img src="{url}"
   onerror="this.style.display='none'; this.nextElementSibling.style.display='inline';">` +
