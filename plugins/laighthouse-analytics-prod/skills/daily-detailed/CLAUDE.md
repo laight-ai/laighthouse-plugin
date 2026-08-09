@@ -159,6 +159,30 @@ CLAUDE.md`의 해당 항목을 그대로 따른다 — 이 스킬 전용으로 �
   포기 자체를 막기 위해 필수 절차로 강화했다.
 - **영향받은 파일**: `SKILL.md`("실행 방식 절대 지침" 절의 Bash 집계 단락).
 
+## 2026-08-09 (추가 3) — 신규 `get_ad_performance_range_table` 도구, section-4/5 적용 검토 결과: 미적용
+
+새 MCP 도구 `get_ad_performance_range_table`(`get_ad_performance_daily_table`와 동일한 파라미터를
+받지만, 날짜별 행이 아니라 **차원(매체/캠페인/광고그룹/광고)당 한 행으로 전체 기간을 합산**해
+반환하며 `is_active`는 항상 None, span 최대 92일)이 추가되어, section-4/5에 적용 가능한지
+검토했다.
+
+- **판단**: section-4(캠페인 성과)와 section-5(광고그룹 및 광고 성과)는 둘 다 **D-1과 D-0
+  딱 이틀을 나란히 비교**하는 것이 섹션의 목적 그 자체다 — 두 파일 모두 "D-1 행과 D-0 행을
+  끝까지 따로 유지한다", "D-1과 D-0을 각각 독립적으로 조인한다"고 명시하고, HTML도 지표마다
+  D-1/D-0 두 칸 + 그 밑에 D-1 대비 D-0 변화량(▲/▼, %)을 표시하는 구조다. `get_ad_performance_
+  range_table`은 기간 전체를 한 행으로 합산하므로, 쓰면 이 섹션들이 보여주려는 "전날 대비 오늘"
+  구분 자체가 사라진다 — **두 섹션 모두 적용 대상이 아니다.**
+- **컴패니언(TOP-N 랭킹) 조합도 검토했으나 해당 없음**: range-table을 "TOP-N 캠페인/광고 선정용"
+  으로 daily-table과 병행 사용하는 조합을 고려했지만, section-4/5의 기존 로직에는 TOP-N 선정
+  단계가 없다 — 두 섹션 모두 D-0 광고비 ≤ ₩10,000인 행만 제외하고, 나머지는 전부(검색+
+  페이지네이션으로) 보여준다. TOP-N을 뽑는 필터가 아니므로, range-table로 랭킹을 미리 뽑아오는
+  조합은 기존에 없던 기능을 새로 만드는 것이 되어 적용하지 않았다.
+- **결론**: `get_ad_performance_range_table`을 쓰도록 바꾼 파일은 없다. section-4/5는 계속
+  `get_ad_performance_daily_table`을 매체별로 호출하는 기존 방식(위 "2026-08-09 (추가)" 항목
+  참고)을 그대로 유지한다.
+- **검토했으나 변경 없음**: `daily-detailed-section-4-campaign-performance.md`,
+  `daily-detailed-section-5-ad-performance.md`.
+
 ## 아직 적용 안 한 후보 (추가 조사/논의 필요)
 
 - `get_target_progress_v2` 3회(media=google/meta/naver) 호출을 1회로 합치는 것 — `daily-summary`

@@ -3,7 +3,7 @@
 **report_type:** `mtd-detailed` — **브리즘(airbridge 기반) 전용** (항상 포함). 매체-캠페인 단위, MTD
 (월초~target_date).
 
-## MCP 도구 호출: `get_ad_performance_daily_table` × 4 (google/meta/naver/airbridge, 각각 `group_by: "campaign"`)
+## MCP 도구 호출: `get_ad_performance_range_table` × 4 (google/meta/naver/airbridge, 각각 `group_by: "campaign"`)
 
 ```json
 { "brand_name": "breezm", "start_date": "월초 YYYY-MM-01", "end_date": "target_date", "media": "google", "group_by": "campaign" }
@@ -12,32 +12,39 @@
 { "brand_name": "breezm", "start_date": "월초 YYYY-MM-01", "end_date": "target_date", "media": "airbridge", "group_by": "campaign" }
 ```
 
-- **매체별로 4번 나눠 부른다 — `media`를 생략하지 않는다.** `group_by:"campaign"`처럼 행
-  granularity가 캠페인 단위인 호출은, `total`/`media` 같은 저(低)카디널리티 `group_by`와
-  달리 `media`를 생략하면 응답에 불필요한 매체의 행까지 전부 섞여 응답 크기가 매체 수만큼
-  곱해진다 — MTD처럼 날짜 범위가 길면(월초~target_date, 최대 한 달치) 캠페인 수가 많은
-  브랜드에서 응답이 모델 컨텍스트에 담기 어려울 정도로 커질 수 있다(실측: 같은 도구 계열의
-  `group_by:"ad"` 호출이 7일치만으로도 76만자를 넘긴 사례가 있었다). 이 섹션은 캠페인 단위
-  granularity이므로 매체별 개별 호출로 응답을 각 매체 범위 안으로 좁게 유지한다.
+- **매체별로 4번 나눠 부른다 — `media`를 생략하지 않는다.** 이 규칙 자체는 `get_ad_performance_daily_table`을
+  쓰던 시절과 동일하게 유지한다 — `media`를 생략하면 매체 수만큼 행이 섞인다.
+- ✅ **`get_ad_performance_range_table`은 `start_date`~`end_date` 범위 전체를 캠페인별로 이미
+  합산한 행을 반환한다**(일별 행이 아니라 캠페인당 정확히 1행). 이 섹션이 필요로 하는 데이터
+  형태(캠페인별 MTD 합계 랭킹)와 정확히 일치하므로, 이전에 쓰던 `get_ad_performance_daily_table`
+  (캠페인×날짜 행)보다 응답이 훨씬 작다 — 캠페인 단위 granularity라 `media` 생략 시 위험한
+  응답 크기 폭증 문제도, 매체별 4회 호출을 유지하는 한 애초에 daily-table보다 더 작아 문제가
+  되지 않는다.
+- span은 최대 92일로 제한되는데, MTD 구간(월초~target_date, 최대 31일)은 항상 이 한도 안에
+  든다.
 - ⚠️ `campaign-type` 금지 — 넣으면 airbridge 행이 조용히 누락된다.
 - ⚠️ `group_by`는 문자열 `"campaign"` 그대로 보낸다.
+- ℹ️ 이 도구의 응답 행에서 `is_active`는 항상 비어있다(None) — 이 섹션은 `is_active`를 쓰지
+  않으므로 영향 없다.
 
 ## 필요 데이터 (캠페인별 집계)
 
-**매체 지표** (google/meta/naver 각 응답에서, 캠페인별로 일별 행을 합산):
-- `노출` = `impression` 합 / `클릭` = `click` 합 / `광고비` = `cost` 합
+**매체 지표** (google/meta/naver 각 응답에서, 캠페인당 이미 합산되어 있는 행을 그대로 읽음):
+- `노출` = `impression` / `클릭` = `click` / `광고비` = `cost` (전부 MTD 구간 합계값 — 도구가
+  이미 합산해서 반환한다)
 - `CTR` = 클릭 ÷ 노출 × 100 (노출 0이면 N/A)
 
-**airbridge 지표** (airbridge 응답에서 캠페인별 합산):
-- `매출` = `airbridge_revenue` 합 / `예약 완료` = `reservation` 합
+**airbridge 지표** (airbridge 응답에서 캠페인당 이미 합산되어 있는 행을 그대로 읽음):
+- `매출` = `airbridge_revenue` / `예약 완료` = `reservation`
 
-⚠️ **`group_by:"campaign"` 응답이므로 SKILL.md의 「실행 방식 절대 지침」에 따라 Bash 집계가
-필수다** — 각 매체 응답을 받은 즉시 파일로 남기지 않는 1회성 Bash 명령(grep/awk/jq 등)으로
-전체 행에 대해 정확하게 캠페인별 합산·정렬까지 마친 뒤, 그 결과 소표만 컨텍스트에 올린다.
-원본 행을 손으로 옮겨 적거나 머릿속으로 합산하지 않으며, 눈으로 훑어 일부만 확인하고
-나머지를 추정하는 것도 금지한다 — effort/시간이 부족하면 날짜별로 쪼개 합산한 뒤 합치는
-방식으로 Bash 집계를 끝까지 완료하고, 그래도 안 되면 이 섹션을 "데이터 준비 중"으로
-표시한다(근사치를 보여주는 것보다 낫다).
+✅ **`get_ad_performance_range_table`은 캠페인별로 이미 MTD 구간 합산이 끝난 행을 반환하므로,
+날짜별 행을 다시 합산하는 Bash 집계는 필요 없다.** (이전 `get_ad_performance_daily_table` ×
+`group_by:"campaign"` 조합에서는 캠페인×날짜 행이 나와 SKILL.md의 「실행 방식 절대 지침」에
+따른 Bash 합산이 필수였지만, 이 도구는 그 합산을 서버에서 이미 수행해 캠페인당 1행만
+반환한다.) 각 매체 응답에서 캠페인별 행을 그대로 읽어 **광고비 내림차순으로 정렬**만 하면
+된다 — 행 수가 많아 정렬을 눈으로 하기 어려우면 1회성 Bash 명령(파일로 남기지 않는
+grep/awk/jq 등)으로 정렬해도 되지만, 이는 "합산"이 아니라 "정렬" 목적이므로 필수 절차는
+아니다.
 
 **조인**: 캠페인 이름 **정확 일치(exact match)**로 매체 행과 airbridge 행을 잇는다.
 - 매체 쪽에만 있는 캠페인 → 매출/예약 완료 칸은 `-`

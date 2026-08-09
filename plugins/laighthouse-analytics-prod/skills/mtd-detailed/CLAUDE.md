@@ -3,6 +3,42 @@
 `daily-summary`에서 검증된 최적화(`daily-summary/CLAUDE.md` 참고)를 `mtd-detailed`에 구조적으로
 적용 가능한 범위 내에서 이식한 작업 기록.
 
+## 2026-08-09 (4차) — 섹션 7을 `get_ad_performance_range_table`로 전환
+
+새 MCP 도구 `get_ad_performance_daily_table`이 추가됐다 — 같은 파라미터(`brand_name`/
+`start_date`/`end_date`/`group_by`/`media`/`campaign_type`/`limit`/`offset`)를 받지만, 날짜별
+행이 아니라 **지정한 기간 전체를 dimension-group(media/campaign/asset_group/ad_name)당 1행으로
+합산**해 반환한다(`is_active`는 항상 None, span 최대 92일).
+
+- **적용 대상 판단**: 섹션 7(Campaign별 성과)은 캠페인별로 MTD(월초~target_date) 구간 전체를
+  합산한 값(노출/클릭/광고비/매출/예약 완료 합계)으로 광고비 내림차순 랭킹 표를 만드는
+  섹션이다 — 캠페인×날짜 세부 트렌드가 아니라 **캠페인당 기간 합계 1행**이 필요한 구조라서,
+  `get_ad_performance_range_table`의 반환 형태와 정확히 일치한다. MTD 구간은 최대 31일로 92일
+  cap에도 항상 들어간다. → **적용 대상 확정, 전환함.**
+  - 참고로 다른 섹션(예: 섹션 4 일일 매출 현황, 섹션 3 월별 광고 성과)은 날짜별/월별 트렌드가
+    필요해 이 도구와 맞지 않으므로 손대지 않았다 — 섹션 7만 이 도구의 조건(기간 합계 랭킹)에
+    해당한다.
+- **변경 내용**: `mtd-detailed-section-7-campaign-performance.md`의 매체별 4회 호출
+  (`get_ad_performance_daily_table` × google/meta/naver/airbridge, `group_by:"campaign"`)을
+  **동일한 4회 호출 구조를 유지한 채** 도구명만 `get_ad_performance_range_table`로 교체했다
+  (`media` 생략 통합은 이번 변경과 무관 — 위 "2026-08-09 (2차)"에서 되돌린 그 통합을 다시
+  적용한 것이 아니다. 매체별 4회 명시적 호출은 그대로다). 이에 맞춰:
+  - "필요 데이터" 절의 "캠페인별로 일별 행을 합산" 문구를 "캠페인당 이미 합산된 행을 그대로
+    읽음"으로 수정 — 값 계산 로직(CTR/CPA/ROAS 공식, exact-match 조인 규칙)은 전혀 바꾸지
+    않았다.
+  - 이전에 **필수**였던 "SKILL.md 「실행 방식 절대 지침」에 따른 Bash 캠페인별 합산" 절차를,
+    이 도구가 서버 쪽에서 이미 합산을 마쳐 반환하므로 **불필요**하다고 명시했다(정렬은 필요시
+    Bash를 써도 되지만 합산과 달리 필수 절차는 아님).
+  - `SKILL.md`의 「실행 방식 절대 지침」에서 "Bash 집계 필수" 규칙이 적용되는 대상을
+    `get_ad_performance_daily_table`/`weekly_table`/`monthly_table`(날짜별 행 반환)로 명확히
+    하고, `get_ad_performance_range_table`(구간 전체 사전 합산)은 이 규칙의 예외라고 명시했다.
+    예시로 들던 "섹션 7"도 "섹션 5"로 교체했다(섹션 7은 더 이상 이 규칙의 적용 대상이
+    아니므로).
+  - `SKILL.md` 3단계의 generic 도구 목록에 `get_ad_performance_range_table`을 추가했다.
+- **출력값 불변**: 최종 렌더링 값·정렬·조인 규칙은 전혀 바꾸지 않았다 — 도구가 서버에서
+  이미 수행하던 합산을 모델이 Bash로 다시 하지 않게 됐을 뿐, 계산 결과는 동일해야 한다.
+- **영향받은 파일**: `mtd-detailed-section-7-campaign-performance.md`, `SKILL.md`.
+
 ## 2026-08-09 (3차) — chart.js 상대 경로 되돌림 + Bash 집계 예외를 필수로 강화
 
 같은 날 형제 스킬 `creative-detailed`의 실제 운영(real-world) 실행에서 아래 두 가지가 실제로

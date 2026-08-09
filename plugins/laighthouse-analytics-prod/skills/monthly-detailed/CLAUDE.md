@@ -163,6 +163,31 @@
   실패 양상이며, "may"(선택적) 문구로는 재발을 막지 못함을 보여준다.
 - **영향받은 파일**: `SKILL.md` ("실행 방식 절대 지침" 섹션의 Bash 집계 예외 문단).
 
+## 2026-08-09 (추가 3) — 신규 `get_ad_performance_range_table` 적용 검토 결과: 해당 없음
+
+### 10. section-5를 `get_ad_performance_range_table`로 전환하는 것 검토 — 부적합 판정, 변경하지 않음
+
+- **검토 배경**: 새 MCP 도구 `get_ad_performance_range_table`이 추가됨 — `get_ad_performance_daily_table`/
+  `get_ad_performance_monthly_table`과 파라미터는 동일(`brand_name`/`start_date`/`end_date`/
+  `group_by`/`media`/`campaign_type`/`limit`/`offset`)하지만, 응답이 날짜/월별 버킷이 아니라
+  **지정한 전체 기간을 합산한 차원-그룹당 단일 행**(예: `group_by:"campaign"`이면 캠페인당
+  기간 전체 합산 1행)이다. `is_active`는 항상 None. span은 최대 92일.
+- **판정: 부적합 — section-5는 변경하지 않았다.** section-5(캠페인 성과 비교, M-1 vs M0)는
+  같은 캠페인에 대해 **전월(M-1)과 당월(M0)을 각각 독립적으로 조인·집계**한 뒤 두 값을
+  나란히 표시하고 변화량(%, %p)까지 계산하는 섹션이다 — "월별로 분리된 두 개의 합계"가
+  핵심 요구사항이다. `get_ad_performance_range_table`은 `start_date`~`end_date`를 하나의
+  구간으로 **합산**하므로, M-1 시작일~M0 종료일을 span으로 주면 두 달 값이 하나의 행으로
+  뭉개져 M-1/M0을 더 이상 구분할 수 없다(정확히 이 작업 지시문이 경고한 "PER-CAMPAIGN-PER-
+  월별 비교가 필요한 경우는 부적합" 케이스에 해당). 두 번(M-1 구간 1회 + M0 구간 1회)
+  나눠 부르는 방법도 검토했으나, 그러면 기존 `get_ad_performance_monthly_table` 4회 호출
+  대비 얻는 이득이 없다(호출 수가 줄지 않고, `day_offset` 파라미터가 없어 "당월을
+  target_date까지만 자르고 전월도 동일 일자까지만 자르는" MTD 동기 비교 로직을 별도로
+  직접 구현해야 해 오히려 더 복잡해진다).
+- **결론**: section-5의 4회 매체별 `get_ad_performance_monthly_table` 호출(위 6번 항목에서
+  `media` 생략 통합을 이미 되돌린 상태)은 그대로 유지한다. `get_ad_performance_range_table`을
+  쓰는 변경은 수행하지 않았다.
+- **영향받은 파일**: 없음(검토만 수행, 코드/스킬 파일 변경 없음).
+
 ## 적용하지 않은 항목 (검토했으나 구조상 해당 없음/보류)
 
 - **`get_target_progress_v2` 3회 통합**: `daily-summary`와 동일하게 `media`가 필수 enum이라

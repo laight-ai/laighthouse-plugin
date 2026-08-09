@@ -181,3 +181,62 @@
   채우거나 일부만 계산하는 것은 여전히 금지된다.
 - **영향받은 파일**: `SKILL.md`("실행 방식 절대 지침" 섹션), 각 데이터 호출 지점에서
   응답이 클 경우를 대비한 안내가 추가된 `creative-detailed-section-1-top-creatives.md`.
+
+## 2026-08-09 (네 번째 수정) — `get_ad_performance_range_table` 신규 도입, section-1/5를 range_table로 전환
+
+laighthouse-prism에 `get_ad_performance_range_table`(`get_ad_performance_daily_table`과 파라미터가
+동일하지만, 날짜별 행이 아니라 **소재/캠페인/광고그룹 등 dimension-group당 지정한 기간 전체를
+이미 합산한 한 행**을 반환하는 도구, `is_active`는 항상 None, 기간 최대 92일)이 새로 추가됐다.
+이 스킬(그리고 `creative-summary`)이 겪은 두 차례 실제 사고(위 세 번째 수정 항목,
+2026-07-11/2026-07-12: 소재가 많아 `group_by:"ad"` 7일 응답이 커지자 모델이 표를 손으로
+옮겨 적어 합산하다 값을 근사치로 채운 사고)를 이 도구가 근본적으로 해결한다 — **애초에 서버가
+7일 합산을 끝낸 채로 응답을 주므로, 클라이언트가 날짜별 행을 손으로/Bash로 다시 합산할 필요
+자체가 없어진다.**
+
+### 무엇을 바꿨나
+
+- **section-1(최우수 소재 ROAS/CTR 카드)**: 공유 호출을 `get_ad_performance_daily_table`
+  (`media="meta"`/`media="airbridge"`, 날짜별 행) → `get_ad_performance_range_table`(같은
+  두 `media`, 소재당 7일 합산 한 행)로 전환했다. 이제 소재별 랭킹은 이미 합산된 작은 응답을
+  정렬하는 것뿐이므로, "반드시 Bash로 끝까지 집계"해야 하는 요구사항이 이 호출에는 더 이상
+  적용되지 않는다(응답 자체가 이미 작고 합산되어 있음).
+- **section-5(소재 단위 누적 성과 표)**: section-1과 정확히 같은 이유로 **함께 전환했다.**
+  section-5도 section-1과 마찬가지로 "날짜별 비교가 아니라 7일 누적 값"만 필요한
+  섹션이었고(문서에 이미 "이 섹션 자체는 날짜별 데이터가 아니라 7일 누적값"이라고 명시돼
+  있었다), 기존에는 section-1이 공유하던 daily 응답을 가져다 **모든 소재**에 대해 똑같은
+  7일 합산을 반복해야 했다 — 즉 section-1의 사고 원인과 완전히 동일한 위험(오히려 "top-2만"이
+  아니라 "전체 소재"를 집계해야 해서 더 큰 위험)을 안고 있었다. section-1이 range_table로
+  전환하면서 그 공유 응답이 이미 원하는 형태(소재당 한 행)가 됐으므로, section-5도 자연스럽게
+  같은 응답을 재사용하도록 바꿨다 — 결과값을 바꾸는 게 아니라 이미 section-1이 받은 데이터의
+  다른 가공(전체 나열 vs 상위 2개)이라는 기존 관계를 그대로 유지한 것이다.
+- **section-3(일별 CTR)/section-4(일별 ROAS)는 바꾸지 않았다 — 여전히 날짜별 원본이 필요하다.**
+  두 섹션은 "광고비 상위 5개 소재의 **일별** CTR/ROAS 추이"를 라인차트로 그려야 하는데,
+  `get_ad_performance_range_table`은 날짜 차원 자체를 서버에서 이미 합쳐버리므로 이 용도에
+  구조적으로 맞지 않는다(무엇을 요청하든 날짜별 시계열을 복원할 수 없음). 따라서
+  `get_ad_performance_daily_table`(날짜별 행) 호출은 그대로 유지했다 — 다만 이 호출을 더
+  이상 section-1이 대신 해주지 않으므로(section-1은 이제 range_table만 호출함), **section-3이
+  이 daily 호출을 새로 직접 소유**하도록 옮겼다(section-4는 이 중 airbridge 응답을 그대로
+  재사용, 기존과 동일한 공유 관계).
+  - 다만 이 daily 호출에 대한 Bash 집계 절차는 **더 단순한 형태로 바뀌었다**: 예전에는
+    "전체 소재(수백 개)를 손으로 집계해서 광고비 상위 5개를 찾아내는" 개방형 작업이었지만,
+    이제 상위 5개 소재의 정확한 키(`campaign_name`+`asset_group`+`ad_name`)는 section-1의
+    range_table 응답(작고 이미 합산됨)을 정렬하기만 하면 바로 나온다. 그래서 daily 응답에
+    대해 남는 작업은 "이미 알고 있는 5개 키 × 7일"만 exact-match로 걸러내는 **범위가 정해진
+    (bounded)** 필터링뿐이다 — 여전히 정확하게 전부 수행해야 하는 필수 절차이지만("일부만
+    보고 추정" 금지는 그대로), 대상 자체가 훨씬 작아져 실행 부담이 크게 줄었다.
+
+### 무엇을 바꾸지 않았나
+
+- **최종 렌더링 값/보고서 로직은 전혀 바꾸지 않았다** — 이번 변경은 순전히 "어떤 도구로,
+  어떻게 데이터를 가져오는가"의 배선(rewiring)이다. section-1/5의 ROAS/CTR/랭킹/8개 지표
+  계산 로직, section-3/4의 조인·null/0 처리 규칙, section-2(Executive Summary)의 서술
+  로직은 그대로다.
+- **section-3/4는 여전히 날짜별 granularity가 필요하고, `get_ad_performance_range_table`은
+  이 두 섹션에 맞지 않는다** — 트렌드 차트가 있는 report_type/섹션에 range_table을
+  적용하려 하지 않는다(날짜 차원이 응답에서 사라지기 때문).
+- **section-2는 신규 MCP 호출이 없다**는 기존 설계 그대로 유지했다 — section-3/4/5 응답을
+  재사용하는 방식은 바뀌지 않았다.
+- **영향받은 파일**: `SKILL.md`(실행 순서 2단계, 병렬 호출 지침, 섹션 구성 설명, 공통 규칙,
+  Bash 집계 예외 문단), `creative-detailed-section-1-top-creatives.md`,
+  `creative-detailed-section-3-daily-CTR.md`, `creative-detailed-section-4-daily-ROAS.md`,
+  `creative-detailed-section-5-daily-creative-performance.md`.

@@ -10,8 +10,8 @@
 
 ## MCP 도구 호출: 신규 호출 없음 — section-1의 공유 응답을 그대로 재사용
 
-이 섹션은 section-1(최우수 소재)이 이미 호출한 아래 두 응답을 그대로 재사용한다 — **다시
-호출하지 않는다**:
+이 섹션은 section-1(최우수 소재)이 이미 호출한 아래 두 `get_ad_performance_range_table`
+응답을 그대로 재사용한다 — **다시 호출하지 않는다**:
 
 ```json
 { "brand_name": "breezm", "media": "meta", "start_date": "기준일 6일 전 YYYY-MM-DD", "end_date": "target_date", "group_by": "ad" }
@@ -22,17 +22,20 @@
 
 (`media="meta"`/`media="airbridge"` 각 1회 호출. 참고: section-1은 이 응답에서 **랭킹
 1·2위만** 뽑아 썼지만, 이 섹션은 **모든 소재를 전부** 표에 나열한다는 점이 다르다 — 같은
-원본 데이터를 다른 방식으로 가공하는 것이다.)
+원본 데이터를 다른 방식으로 가공하는 것이다.) ⚠️ 이 섹션은 section-3/4가 쓰는
+`get_ad_performance_daily_table`(날짜별 행)이 아니라 **section-1과 같은 range_table 응답**을
+쓴다 — 이 섹션도 "날짜별 비교"가 아니라 "7일 누적 값" 하나만 필요하므로(위 안내문 참고),
+daily 응답을 받아 직접 7일치를 합산할 필요가 전혀 없다.
 
-## 필요 데이터 (소재별, 최근 7일 합산 — section-1과 동일한 방식)
+## 필요 데이터 (소재별, 최근 7일 합산 — 이미 합산되어 응답됨, section-1과 동일한 방식)
 
-**매체 지표** (`media="meta"` 응답을 소재(`campaign_name`+`asset_group`+`ad_name`) 단위로
-7일 합산):
-- `노출` = `impression` 합 / `클릭` = `click` 합 / `광고비` = `cost` 합
+**매체 지표** (`media="meta"` 응답의 각 행 = 소재(`campaign_name`+`asset_group`+`ad_name`)
+하나당 7일 합산 값 하나 — 날짜별로 흩어진 행을 우리가 다시 더할 필요가 없다):
+- `노출` = 그 행의 `impression` / `클릭` = 그 행의 `click` / `광고비` = 그 행의 `cost`
 - `CTR` = 클릭 ÷ 노출 × 100 (노출 0이면 N/A)
 
-**airbridge 지표** (`media="airbridge"` 응답을 같은 소재 단위로 7일 합산):
-- `매출` = `airbridge_revenue` 합 / `예약 완료` = `reservation` 합
+**airbridge 지표** (`media="airbridge"` 응답의 각 행 = 같은 소재 단위 7일 합산 값 하나):
+- `매출` = 그 행의 `airbridge_revenue` / `예약 완료` = 그 행의 `reservation`
 
 **조인**: `campaign_name`+`asset_group`+`ad_name` **세 필드 모두 정확히 일치**해야 같은
 소재로 본다 (section-1과 동일한 조인 규칙).

@@ -5,11 +5,13 @@
 ROAS를 라인 차트로 보여준다 — 소재 선정과 매체 쪽 데이터는 section-3의 결과를 그대로
 재사용하고, airbridge 매출도 section-1의 공유 응답에서 가져다 쓴다(새 MCP 호출 없음).
 
-## MCP 도구 호출: 신규 호출 없음 — section-1의 공유 응답을 재사용
+## MCP 도구 호출: 신규 호출 없음 — section-3의 공유 응답을 재사용
 
-이 섹션은 별도로 호출하지 않는다. **section-1이 이미 받아둔 `get_ad_performance_daily_table`
-(`media="airbridge"`, `group_by:"ad"`) 공유 응답**을 가져다 쓴다 — `media="meta"` 쪽 응답은
-section-3에서 이미 가공한 결과(선정된 5개 소재, `cost` 등)를 그대로 재사용한다.
+이 섹션은 별도로 호출하지 않는다. **section-3이 이미 받아둔 `get_ad_performance_daily_table`
+(`media="airbridge"`, `group_by:"ad"`, 날짜별 행) 공유 응답**을 가져다 쓴다 — `media="meta"` 쪽
+응답은 section-3에서 이미 가공한 결과(선정된 5개 소재, `cost` 등)를 그대로 재사용한다. (이
+두 응답은 section-1이 쓰는 `get_ad_performance_range_table`과는 별개의 도구/호출이다 — 날짜별
+트렌드가 필요한 section-3/4만 daily_table을 쓴다. 자세한 이유는 section-3 참고.)
 
 - 기간은 section-3과 정확히 동일한 7일이다.
 - airbridge 응답에는 날짜별·소재(`campaign_name`+`asset_group`+`ad_name`)별
@@ -18,12 +20,13 @@ section-3에서 이미 가공한 결과(선정된 5개 소재, `cost` 등)를 �
 
 ## 필요 데이터
 
-**소재 선정**: section-3에서 이미 뽑은 **7일 합산 광고비 상위 5개 소재**를 그대로 쓴다 —
-다시 계산하지 않는다. 라인 색상·범례 순서도 section-3과 동일하게 맞춘다. **표시 이름**(ad_name
-중복 시 `ad_name (asset_group)`으로 구분한 이름)도 section-3에서 이미 정한 것을 그대로
-재사용한다 — 다시 판단하지 않는다.
+**소재 선정**: section-3에서 이미 뽑은 **7일 합산 광고비 상위 5개 소재**(section-1의
+range_table 응답을 정렬해서 뽑은 것)를 그대로 쓴다 — 다시 계산하지 않는다. 라인 색상·범례
+순서도 section-3과 동일하게 맞춘다. **표시 이름**(ad_name 중복 시 `ad_name (asset_group)`으로
+구분한 이름)도 section-3에서 이미 정한 것을 그대로 재사용한다 — 다시 판단하지 않는다.
 
-**일별 시리즈** (선정된 5개 소재 각각에 대해):
+**일별 시리즈** (이미 알고 있는 5개 소재 키만, exact-match로 추출 — section-3과 동일한
+"소재 선정은 끝났으니 이제 5개 키 × 7일만 걸러낸다"는 bounded 작업이다):
 - **조인**: `campaign_name`+`asset_group`+`ad_name` 세 필드가 정확히 일치하는 날짜의
   airbridge 행을 찾아 `airbridge_revenue`를 가져온다. section-3에서 쓴 같은 소재의 같은
   날짜 `cost`(메타 쪽)를 분모로 쓴다.

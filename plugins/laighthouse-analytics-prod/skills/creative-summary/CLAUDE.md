@@ -3,6 +3,56 @@
 `daily-summary`에 먼저 적용한 최적화 세트(`daily-summary/CLAUDE.md` 참고)를 `creative-summary`에
 구조적으로 적용 가능한 범위에서 이식한 기록.
 
+## 2026-08-09 (4) — section-1 랭킹을 `get_ad_performance_range_table`로 전환 (Bash 집계 제거)
+
+`laighthouse-prism`에 신규 MCP 도구 `get_ad_performance_range_table`이 추가됐다 —
+`get_ad_performance_daily_table`과 파라미터(`brand_name`/`start_date`/`end_date`/`group_by`/
+`media`/`campaign_type`/`limit`/`offset`)는 동일하지만, **날짜별 행이 아니라 구간 전체를
+차원-그룹(media/campaign/asset_group/ad_name) 단위로 이미 합산한 1행씩** 돌려준다.
+`is_active`는 구간 내 상태 변화 가능성 때문에 항상 비어 있다. 구간은 최대 92일.
+
+- **무엇을 바꿨나**: section-1(최우수 소재, ROAS/CTR 1·2위 선정)이 쓰던
+  `get_ad_performance_daily_table` × 2(`media="meta"`/`media="airbridge"`, `group_by:"ad"`,
+  최근 7일) 호출을 `get_ad_performance_range_table` × 2(파라미터는 동일)로 바꿨다. section-1이
+  필요한 건 처음부터 "7일 전체를 합친 소재별 누적 값"뿐이었으므로, 새 도구가 그 합산을 서버
+  쪽에서 대신 해준다 — 응답을 받는 즉시 ROAS/CTR 내림차순으로 정렬만 하면 랭킹이 나온다.
+- **왜**: `creative-detailed`(section-1의 원본, `creative-detailed/CLAUDE.md` 참고)의 실제
+  프로덕션 실행(2026-08-09)에서, `group_by:"ad"` 응답을 Bash로 집계하다 "effort 예산에 비해
+  너무 크다"고 판단해 집계를 중간에 포기하고 눈대중으로 추정한 순위·합계를 그대로 보고서에
+  반영한 사고가 확인됐다(아래 "2026-08-09 (3)" 항목 참고). 이 사고의 근본 원인은 "소재별 7일
+  합산"이라는 클라이언트 쪽 작업 자체였다 — `get_ad_performance_range_table`은 그 작업을
+  아예 제거한다(집계할 날짜별 행 자체가 응답에 없다). 이제 section-1의 랭킹 선정에는 Bash
+  집계가 "필수 단계"가 아니라 **적용할 대상이 없는 단계**가 됐다.
+  - **영향받은 파일**: `creative-summary-section-1-top-creatives.md`(MCP 도구 호출/필요
+    데이터 절), `SKILL.md`(실행 순서 2단계, "실행 방식 절대 지침"의 Bash 집계 필수 문단,
+    "병렬 호출 지침"의 총 호출 수, 섹션 구성 설명 문단).
+- **무엇이 바뀌지 않았나 (중요)**: section-3(최근 7일 전체 소재 CTR/ROAS 추이)·section-4(일별
+  CTR, 광고비 상위 5개)·section-5(일별 ROAS, 광고비 상위 5개)는 **여전히 날짜별(daily) 데이터가
+  필요하다** — 7일 트렌드 차트를 그리려면 날짜별 값이 있어야 하는데, `get_ad_performance_range_table`은
+  구간을 한 행으로 뭉개버리므로 이 세 섹션에는 원천적으로 맞지 않는다. 그래서 이 세 섹션은
+  여전히 `get_ad_performance_daily_table` × 2(`media="meta"`/`media="airbridge"`,
+  `group_by:"ad"`, 같은 7일)를 별도로 호출해 공유한다(SKILL.md 실행 순서 2단계의 "2-b"로
+  분리). 이 스킬의 전체 MCP 데이터 호출 수는 결과적으로 3회(daily 2회+creative_info 1회) →
+  5회(range 2회 + daily 2회 + creative_info 1회)로 늘었다 — 호출 수 자체는 늘었지만, section-1의
+  Bash 집계가 완전히 없어지고 section-4/5의 daily 필터링 범위도 아래처럼 줄어든 것이 그
+  대가다.
+  - **section-4/5의 Bash 집계가 더 단순해진 이유**: 예전에는 section-4가 daily 응답 전체를
+    소재별로 합산해서 "광고비 상위 5개"를 직접 뽑아야 했다(열린 랭킹 집계, 소재 수만큼 열려
+    있음). 이제는 section-1이 이미 호출한 range_table 응답(소재당 1행, 7일 합산 `cost` 포함)을
+    그대로 정렬해서 상위 5개 키를 싸게 얻을 수 있으므로, section-4/5가 daily 응답에 대해 하는
+    일은 "이미 알고 있는 정확한 5개 키(`campaign_name`+`asset_group`+`ad_name`)로 7일치 행을
+    exact-match 필터링하는 것"(최대 5×7=35행, 닫힌 추출)으로 줄었다 — 여전히 필수·정확한
+    Bash 처리이고 근사치는 여전히 금지지만, "전체 소재 랭킹"이 아니라 "5개 키 추출"이라 범위가
+    훨씬 좁고 실수할 여지가 적다.
+  - **section-3은 이 축소 대상이 아니다**: section-3은 "상위 5개"가 아니라 **모든** 소재를
+    날짜별로 합산해야 하므로(전체 CTR/ROAS 추이가 목적), 여전히 daily 응답 전체에 대한 완전한
+    집계가 필요하다 — section-4/5처럼 5개로 좁혀지는 예외가 적용되지 않는다.
+  - **최종 렌더링 값은 무변경**: 이건 "어떤 도구로 데이터를 가져오고 클라이언트가 얼마나
+    일해야 하는가"만 바뀐 메커니즘 변경이다. section-1의 ROAS/CTR 1·2위, section-3의 전체
+    CTR/ROAS 추이, section-4/5의 상위 5개 소재 선정 결과와 일별 값은 이전과 동일해야 한다
+    (range_table의 소재별 합산 값 = daily_table의 같은 소재 7일 행을 직접 더한 값과 같아야
+    정상 — 다음 실제 실행 때 한 번 대조 확인을 권장한다).
+
 ## 2026-08-09 (3) — chart.js 상대 경로 참조 되돌림 + Bash 집계 "허용" → "필수"로 강화
 
 같은 날 sibling 스킬 `creative-detailed`를 실제로 실행한 결과, 아래 "2026-08-09 (2)" 항목까지

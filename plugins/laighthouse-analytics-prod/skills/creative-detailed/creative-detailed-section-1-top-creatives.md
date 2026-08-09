@@ -5,7 +5,7 @@
 7일**을 통째로 합산해서, 그 기간 소재(개별 광고) 단위 **ROAS 1·2위**와 **CTR 1·2위**를 각각
 카드로 보여준다. 날짜별 비교가 아니라 **7일 전체를 하나로 합친 누적 값** 기준이다.
 
-## MCP 도구 호출: `get_ad_performance_daily_table` × 2 (`media="meta"` / `media="airbridge"`, `group_by: "ad"`, 최근 7일)
+## MCP 도구 호출: `get_ad_performance_range_table` × 2 (`media="meta"` / `media="airbridge"`, `group_by: "ad"`, 최근 7일)
 
 ```json
 { "brand_name": "breezm", "media": "meta", "start_date": "기준일 6일 전 YYYY-MM-DD", "end_date": "target_date", "group_by": "ad" }
@@ -14,30 +14,40 @@
 { "brand_name": "breezm", "media": "airbridge", "start_date": "기준일 6일 전 YYYY-MM-DD", "end_date": "target_date", "group_by": "ad" }
 ```
 
-- 기간은 기준일을 포함해 정확히 7일이다(daily 섹션-3과 동일한 7일 윈도우).
+- 기간은 기준일을 포함해 정확히 7일이다(daily 섹션-3과 동일한 7일 윈도우) — `get_ad_performance_range_table`에
+  넘기는 `start_date`/`end_date`는 `get_ad_performance_daily_table`과 동일한 규칙(기준일 포함
+  7일)이지만, **응답은 날짜별 행이 아니라 소재(`campaign_name`+`asset_group`+`ad_name`)당
+  정확히 한 행, 그 7일 전체를 이미 합산한 값**이다(`is_active`는 이 도구에서 항상
+  비어있음/None — 기간 내 상태가 바뀔 수 있어 의미가 없으므로 무시한다). ⚠️ 이 스킬에서
+  **section-1과 section-5만** 이 range_table 응답을 쓴다 — section-3/4는 날짜별 트렌드
+  차트가 필요해 별도로 `get_ad_performance_daily_table`을 호출한다(아래 및 section-3 참고).
 - ⚠️ **`media`를 반드시 명시한다 — 생략하지 않는다.** `media`를 생략하면 등록된 모든 매체
-  (google/meta/naver/airbridge 등)의 행이 한 응답에 함께 온다. 한때 이렇게 1회로 통합했었지만,
-  `group_by:"ad"`는 원래도 행 수가 많은 응답(meta 단독만으로도 7일 윈도우 기준 13만 자를
-  넘음)인데 `media` 생략으로 그 위에 다른 매체 행까지 얹으면 응답이 5~6배(76만 자 이상)까지
-  불어나 모델이 컨텍스트에 제대로 들고 있을 수 없다 — 실제 프로덕션 실행에서 이 크기 때문에
-  모델이 표를 손으로 옮겨 적어 합산하다 일부 값을 근사치로 채우는 사고가 발생했다(정확성
-  위반). 두 호출은 서로 결과에 의존하지 않으므로 한 메시지에 동시에(병렬 tool call로) 낸다.
-  - `media="meta"` 응답에는 날짜별·소재(`campaign_name`+`asset_group`+`ad_name`)별
+  (google/meta/naver/airbridge 등)의 행이 한 응답에 함께 온다 — `get_ad_performance_daily_table`
+  때와 같은 이유로 응답이 불필요하게 커진다(범위 합산 응답이라 daily만큼 크지는 않지만,
+  media 없이 받을 이유가 없다). 두 호출은 서로 결과에 의존하지 않으므로 한 메시지에
+  동시에(병렬 tool call로) 낸다.
+  - `media="meta"` 응답에는 소재(`campaign_name`+`asset_group`+`ad_name`)별 7일 합산
     `cost`/`impression`/`click`과, 소재 이미지 조회에 필요한 `creative_id`/
     `platform_account_id`가 들어있다.
-  - `media="airbridge"` 응답에는 날짜별·소재별 `airbridge_revenue`/`reservation`이
+  - `media="airbridge"` 응답에는 같은 소재 단위 7일 합산 `airbridge_revenue`/`reservation`이
     들어있다. **실제로 소재(ad) 단위까지 매출/예약이 정상 귀속됨을 확인했다**(2026-08-03) —
     캠페인 값을 공유하는 게 아니라 진짜 소재별 값이다.
-- **이 두 호출의 응답은 `creative-detailed-section-3-daily-CTR.md`(section-3),
-  `creative-detailed-section-4-daily-ROAS.md`(section-4),
-  `creative-detailed-section-5-daily-creative-performance.md`(section-5)가 그대로
-  재사용한다** — 네 섹션이 각자 다시 호출하지 않는다. section-3은 meta 응답을,
-  section-4는 airbridge 응답을, section-5는 두 응답 전체를 가져다 쓴다.
+- **이 두 호출의 응답은 `creative-detailed-section-5-daily-creative-performance.md`(section-5)가
+  그대로 재사용한다** — section-5도 다시 호출하지 않는다. section-1은 이 응답에서 상위 2개만
+  뽑아 카드로 보여주고, section-5는 전체 소재를 표로 나열한다(같은 원본, 다른 가공).
 - ⚠️ `campaign-type` 금지. ⚠️ `group_by`는 문자열 `"ad"` 그대로 보낸다.
-- ⚠️ **응답 행 수가 많으면(예: 소재가 많은 브랜드), 두 응답을 그대로 컨텍스트에 붙잡고 손으로
-  합산/조인하지 말고 1회성 Bash 명령(grep/awk/jq 등, 파일로 남기지 않음)으로 필터링·조인·집계·
-  정렬까지 마친 뒤 그 결과만 사용한다** — `SKILL.md`의 "실행 방식 절대 지침" 중 Bash 집계
-  예외 항목 참고. 근사치로 채우거나 일부만 계산하지 않는다.
+- ✅ **이 호출은 이미 소재당 한 행(7일 합산 완료)으로 오므로, 클라이언트 쪽 Bash 집계가 필요
+  없다.** 과거(daily_table로 받던 시절)에는 날짜별로 흩어진 수백 개 행을 소재 단위로 직접
+  합산·조인·정렬해야 했고, 이 수작업이 실제 프로덕션에서 두 차례(2026-07-11, 2026-07-12)
+  모델이 표를 손으로 옮겨 적다 값을 근사치로 채우는 사고로 이어졌다(하단 `CLAUDE.md` 참고).
+  `get_ad_performance_range_table`이 그 합산을 서버에서 이미 끝낸 채로 주므로, 남는 작업은
+  meta 응답과 airbridge 응답을 `campaign_name`+`asset_group`+`ad_name`으로 조인하고 ROAS/CTR을
+  계산해 정렬하는 것뿐이다 — 응답 행 수 자체가 "소재 개수"만큼이라 daily 응답보다 훨씬
+  작으므로, 이 조인·정렬은 일반적인 브랜드 규모에서 눈으로 봐도 될 만큼 사소하다. 소재 수가
+  극단적으로 많아 응답이 여전히 크게 느껴지면 그때만 1회성 Bash 명령으로 조인·정렬해도 되지만,
+  이 섹션에서 "반드시 Bash로 끝까지 집계"해야 하는 절대 요구사항은 더 이상 아니다(§ 실행
+  방식 절대 지침의 Bash 집계 문단 참고 — 그 문단은 여전히 날짜별 응답(`get_ad_performance_daily_table`)에
+  적용된다).
 
 ## MCP 도구 호출: `get_ad_creative_info` × 1 (최종 선정된 소재만)
 
@@ -53,17 +63,18 @@
   않는다** — 사용자가 보고서를 다운로드해서 열 때는 네트워크가 항상 연결되어 있다고 가정하므로
   파일에 이미지를 인라인으로 심어둘 필요가 없다.
 
-## 필요 데이터 (소재별, 최근 7일 합산)
+## 필요 데이터 (소재별, 최근 7일 합산 — 이미 합산되어 응답됨)
 
-**매체 지표** (`media`가 `"meta"`인 행을 소재(`campaign_name`+`asset_group`+`ad_name`) 단위로
-7일 합산):
-- `광고비` = `cost` 합 / `노출` = `impression` 합 / `클릭` = `click` 합
+**매체 지표** (`media`가 `"meta"`인 응답의 각 행 = 소재(`campaign_name`+`asset_group`+`ad_name`)
+하나당 7일 합산 값 하나. 날짜별로 흩어진 여러 행을 우리가 다시 더할 필요가 없다 — 행 자체가
+이미 그 소재의 7일 합계다):
+- `광고비` = 그 행의 `cost` / `노출` = 그 행의 `impression` / `클릭` = 그 행의 `click`
 - `CTR` = 클릭 ÷ 노출 × 100 (노출 0이면 이 소재는 CTR 랭킹에서 제외)
-- `creative_id`/`platform_account_id`는 7일 내 값이 동일해야 정상이다(소재가 도중에 교체되지
-  않는 한) — 아무 날짜의 값이나 사용한다.
+- `creative_id`/`platform_account_id`는 그 행에 그대로 들어있다(과거 daily 응답처럼 날짜마다
+  값이 동일한지 확인할 필요가 없다 — 행 자체가 소재당 하나뿐이다).
 
-**airbridge 지표** (`media`가 `"airbridge"`인 행을 같은 소재 단위로 7일 합산):
-- `매출` = `airbridge_revenue` 합 / `예약 완료` = `reservation` 합
+**airbridge 지표** (`media`가 `"airbridge"`인 응답의 각 행 = 같은 소재 단위 7일 합산 값 하나):
+- `매출` = 그 행의 `airbridge_revenue` / `예약 완료` = 그 행의 `reservation`
 
 **조인**: `campaign_name`+`asset_group`+`ad_name` **세 필드 모두 정확히 일치**해야 같은
 소재로 본다.

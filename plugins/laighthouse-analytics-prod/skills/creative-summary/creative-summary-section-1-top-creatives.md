@@ -6,7 +6,7 @@
 7일**을 통째로 합산해서, 그 기간 소재(개별 광고) 단위 **ROAS 1·2위**와 **CTR 1·2위**를 각각
 카드로 보여준다. 날짜별 비교가 아니라 **7일 전체를 하나로 합친 누적 값** 기준이다.
 
-## MCP 도구 호출: `get_ad_performance_daily_table` × 2 (`media="meta"` / `media="airbridge"`, `group_by: "ad"`, 최근 7일)
+## MCP 도구 호출: `get_ad_performance_range_table` × 2 (`media="meta"` / `media="airbridge"`, `group_by: "ad"`, 최근 7일)
 
 ```json
 { "brand_name": "breezm", "media": "meta", "start_date": "기준일 6일 전 YYYY-MM-DD", "end_date": "target_date", "group_by": "ad" }
@@ -15,19 +15,37 @@
 { "brand_name": "breezm", "media": "airbridge", "start_date": "기준일 6일 전 YYYY-MM-DD", "end_date": "target_date", "group_by": "ad" }
 ```
 
-- ⚠️ **`media`를 생략하지 않고 `meta`/`airbridge` 각각 명시해서 2회 호출한다.** `group_by:"ad"`에서
-  `media`를 생략하면 google/naver/tiktok/ga4까지 한 응답에 섞여 들어와 응답 크기가 수십만
-  자로 폭증한다(실측 76만+자 — `media="meta"` 단독 호출만도 이미 13만자대로 큰데, 생략 시
-  5~6배로 커진다). 그 결과 모델이 표를 손으로 옮겨 적고 머릿속으로 합산하려다 근사값으로
-  때우는 등 정확도 사고로 이어진 사례가 실제로 있었다. **이 2회 호출 응답은 이 report_type의
-  section-3/4/5도 그대로 재사용한다** — 섹션마다 다시 호출하지 않는다.
-- 기간은 기준일을 포함해 정확히 7일이다(daily 섹션-3과 동일한 7일 윈도우).
-- `media === "meta"` 행에는 날짜별·소재(`campaign_name`+`asset_group`+`ad_name`)별
-  `cost`/`impression`/`click`과, 소재 이미지 조회에 필요한 `creative_id`/
-  `platform_account_id`가 들어있다.
-- `media === "airbridge"` 행에는 날짜별·소재별 `airbridge_revenue`/`reservation`이 들어있다.
-  **실제로 소재(ad) 단위까지 매출/예약이 정상 귀속됨을 확인했다**(2026-08-03) — 캠페인 값을
-  공유하는 게 아니라 진짜 소재별 값이다.
+> ⚡ **2026-08-09 (4)에 `get_ad_performance_daily_table`에서 `get_ad_performance_range_table`로
+> 전환했다** — 이 도구는 `start_date`~`end_date` **전체 구간을 소재 단위로 이미 합산해 한
+> 행씩** 돌려준다(날짜별 행이 아니다). 이 섹션이 필요한 건 처음부터 "7일 전체를 합친 소재별
+> 누적 값"뿐이었으므로, 이 응답은 별도 집계 없이 그 자체가 최종 데이터다 — 아래 "필요
+> 데이터"에서 하던 소재별 7일 합산을 이 호출이 대신 해준다. `is_active`는 이 도구에서는 항상
+> 비어 있는데(구간 내 상태 변화 가능성 때문), 이 섹션은 애초에 `is_active`를 쓰지 않으므로
+> 영향 없음. 기간은 92일까지 지원되며 이 섹션의 7일은 그 안에 넉넉히 들어간다.
+
+- ⚠️ **`media`를 생략하지 않고 `meta`/`airbridge` 각각 명시해서 2회 호출한다** — 이 도구도
+  `group_by:"ad"`에서 `media`를 생략하면 다른 매체 행까지 한 응답에 섞여 들어온다(위험 자체는
+  `get_ad_performance_daily_table` 때와 동일한 구조). 다만 이 응답은 애초에 날짜별이 아니라
+  소재별 1행이라 응답 크기 자체가 daily 대비 훨씬 작다.
+- **이 2회 호출 응답은 section-3/4/5와 더 이상 공유되지 않는다** — section-3/4/5는 여전히
+  날짜별(일별) 데이터가 필요해서 `get_ad_performance_daily_table`을 별도로 호출한다(SKILL.md
+  실행 순서 2단계, section-3/4/5 각 파일의 "MCP 도구 호출" 참고). 단, section-4는 소재 선정
+  (광고비 상위 5개)에 필요한 "소재별 7일 합산 cost"를 이 섹션의 range_table 응답에서 그대로
+  가져다 쓴다(재계산 불필요) — 자세한 내용은 section-4 파일 참고.
+- **랭킹(ROAS/CTR 1·2위 선정)에 더 이상 Bash 집계가 필요 없다** — 응답이 이미 소재당 1행,
+  7일 합산 값으로 오므로, ROAS/CTR을 내림차순으로 정렬해 1·2위를 뽑는 것은 그냥 단순 정렬이다
+  (아래 "선정 로직" 참고). SKILL.md의 "Bash 집계는 필수 단계다" 규칙은 여전히 유효하지만,
+  그건 `get_ad_performance_daily_table`처럼 날짜별로 여러 행이 오는 응답(=section-3/4/5가
+  쓰는 응답)에 대한 이야기이고, 이 섹션이 받는 range_table 응답에는 적용할 대상 자체가 없다
+  (합칠 날짜별 행이 없다 — 이미 합쳐져서 온다).
+- 기간은 기준일을 포함해 정확히 7일이다.
+- `media === "meta"` 행에는 소재(`campaign_name`+`asset_group`+`ad_name`)별 **7일 합산**
+  `cost`/`impression`/`click`과, 소재 이미지 조회에 필요한 `creative_id`/`platform_account_id`가
+  들어있다(소재당 1행이므로 그 행의 값을 그대로 쓴다 — "아무 날짜의 값이나 고른다"는 절차가
+  더 이상 필요 없다).
+- `media === "airbridge"` 행에는 소재별 **7일 합산** `airbridge_revenue`/`reservation`이
+  들어있다. **실제로 소재(ad) 단위까지 매출/예약이 정상 귀속됨을 확인했다**(2026-08-03) —
+  캠페인 값을 공유하는 게 아니라 진짜 소재별 값이다.
 - ⚠️ `campaign-type` 금지. ⚠️ `group_by`는 문자열 `"ad"` 그대로 보낸다.
 
 ## MCP 도구 호출: `get_ad_creative_info` × 1 (최종 선정된 소재만)
@@ -46,14 +64,17 @@
 
 ## 필요 데이터 (소재별, 최근 7일 합산)
 
-**매체 지표** (`meta` 응답을 소재(`campaign_name`+`asset_group`+`ad_name`) 단위로 7일 합산):
-- `광고비` = `cost` 합 / `노출` = `impression` 합 / `클릭` = `click` 합
-- `CTR` = 클릭 ÷ 노출 × 100 (노출 0이면 이 소재는 CTR 랭킹에서 제외)
-- `creative_id`/`platform_account_id`는 7일 내 값이 동일해야 정상이다(소재가 도중에 교체되지
-  않는 한) — 아무 날짜의 값이나 사용한다.
+> ℹ️ **`get_ad_performance_range_table` 응답은 이미 소재당 1행으로 7일 합산되어 온다** — 아래
+> "합산" 표현은 "여러 날짜 행을 직접 더한다"는 뜻이 아니라 "그 응답 행의 값을 그대로 쓴다"는
+> 뜻이다. 별도로 더하거나 집계할 필요가 없다.
 
-**airbridge 지표** (`airbridge` 응답을 같은 소재 단위로 7일 합산):
-- `매출` = `airbridge_revenue` 합 / `예약 완료` = `reservation` 합
+**매체 지표** (`meta` 응답의 소재(`campaign_name`+`asset_group`+`ad_name`)별 1행 값):
+- `광고비` = `cost` / `노출` = `impression` / `클릭` = `click`
+- `CTR` = 클릭 ÷ 노출 × 100 (노출 0이면 이 소재는 CTR 랭킹에서 제외)
+- `creative_id`/`platform_account_id`도 그 행의 값을 그대로 쓴다.
+
+**airbridge 지표** (`airbridge` 응답의 같은 소재 단위 1행 값):
+- `매출` = `airbridge_revenue` / `예약 완료` = `reservation`
 
 **조인**: `campaign_name`+`asset_group`+`ad_name` **세 필드 모두 정확히 일치**해야 같은
 소재로 본다.

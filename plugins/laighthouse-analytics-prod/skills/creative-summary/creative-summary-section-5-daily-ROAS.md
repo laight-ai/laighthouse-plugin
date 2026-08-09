@@ -6,11 +6,13 @@
 보여준다 — 소재 선정과 매체 쪽 데이터는 section-4의 결과를 그대로 재사용하고, 이 섹션은
 airbridge 매출만 추가로 조회한다.
 
-## MCP 도구 호출: 신규 호출 없음 — section-1의 응답을 그대로 재사용
+## MCP 도구 호출: 신규 호출 없음 — section-3/4/5 공유 daily_table 응답을 그대로 재사용
 
-이 섹션은 section-1(최우수 소재)이 이미 호출한 아래 두 응답(`media="meta"`/`media="airbridge"`
-각 1회, `group_by: "ad"`, 최근 7일) 중 `media="airbridge"` 응답을 그대로 재사용한다 —
-**다시 호출하지 않는다**:
+⚠️ 2026-08-09 (4)부터 이 응답은 section-1이 아니라 SKILL.md 실행 순서 2단계(2-b)에서
+section-3/4/5용으로 별도 호출하는 `get_ad_performance_daily_table`에서 나온다(section-1은
+이제 `get_ad_performance_range_table`을 쓰고, 그 응답은 소재당 1행으로 날짜가 무너져 있어
+이 섹션의 "일별 ROAS"에는 쓸 수 없다). 이 섹션은 그 2-b 응답 중 `media="airbridge"` 응답을
+그대로 재사용한다 — **다시 호출하지 않는다**:
 
 ```json
 { "brand_name": "breezm", "media": "airbridge", "start_date": "기준일 6일 전 YYYY-MM-DD", "end_date": "target_date", "group_by": "ad" }
@@ -18,22 +20,25 @@ airbridge 매출만 추가로 조회한다.
 
 - 이 응답에서 `media === "airbridge"`인 행만 걸러서 쓴다.
 - **`media === "meta"` 쪽 행(section-4가 이미 걸러낸 것)도 재사용한다** — 이 섹션에서 다시
-  걸러내지 않는다. 두 필터링 모두 section-1이 받은 같은 원본 응답에서 나온다.
+  걸러내지 않는다. 두 필터링 모두 SKILL.md 2단계(2-b)에서 받은 같은 daily_table 원본 응답에서
+  나온다.
 - 기간은 section-4와 정확히 동일한 7일이다.
 - airbridge 행에는 날짜별·소재(`campaign_name`+`asset_group`+`ad_name`)별
   `airbridge_revenue`가 들어있다 — **소재(ad) 단위까지 매출이 정상 귀속됨을 확인했다**
   (2026-08-03).
-- ⚠️ `campaign-type` 금지(section-1에서 이미 호출했으므로 여기서는 해당 사항 없음 — 재사용만
-  확인). ⚠️ `group_by`는 문자열 `"ad"` 그대로다.
+- ⚠️ `campaign-type` 금지(SKILL.md 2단계에서 이미 호출했으므로 여기서는 해당 사항 없음 —
+  재사용만 확인). ⚠️ `group_by`는 문자열 `"ad"` 그대로다.
 
 ## 필요 데이터
 
-**소재 선정**: section-4에서 이미 뽑은 **7일 합산 광고비 상위 5개 소재**를 그대로 쓴다 —
-다시 계산하지 않는다. 라인 색상·범례 순서도 section-4와 동일하게 맞춘다. **표시 이름**(ad_name
-중복 시 `ad_name (asset_group)`으로 구분한 이름)도 section-4에서 이미 정한 것을 그대로
-재사용한다 — 다시 판단하지 않는다.
+**소재 선정**: section-4에서 이미 뽑은 **7일 합산 광고비 상위 5개 소재**(section-1의
+range_table 응답에서 뽑은 것, section-4 파일 참고)를 그대로 쓴다 — 다시 계산하지 않는다.
+라인 색상·범례 순서도 section-4와 동일하게 맞춘다. **표시 이름**(ad_name 중복 시
+`ad_name (asset_group)`으로 구분한 이름)도 section-4에서 이미 정한 것을 그대로 재사용한다 —
+다시 판단하지 않는다.
 
-**일별 시리즈** (선정된 5개 소재 각각에 대해):
+**일별 시리즈** (선정된 5개 소재 각각에 대해, 이미 알고 있는 정확한 키로 daily 응답에서
+exact-match 필터링 — 전체 소재를 다시 랭킹 매기지 않는 닫힌 추출):
 - **조인**: `campaign_name`+`asset_group`+`ad_name` 세 필드가 정확히 일치하는 날짜의
   airbridge 행을 찾아 `airbridge_revenue`를 가져온다. section-4에서 쓴 같은 소재의 같은
   날짜 `cost`(메타 쪽)를 분모로 쓴다.

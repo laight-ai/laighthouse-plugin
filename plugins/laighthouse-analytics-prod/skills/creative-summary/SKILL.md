@@ -55,14 +55,26 @@ MCP 데이터를 받아 **라이트하우스 스타일 성과 보고서**로 렌
 > 쓰더라도 동일하게 적용됨). 이 스킬이 만드는 파일은 오직 최종 보고서 HTML 하나뿐이다.
 >
 > ↳ **단, 이 금지 원칙은 "재사용 가능한 파이프라인 파일을 만들지 말라"는 것이며, "집계에
-> Bash를 쓰지 말라"는 뜻이 아니다.** `group_by:"ad"` 같은 응답을 받으면 **반드시** Bash
-> (grep/awk/jq 등, 파일로 남기지 않는 즉석 명령)로 전체 행에 대해 정확하게 media
-> 필터링(meta/airbridge 분리), `campaign_name`+`asset_group`+`ad_name` 조인, 소재별 7일 합산,
-> 비용 내림차순 정렬까지 수행한다 — 이것은 "쓸 수도 있는 선택지"가 아니라 이 스킬을 실행하는
-> 한 **건너뛸 수 없는 필수 단계**다. 그 결과로 나온 작은 요약표(상위 N개 소재)만 컨텍스트에
-> 남긴다 — 원본 테이블 전체를 손으로 옮겨 적거나(bash heredoc에 재입력하는 것 포함) 머릿속으로
-> 합산하지 않는다. 이건 재사용 가능한 스크립트 파일을 만드는 것과 다르다 — 결과가 나오면
-> 버려지는 즉석 명령이다.
+> Bash를 쓰지 말라"는 뜻이 아니다.** `get_ad_performance_daily_table`처럼 `group_by:"ad"`로
+> **날짜별 행이 여러 개** 오는 응답을 받으면 **반드시** Bash(grep/awk/jq 등, 파일로 남기지
+> 않는 즉석 명령)로 전체 행에 대해 정확하게 media 필터링(meta/airbridge 분리),
+> `campaign_name`+`asset_group`+`ad_name` 조인, 날짜별/소재별 합산까지 수행한다 — 이것은
+> "쓸 수도 있는 선택지"가 아니라 이 스킬을 실행하는 한 **건너뛸 수 없는 필수 단계**다. 그
+> 결과로 나온 작은 요약표만 컨텍스트에 남긴다 — 원본 테이블 전체를 손으로 옮겨 적거나(bash
+> heredoc에 재입력하는 것 포함) 머릿속으로 합산하지 않는다. 이건 재사용 가능한 스크립트 파일을
+> 만드는 것과 다르다 — 결과가 나오면 버려지는 즉석 명령이다.
+> ↳ **이 필수 규칙은 응답이 실제로 여러 날짜 행으로 쪼개져 오는 경우에만 적용된다.**
+> `get_ad_performance_range_table`(section-1이 쓰는 도구, 2026-08-09 (4)부터 도입)은 구간
+> 전체를 소재당 1행으로 이미 합산해서 돌려주므로, 합칠 날짜별 행 자체가 없다 — 이 경우 Bash
+> 집계는 "생략 가능"이 아니라 **적용할 대상이 없다**(section-1의 ROAS/CTR 1·2위 선정은 이미
+> 합산된 소재별 값을 그냥 내림차순 정렬하는 것뿐이다). section-4/5는 여전히
+> `get_ad_performance_daily_table`(날짜별 행)을 쓰므로 이 필수 규칙이 그대로 적용되지만,
+> 대상 범위가 더 좁아졌다 — section-1의 range_table 응답에서 이미 뽑힌 "광고비 상위 5개
+> 소재"의 정확한 키(campaign_name+asset_group+ad_name)를 알고 있으므로, 전체 소재를 열어서
+> 랭킹을 다시 매길 필요 없이 그 5개 키로 daily 응답을 **정확히 일치하는 행만 걸러내는**
+> exact-match 필터링만 하면 된다(5개 소재 × 7일 = 최대 35행, 열린 집계가 아니라 닫힌 추출).
+> section-3은 예외적으로 여전히 **모든** 소재를 날짜별로 합산해야 한다(전체 CTR/ROAS 추이가
+> 목적이므로 상위 5개로 좁힐 수 없다) — section-3에는 이 좁아진 범위가 적용되지 않는다.
 >
 > 🚫 **"이 정도만 훑어보고 나머지는 추정" 같은 부분 처리는 절대 금지한다.** 실제
 > `creative-detailed` 프로덕션 실행(2026-08-09)에서, 모델이 Bash로 데이터를 파일에 옮기다가
@@ -108,27 +120,35 @@ MCP 데이터를 받아 **라이트하우스 스타일 성과 보고서**로 렌
 ## 실행 순서
 
 1. 파라미터를 파싱한다. report_type은 `creative-summary`로 고정되어 있다.
-2. 소재 데이터를 호출한다 — `get_ad_performance_daily_table`을 `media="meta"`와
-   `media="airbridge"` 각각으로 **2회** 호출한다(`group_by:"ad"`, 기준일 6일 전 ~ target_date,
-   7일). ⚠️ **`media`를 생략하지 않는다** — `group_by:"ad"`처럼 행 수가 많은 조회에서 `media`를
-   생략하면 google/naver/tiktok/ga4까지 한 응답에 섞여 들어와 응답 크기가 (실측) 76만+자로
-   폭증하고(`media="meta"` 단독 호출도 이미 13만자대로 크다), 그 크기를 감당 못 한 모델이 표를
-   손으로 옮겨 적고 머릿속으로 합산하려다 근사값으로 채우는 정확도 사고로 이어진 사례가 실제
-   프로덕션 실행에서 확인됐다(자세한 내용은 `CLAUDE.md` 참고). 두 매체(각 호출 결과)를
-   `campaign_name`+`asset_group`+`ad_name` 세 필드로 조인해서 소재별 노출/클릭/광고비(메타
-   쪽)와 매출/예약 완료(airbridge 쪽)를 구한다 — Airbridge가 소재(ad) 단위까지 매출/예약을
-   정상적으로 귀속한다(`creative-summary-section-1-top-creatives.md` 참고). 소재 이미지는
-   `get_ad_creative_info`(메타 응답의 `creative_id`/`platform_account_id`를 그대로 전달)로
-   가져온 `thumbnail_image_url`을 쓴다. **메타(Meta Ads)만 대상**이며, `get_target_progress_v2`
-   나 `day_offset`은 쓰지 않는다.
-   - ⚠️ **이 2회 호출 응답을 section-1/3/4/5가 전부 공유해서 재사용한다** — 각 섹션 파일의
-     "MCP 도구 호출" 절이 "신규 호출 없음, 재사용"이라고 적혀 있는 이유가 이것이다. 섹션별로
-     다시 호출하지 않는다.
-   - `get_ad_creative_info`는 이 도구와 파라미터 형태가 다르다(매체별 key 목록을 받는 방식) —
+2. 소재 데이터를 호출한다 — **두 갈래로 나뉜다** (2026-08-09 (4)에 `get_ad_performance_range_table`이
+   추가되면서 갈라졌다. 자세한 배경은 `CLAUDE.md` 참고):
+   - **2-a. section-1용 (7일 합산, 랭킹)**: `get_ad_performance_range_table`을 `media="meta"`와
+     `media="airbridge"` 각각으로 **2회** 호출한다(`group_by:"ad"`, 기준일 6일 전 ~ target_date,
+     7일). 이 도구는 구간 전체를 소재당 1행으로 이미 합산해서 돌려주므로, 응답을 그대로 ROAS/CTR
+     내림차순 정렬만 하면 랭킹이 나온다 — 별도 Bash 집계가 필요 없다(section-1 파일 참고).
+   - **2-b. section-3/4/5용 (일별 추이)**: `get_ad_performance_daily_table`을 `media="meta"`와
+     `media="airbridge"` 각각으로 **2회** 호출한다(`group_by:"ad"`, 같은 7일 윈도우). section-3/4/5는
+     날짜별 CTR/ROAS 추이가 필요해서 range_table로 대체할 수 없다 — 이 응답은 여전히 날짜별
+     행이 필요하다. ⚠️ **`media`를 생략하지 않는다** — `group_by:"ad"`처럼 행 수가 많은 조회에서
+     `media`를 생략하면 google/naver/tiktok/ga4까지 한 응답에 섞여 들어와 응답 크기가 (실측)
+     76만+자로 폭증하고(`media="meta"` 단독 호출도 이미 13만자대로 크다), 그 크기를 감당 못 한
+     모델이 표를 손으로 옮겨 적고 머릿속으로 합산하려다 근사값으로 채우는 정확도 사고로 이어진
+     사례가 실제 프로덕션 실행에서 확인됐다(자세한 내용은 `CLAUDE.md` 참고).
+   - 두 매체(각 호출 결과)를 `campaign_name`+`asset_group`+`ad_name` 세 필드로 조인해서 소재별
+     노출/클릭/광고비(메타 쪽)와 매출/예약 완료(airbridge 쪽)를 구한다 — Airbridge가 소재(ad)
+     단위까지 매출/예약을 정상적으로 귀속한다(`creative-summary-section-1-top-creatives.md`
+     참고). 소재 이미지는 `get_ad_creative_info`(메타 응답의 `creative_id`/`platform_account_id`를
+     그대로 전달)로 가져온 `thumbnail_image_url`을 쓴다. **메타(Meta Ads)만 대상**이며,
+     `get_target_progress_v2`나 `day_offset`은 쓰지 않는다.
+   - ⚠️ **2-a 응답은 section-1만 쓴다. 2-b 응답은 section-3/4/5가 전부 공유해서 재사용한다** —
+     각 섹션 파일의 "MCP 도구 호출" 절을 참고. section-4는 추가로 2-a(section-1의 range_table
+     응답)에서 소재별 7일 합산 `cost`를 그대로 가져다 "광고비 상위 5개" 선정에 쓴다(재집계
+     불필요) — section-4 파일 참고. 섹션별로 같은 데이터를 다시 호출하지 않는다.
+   - `get_ad_creative_info`는 이 도구들과 파라미터 형태가 다르다(매체별 key 목록을 받는 방식) —
      여기에는 위 media 분리 호출과 무관하게 원래부터 1회 호출이다.
 3. 나머지 `mcp__laighthouse__*` generic 도구를 호출해 각 섹션 수치 데이터를 가져온다 (각 섹션
-   파일에 명시된 정확한 tool명 참고). **이 스킬은 2단계의 소재 데이터 호출 2회와
-   `get_ad_creative_info` 1회, 총 3회의 MCP 데이터 호출만으로 끝난다** — 3~5단계는 모두
+   파일에 명시된 정확한 tool명 참고). **이 스킬은 2단계의 소재 데이터 호출 4회(2-a 2회 + 2-b
+   2회)와 `get_ad_creative_info` 1회, 총 5회의 MCP 데이터 호출만으로 끝난다** — 4~5단계는 모두
    2단계 응답의 재가공이며 신규 호출이 없다.
    - **generic 도구**(`get_ad_performance_daily_table`/`get_ad_performance_monthly_table`)만
      쓴다 — naver 전용 도구는 브리즘에 적용되지 않으므로 절대 쓰지 않는다.
@@ -177,13 +197,15 @@ MCP 데이터를 받아 **라이트하우스 스타일 성과 보고서**로 렌
 > 없다 — Anthropic 공식 문서도 "API는 실행 순서를 강제하지 않으며 동시/순차 여부는 클라이언트
 > 구현에 달려 있다"고 명시한다(`daily-summary`에서 실측으로 확인된 사실 — 배치의 실제 효과는
 > "턴 오버헤드 제거"이지 "네트워크 동시 실행"이 아니다). 따라서 진짜 속도 개선은 배치 자체가
-> 아니라 **호출 총 개수를 줄이는 것**에서 나온다 — 위 2단계에서 소재 데이터 호출을
-> `media="meta"`/`media="airbridge"` 2회로 고정하고, section-1/3/4/5가 이를 공유해 각자
-> 다시 호출하지 않도록 한 것이 그 이유다(이 스킬의 전체 MCP 데이터 호출은 소재 데이터 2회 +
-> `get_ad_creative_info` 1회, 총 3회로 끝난다). 그래도 배치는 공짜 이득이니 계속 유지한다 —
-> 두 소재 데이터 호출은 서로 의존하지 않으므로 한 메시지에서 동시에 발사한다. 하나씩 순차
-> 호출하면 호출마다
-> 브랜드 권한 확인 왕복과 턴 지연이 누적되어 보고서 생성이 느려진다.
+> 아니라 **호출 총 개수를 줄이는 것**에서 나온다 — 위 2단계에서 소재 데이터 호출을 section-1용
+> (range_table, `media="meta"`/`media="airbridge"` 2회) + section-3/4/5용(daily_table, 같은
+> media 2회) 총 4회로 고정하고, section-3/4/5가 daily_table 응답을 공유해 각자 다시 호출하지
+> 않도록 한 것이 그 이유다(이 스킬의 전체 MCP 데이터 호출은 소재 데이터 4회 +
+> `get_ad_creative_info` 1회, 총 5회로 끝난다 — 2026-08-09 (4)에 range_table 도입으로 3회→5회
+> 로 늘었지만, section-1의 랭킹에서 Bash 집계가 완전히 없어지고 section-4/5의 daily 필터링도
+> "전체 랭킹"에서 "5개 키 exact-match"로 줄어든 대가다). 이 4회는 서로 의존하지 않으므로 한
+> 메시지에서 동시에 발사한다. 하나씩 순차 호출하면 호출마다 브랜드 권한 확인 왕복과 턴 지연이
+> 누적되어 보고서 생성이 느려진다.
 
 > 🚫 **MCP 응답을 스크래치패드/임시 파일에 썼다가 다시 읽어오지 않는다.** 각 MCP 호출 결과는
 > 이미 그 턴의 대화 컨텍스트 안에 있으므로, HTML을 조합할 때 그 값을 직접 참조해서 쓴다.
@@ -247,21 +269,26 @@ section-2(Executive Summary)는 `mtd-detailed`/`daily-detailed`/`monthly-detaile
 section-4는 `creative-detailed`의 section-3(최근 7일 일별 CTR, 광고비 상위 5개 소재)과 **완전히
 동일한 내용**이다 — **섹션 번호만 3→4로 하나 밀렸다.** 내부에서 서로를 가리키던
 "section-4(일별 ROAS) 재사용" 같은 참조도 이 report_type 안에서는 "section-5"로 다시
-번호를 맞췄다.
+번호를 맞췄다. ⚠️ 2026-08-09 (4)부터 "광고비 상위 5개 소재" 선정의 데이터 소스가 바뀌었다 —
+daily 응답 전체를 합산해서 뽑는 대신, section-1이 이미 호출한 range_table 응답(소재당 1행,
+7일 합산 `cost` 포함)을 그대로 정렬해서 뽑는다(재계산 없음, section-4 파일 참고).
 
 section-5는 `creative-detailed`의 section-4(최근 7일 일별 ROAS, 광고비 상위 5개 소재)와 **완전히
 동일한 내용**이다 — **섹션 번호만 4→5로 하나 밀렸다.** section-4(이 report_type 안에서의
-번호)가 뽑은 "광고비 상위 5개 소재"와 매체(meta) 데이터, 그리고 section-1이 받은 응답 중
-airbridge 매출 행을 재사용한다 — 신규 호출은 없다(위 "실행 순서" 2단계 참고, section-1이
-받은 `media="meta"`/`media="airbridge"` 2회 호출 응답을 section-4/5 모두 새로 호출하지
-않고 그대로 재사용한다).
+번호)가 뽑은 "광고비 상위 5개 소재"와 매체(meta) 데이터, 그리고 section-3/4/5가 공유하는
+daily_table 응답 중 airbridge 매출 행을 재사용한다 — 신규 호출은 없다(위 "실행 순서" 2단계의
+2-b 참고, `media="meta"`/`media="airbridge"` daily_table 2회 호출 응답을 section-3/4/5 모두
+공유하고 각자 새로 호출하지 않는다).
 
 section-3(최근 7일 전체 소재 CTR 및 ROAS)은 **`creative-detailed`에는 없는 신규 섹션**이다 — 신규
-MCP 호출이 전혀 없다(가설대로 확인됨) — section-1이 호출한 응답(`media="meta"`/
-`media="airbridge"` 2회, `group_by:"ad"`, 7일)에서 section-4/5가 걸러낸 meta/airbridge 행을
-그대로 재사용하되, "광고비 상위 5개"로
+MCP 호출이 전혀 없다(가설대로 확인됨) — section-3/4/5가 공유하는 daily_table 응답(`media="meta"`/
+`media="airbridge"` 2회, `group_by:"ad"`, 7일. 위 "실행 순서" 2단계의 2-b 참고)에서
+section-4/5가 걸러낸 meta/airbridge 행을 그대로 재사용하되, "광고비 상위 5개"로
 거르지 않고 **날짜별로 모든
-소재를 합산**해서 전체 CTR(=합산 클릭÷합산 노출)을 계산한다. **전체 ROAS(=합산 매출÷합산
+소재를 합산**해서 전체 CTR(=합산 클릭÷합산 노출)을 계산한다. section-3은 section-1의
+range_table 응답(소재당 1행으로 이미 합산된 값)이 아니라 daily_table 응답(날짜별 행)이
+필요하다 — range_table은 날짜를 무너뜨려 한 행으로 합쳐버리므로 "날짜별 추이"를 낼 수 없기
+때문이다. **전체 ROAS(=합산 매출÷합산
 광고비)의 분자(매출)는 무조건 airbridge 응답 전체를 합산하지 않는다** — 그 날짜 `meta`
 응답에 있는 소재(`campaign_name`+`asset_group`+`ad_name` 조인)와 일치하는 행의
 `airbridge_revenue`만 더한다. 이렇게 해야 이 섹션의 "전체"가 가리키는 소재 집합이
