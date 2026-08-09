@@ -93,20 +93,26 @@ MCP 데이터를 받아 **라이트하우스 스타일 성과 보고서**로 렌
    행의 `target`이 0이면(브리즘은 현재 `revenue` 목표가 세 매체 다 0이다) 해당 목표 필드는
    N/A로 표시하고, 대체 값은 `get_ad_performance_daily_table`이 아니라
    **`get_ad_performance_monthly_table`(`start_month`=`end_month`=당월,
-   `day_offset`=target_date.day)**로 가져온다 — 날짜별 행을 직접 합산하는 것보다 훨씬 빠르다
-   (섹션 파일의 대체 규칙 참고). 매출 실적(`기간 매출`/`광고 매출`)은 목표 유무와 무관하게
-   **항상** 이 방식(`media="airbridge"`, `group_by:"media"`, `day_offset`)으로 가져온다 —
-   `get_target_progress_v2`의 `revenue` 행 `actual`은 naver에서 0을 반환하는 경우가 있어
-   매출 실적으로 절대 쓰지 않는다.
+   `day_offset`=target_date.day, `group_by:"media"`, `media` 파라미터는 생략)**로 가져온다 —
+   날짜별 행을 직접 합산하는 것보다 훨씬 빠르다 (섹션 파일의 대체 규칙 참고). 매출 실적(`기간
+   매출`/`광고 매출`)은 목표 유무와 무관하게 **항상** 이 방식(`media` 생략, `group_by:"media"`,
+   `day_offset`)으로 가져온다 — `media`를 생략하면 이 호출 하나로 매출 실적(airbridge 행)과
+   fallback 소진액 후보(google/meta/naver 행)를 동시에 받으므로, 목표 판정 결과를 기다렸다가
+   매체별로 추가 호출을 낼 필요가 없다. `get_target_progress_v2`의 `revenue` 행 `actual`은
+   naver에서 0을 반환하는 경우가 있어 매출 실적으로 절대 쓰지 않는다.
    ⚠️ ROAS 관련 수치(`target_roas`/`actual_roas`)는 비율값(예: 0.87, 5.06)으로 반환되므로
    반드시 × 100 후 표시한다 (0.87 → 87%, 5.06 → 506%).
 3. 나머지 `mcp__laighthouse__*` generic 도구를 호출해 각 섹션 수치 데이터를 가져온다 (각 섹션
    파일에 명시된 정확한 tool명 참고).
    - **generic 도구**(`get_ad_performance_daily_table`/`get_ad_performance_monthly_table`)만
      쓴다 — naver 전용 도구는 브리즘에 적용되지 않으므로 절대 쓰지 않는다.
+   - ⚠️ **이 두 도구를 부를 때 `media` 파라미터를 아예 생략한다** (섹션 파일에 다르게 적혀
+     있지 않은 한). 생략하면 등록된 모든 매체(google/meta/naver/airbridge 등)가 한 응답에
+     함께 온다 — 매체별로 나눠 여러 번 부르지 않는다. section-3의 응답은 section-4가 그대로
+     재사용한다(각 섹션 파일의 "공유 응답 재사용" 절 참고).
    - ⚠️ 이 계열 도구의 `group_by`는 **문자열 enum**(`total`/`media`/`campaign`/`ad-set`/`ad`)이다
-     — `true`/`false` boolean으로 절대 보내지 않는다. 각 섹션 파일에 적힌 값(대부분 `"total"`)을
-     문자열 그대로 그 섹션에서만 쓴다.
+     — `true`/`false` boolean으로 절대 보내지 않는다. 각 섹션 파일에 적힌 값을 문자열 그대로
+     그 섹션에서만 쓴다.
    - ⚠️ **어떤 호출에도 `campaign-type` 파라미터를 넣지 않는다** — 넣으면 airbridge 행이 조용히
      누락된다.
 4. **section-2가 Executive Summary다.** `executive_summary` 텍스트는 `df_dify` MCP를 호출하지
@@ -114,17 +120,81 @@ MCP 데이터를 받아 **라이트하우스 스타일 성과 보고서**로 렌
    프로모션/이벤트 정보를 위해 `mcp__laighthouse__list_promotions`를 추가로 호출하는지 등
    세부 규칙은 `monthly-detailed-section-2-executive-summary.md`에 적힌 대로 따른다.
 5. 아래 표의 파일을 **순서대로 전부** import해 HTML을 조합한다.
-6. 이 스킬 폴더의 `assets/chart.umd.min.js` 파일을 읽어 그 내용 전체를 `{CHART_JS_INLINE}` 자리에
-   그대로 삽입한다 (CDN `<script src>` 절대 사용 금지 — 아래 보고서 골격의 경고 참고).
-7. 아래 **보고서 골격**에 섹션들을 삽입해 렌더링한다. 완성된 HTML은 아래 **두 곳에 동시에** 낸다 —
-   하나만 하고 끝내지 않는다:
-   - **채팅 내부 표시**: Claude Code(Artifact)에서 실행 중이면 Artifact 도구로 게시(위 스켈레톤과
-     같은 파일을 갱신). `mcp__visualize__show_widget`이 있는 호스트에서는 그걸 쓴다.
-   - **파일로 저장**: 동일한 최종 HTML을 `~/Downloads/laighthouse-reports/브리즘_monthly-detailed_
-     {기준_일자}.html` 경로에 그대로 저장한다 (디렉터리가 없으면 새로 만든다). 파일명 예:
-     `브리즘_monthly-detailed_2026-05-15.html`.
+6. ⚠️ **`chart.umd.min.js`(약 208KB)를 절대 자신의 응답 텍스트로 다시 타이핑(재생성)하지
+   않는다** — 이 파일을 Read해서 그 내용을 자기 출력(tool call 인자, 응답 텍스트)에 그대로
+   복사해 넣으면, 그 208KB(대략 5만 토큰)를 전부 출력 토큰으로 새로 생성해야 하므로 리포트
+   1건당 수십 초~수 분이 그냥 여기서 소모된다. 대신 호스트에 따라 아래 두 경로로 나눈다 —
+   **어느 쪽이든 모델이 chart.js 바이트를 직접 다시 쓰는 일은 없어야 한다**:
+   - **파일 시스템에 저장할 수 있는 호스트 (전용 "파일 복사" 도구 유무와 무관)**: 먼저
+     `~/Downloads/laighthouse-reports/chart.umd.min.js`가 **이미 존재하는지 확인**한다(파일
+     목록/존재 확인이 가능한 도구로). **이미 있으면 이 단계를 완전히 건너뛴다** — 아무 도구도
+     쓰지 않는다. **없을 때만** 그 경로에 `assets/chart.umd.min.js`를 생성한다 — 전용 "파일
+     복사" 도구가 있으면 그걸로 바이트 그대로 복사하고, 그런 도구가 없고 일반 "파일 쓰기"
+     도구(내용을 문자열 인자로 받는 것)만 있다면 그걸로라도 써서 만든다. **후자의 경우 그
+     순간만 208KB를 한 번 다뤄야 하지만, 그건 해당 폴더에 리포트가 생성되는 전체 기간 통틀어
+     "딱 한 번"뿐이다** — 그 파일이 일단 존재하면 이후의 모든 `monthly-detailed`(뿐 아니라
+     Chart.js를 쓰는 다른 report_type도 같은 자산을 공유할 수 있다) 리포트는 존재 확인만 하고
+     곧장 건너뛰므로, 매 리포트마다 반복되던 비용이 "생애 첫 리포트 1회"로 상각(amortize)된다.
+     파일이 준비되면(새로 만들었든 이미 있었든), 저장할 리포트 HTML의 `<head>`에는
+     `<script src="chart.umd.min.js"></script>`처럼 **같은 폴더를 가리키는 상대 경로
+     `<script src>`**를 쓴다 — `file://`로 연 로컬 HTML이 같은 폴더의 로컬 `.js` 파일을
+     상대 경로로 불러오는 것은 CDN 요청이 아니라 정상적으로 동작한다(classic `<script src>`는
+     ES 모듈/`fetch`와 달리 `file://`에서 CORS 제약이 없다).
+   - **CSP로 외부/상대 스크립트 로드가 막힌 호스트(Claude Code/claude.ai Artifact 등)**: 이
+     경우에만 어쩔 수 없이 인라인이 필요하다 — 이때도 모델이 직접 텍스트로 옮기지 말고, 파일
+     복사·연결(diff 적용, cp, 템플릿 치환 등 텍스트 재생성이 아닌 도구)이 가능하면 그 방식을
+     우선 쓴다. 그런 도구가 전혀 없는 호스트에서만 최후 수단으로 `{CHART_JS_INLINE}` 치환을
+     쓴다.
+   - **Artifact도 `show_widget`도 없는 호스트(예: Claude Desktop 채팅 그 자체)**: 아래 7단계의
+     "채팅 내부 표시" 사본을 아예 만들지 않는다 — 저장 파일 하나만 만들면 충분하다(어차피
+     Desktop 채팅 안에 실행 가능한 HTML을 렌더링할 방법이 없다). 완료 메시지에 저장 경로만
+     안내한다.
+7. 아래 **보고서 골격**에 섹션들을 삽입해 렌더링한다. 완성된 HTML은 호스트가 지원하는 경로
+   전부에 낸다 — 단, 위 6단계 규칙대로 지원되지 않는 경로는 만들지 않는다:
+   - **채팅 내부 표시** (Artifact 또는 `mcp__visualize__show_widget`이 있는 호스트에서만):
+     Claude Code(Artifact)에서 실행 중이면 Artifact 도구로 게시(위 스켈레톤과 같은 파일을
+     갱신). `mcp__visualize__show_widget`이 있는 호스트에서는 그걸 쓴다.
+   - **파일로 저장** (모든 호스트, 항상): 최종 HTML을 `~/Downloads/laighthouse-reports/브리즘_
+     monthly-detailed_{기준_일자}.html` 경로에 그대로 저장한다 (디렉터리가 없으면 새로
+     만든다). 파일명 예: `브리즘_monthly-detailed_2026-05-15.html`.
 8. 렌더링 후 사용자에게 보내는 완료 메시지는 아래 **완료 메시지 형식**을 그대로 따른다 — 매번 다른
    문구로 즉석 요약하지 않는다. 저장된 파일 경로를 완료 메시지 마지막 줄에 덧붙인다.
+
+---
+
+## 병렬 호출 지침 (성능 최적화)
+
+> ⚡ 이 스킬은 `render-report-docx`처럼 서브에이전트를 띄우지 않는다 — 오케스트레이터(본 대화)가
+> MCP를 직접 호출한다. **서로 결과에 의존하지 않는 MCP 호출은 한 메시지 안에서 동시에(병렬
+> tool call로) 발사한다.**
+>
+> ⚠️ **주의**: 한 메시지에 여러 tool call을 담아도, 이게 네트워크 레벨에서 진짜 동시 실행된다는
+> 보장은 없다 — Anthropic 공식 문서도 "API는 실행 순서를 강제하지 않으며 동시/순차 여부는
+> 클라이언트 구현에 달려 있다"고 명시한다(`daily-summary`에서 실측 확인됨 — 배치는 빠르긴
+> 하지만 "턴 오버헤드 제거" 효과이지 "네트워크 동시 실행"은 아니다). 따라서 진짜 속도 개선은
+> 배치보다 **호출 총 개수를 줄이는 것**(아래 통합 호출)에서 나온다. 그래도 배치는 공짜 이득이니
+> 계속 유지한다 — 하나씩 순차 호출하면 호출마다 브랜드 권한 확인 왕복과 턴 지연이 누적되어
+> 보고서 생성이 느려진다.
+
+- 이 스킬 전체가 조건부 2차 라운드 없이 데이터 호출을 전부 한 메시지에서 동시에 발사한다:
+  1. `get_target_progress_v2` × 3 (media=google/meta/naver)
+  2. `get_ad_performance_monthly_table` × 1 (`media` 생략, `group_by:"media"`,
+     `start_month`=`end_month`=당월, `day_offset`=target_date.day) — section-1의 매출 실적 +
+     fallback 소진액 후보
+  3. `get_ad_performance_monthly_table` × 1 (`media` 생략, `group_by:"media"`,
+     `start_month`=5개월 전, `end_month`=당월, `day_offset`=target_date.day) — section-3/4 공유
+  4. `get_ad_performance_monthly_table` × 1 (`media` 생략, `group_by:"campaign"`,
+     `start_month`=전월, `end_month`=당월, `day_offset`=target_date.day) — section-5
+  5. `list_promotions` × 1 (당월 1일 30일 전 ~ target_date) — section-2
+- 결과적으로 이 스킬의 데이터 호출은 **총 7회**(모두 한 배치)로 끝난다 — 예전에는 매체별
+  분리 호출(3+3(조건부)+4+4+4) + `list_promotions` 1회로 최대 19회에 달했다.
+
+> 🚫 **MCP 응답을 스크래치패드/임시 파일에 썼다가 다시 읽어오지 않는다.** 각 MCP 호출 결과는
+> 이미 그 턴의 대화 컨텍스트 안에 있으므로, HTML을 조합할 때 그 값을 직접 참조해서 쓴다.
+> 응답을 파일로 저장하고 나중에 다시 Read하는 왕복은 시간과 토큰만 소모할 뿐 아무 이득이
+> 없다 — "데이터 가공용 임시 스크립트/노트북을 만들지 않는다"는 위 원칙과 같은 이유로, 중간
+> 저장용 JSON/텍스트 파일도 만들지 않는다. 이 스킬이 실행 중 생성하는 파일은 최종 보고서
+> HTML 하나뿐이다(위 실행 방식 절대 지침과 동일).
 
 ---
 
@@ -314,21 +384,29 @@ end_idx   = min(labels.length-1, raw_end_idx)
 > 1일 ~ 7월 25일`). **"(MTD)"나 "(진행 중)" 같은 접미사를 붙이지 않는다** — 헤더는
 > 순수하게 기간만 표기한다.
 
-> ⚠️ **Chart.js는 CDN `<script src>`로 절대 불러오지 않는다.** Artifact(claude.ai 아티팩트)의 CSP는
-> 외부 호스트로 나가는 스크립트 요청을 전부 차단하므로, `<script src="https://cdn.jsdelivr.net/...">`
-> 로 로드하면 스크립트 자체가 실행되지 않아 모든 차트가 빈 캔버스로 남는다.
-> 대신 이 스킬 폴더의 `assets/chart.umd.min.js`(Chart.js v4 UMD 빌드, MIT license, 오프라인 자산)를
-> 읽어서 **그 파일 내용 전체를 `<script>...</script>` 태그 안에 그대로 붙여넣는다** (src 속성 없이,
-> 인라인 텍스트로). `{CHART_JS_INLINE}` 자리표시자가 그 자리다 — 절대 CDN URL로 되돌리지 않는다.
+> ⚠️ **Chart.js는 `https://cdn...` 같은 외부 CDN `<script src>`로는 절대 불러오지 않는다.**
+> Artifact(claude.ai 아티팩트)의 CSP는 외부 호스트로 나가는 스크립트 요청을 전부 차단하므로,
+> `<script src="https://cdn.jsdelivr.net/...">`로 로드하면 스크립트 자체가 실행되지 않아 모든
+> 차트가 빈 캔버스로 남는다. 이 스킬 폴더의 `assets/chart.umd.min.js`(Chart.js v4 UMD 빌드,
+> MIT license, 오프라인 자산)를 쓰되, **어느 경로를 쓰든 모델이 그 208KB를 직접 응답 텍스트로
+> 재생성하지 않는다** (위 6단계 참고):
+> - 로컬 파일로 저장하는 경우 → `assets/chart.umd.min.js`를 저장 폴더에 파일 그대로 복사해두고
+>   `<script src="chart.umd.min.js"></script>`(같은 폴더 상대 경로)를 쓴다.
+> - CSP 때문에 인라인이 꼭 필요한 Artifact 등에서만 → 텍스트 재생성이 아닌 도구(파일 복사/치환)로
+>   `{CHART_JS_INLINE}` 자리를 채운다. 그런 도구가 전혀 없을 때만 최후 수단으로 모델이 직접
+>   붙여넣는다.
 
 ```html
 <!DOCTYPE html>
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
+<!-- 로컬 파일 저장본: <script src="chart.umd.min.js"></script>
+     CSP로 상대 경로 로드가 막힌 호스트(Artifact 등)에서만 아래처럼 인라인:
 <script>
 {CHART_JS_INLINE}
 </script>
+-->
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans KR', sans-serif;

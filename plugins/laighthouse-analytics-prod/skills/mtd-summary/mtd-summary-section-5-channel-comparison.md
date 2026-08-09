@@ -7,24 +7,25 @@
 Naver Ads / Google Ads / Meta Ads / Organic / Others 5개 항목으로 성과를 구분해서 보여준다
 (`executive-monthly`의 section-5와 동일한 방식).
 
-## MCP 도구 호출: `get_ad_performance_monthly_table` × 4 (2개월 span, day_offset)
+## `get_ad_performance_monthly_table` — 별도 호출 없음, section-3의 공유 응답을 재사용
 
-```json
-{ "brand_name": "breezm", "start_month": "전월 YYYY-MM", "end_month": "당월 YYYY-MM", "media": "google", "group_by": "total", "day_offset": "target_date.day" }
-{ "brand_name": "breezm", "start_month": "전월 YYYY-MM", "end_month": "당월 YYYY-MM", "media": "meta", "group_by": "total", "day_offset": "target_date.day" }
-{ "brand_name": "breezm", "start_month": "전월 YYYY-MM", "end_month": "당월 YYYY-MM", "media": "naver", "group_by": "total", "day_offset": "target_date.day" }
-{ "brand_name": "breezm", "start_month": "전월 YYYY-MM", "end_month": "당월 YYYY-MM", "media": "airbridge", "group_by": "media", "day_offset": "target_date.day" }
-```
-
-- `day_offset`이 두 달 모두를 같은 일자(same-day MTD cut)까지 자른다 — 공정한 MoM 비교용.
-- google/meta/naver는 `group_by: "total"`(매체별 월간 `cost` 합)만 필요하다.
-- airbridge는 `group_by: "media"`(채널별 월간 `airbridge_revenue`/`reservation`)로 받는다.
-- ⚠️ 어떤 호출에도 `campaign-type`을 넣지 않는다 — airbridge 행이 조용히 누락된다.
-- ⚠️ `group_by`는 문자열 그대로 보낸다 (`"total"`/`"media"`).
+- 이 섹션은 `get_ad_performance_monthly_table`을 직접 호출하지 않는다 —
+  `mtd-summary-section-3-monthly-ad-performance.md`가 3단계에서 1회 호출한 응답
+  (`media` 생략, `group_by: "media"`, 5개월 전 ~ 당월, `day_offset`=target_date.day)을 그대로
+  재사용한다. 이 섹션이 필요로 하는 범위(전월 ~ 당월, 2개월)는 section-3의 6개월 범위 안에
+  완전히 포함되며, 두 호출 모두 같은 `day_offset`(target_date.day)을 쓰므로 같은 일자까지
+  잘린 same-day MTD cut이라는 전제도 동일하게 유지된다 — 이 응답에서 전월(M-1)과 당월(M0)에
+  해당하는 행만 골라 쓴다.
+- google/meta/naver는 공유 응답의 `media`가 정확히 `"google"`/`"meta"`/`"naver"`인 행(매체당
+  월별로 이미 합산된 `cost`)을 쓴다 — 예전에 각각 `group_by:"total"`로 따로 받던 값과 동일하다.
+- airbridge는 공유 응답의 `media`가 `"airbridge"`인 행(채널별 월간 `airbridge_revenue`/
+  `reservation`)을 쓴다.
+- ⚠️ `campaign-type`은 이미 이 호출에 들어가지 않는다 — section-3에서 확인된 규칙이다.
 
 ## 필요 데이터 (매체별, M-1/M0 각각 별도로)
 
-각 월(M-1, M0) 각각에 대해, airbridge 응답의 `channel` 값을 아래 5개 항목으로 분류한다:
+각 월(M-1, M0) 각각에 대해, section-3 공유 응답의 airbridge 행 중 해당 월 행의 `channel` 값을
+아래 5개 항목으로 분류한다:
 
 - **Naver Ads**: airbridge `channel`이 정확히 `"Naver Ads"`인 행.
 - **Google Ads**: airbridge `channel`이 정확히 `"Google Ads"`인 행.
@@ -35,7 +36,7 @@ Naver Ads / Google Ads / Meta Ads / Organic / Others 5개 항목으로 성과를
   상수와 다른 값이 있으면 자동으로 Others에 포함시킨다** — 조용히 버리지 않는다.
 
 각 항목의 지표:
-- `광고비`: Naver Ads/Google Ads/Meta Ads는 각각 대응하는 매체 응답(naver/google/meta)의
+- `광고비`: Naver Ads/Google Ads/Meta Ads는 각각 공유 응답의 대응 매체 행(naver/google/meta)의
   해당 월(day_offset 적용) `cost`를 그대로 쓴다. **Organic과 Others는 광고비 개념이 없으므로
   항상 `-`로 표시한다.**
 - `매출` = 해당 항목으로 분류된 airbridge 행(들)의 `airbridge_revenue` 합.
@@ -48,8 +49,6 @@ Naver Ads / Google Ads / Meta Ads / Organic / Others 5개 항목으로 성과를
 - `ROAS 변화` = M0 ROAS − M-1 ROAS, **%p**로 표기, 소수점 첫째 자리까지 반올림 (M-1 ROAS가
   `-`이면 표시 안 함).
 - **이 섹션은 네 지표 전부 "증가 = 긍정(빨강)"이다.**
-
-⚠️ 어떤 호출에도 `campaign-type`을 넣지 않는다.
 
 ## HTML
 

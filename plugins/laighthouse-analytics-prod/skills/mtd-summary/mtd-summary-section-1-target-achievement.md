@@ -29,34 +29,36 @@
 
 **절대 규칙**: `기간 매출`(실적)은 목표 유무와 무관하게 **항상**
 `get_ad_performance_monthly_table`(`start_month`=당월, `end_month`=당월,
-`day_offset`=target_date.day, `media="airbridge"`, `group_by: "media"`) 1회 호출로 가져온다.
-이 호출은 날짜별 행을 합산할 필요 없이 **채널당 이미 합산된 한 줄**을 그대로 반환한다(속도상
-`get_ad_performance_daily_table`로 날짜별 행을 받아 직접 합산하는 것보다 훨씬 빠르다). 응답에서
-광고 채널(`Google Ads`/`Meta Ads`/`Naver Ads`) 행의 `airbridge_revenue`를 그대로 쓴다.
-`get_target_progress_v2` 응답의 `revenue` 행 `actual` 값은 **매출 실적으로 절대 쓰지 않는다**
-— google/meta도 이 값이 Airbridge와
-일치한다는 보장이 없으므로 셋 다 예외 없이 Airbridge를 원천으로 쓴다. 이 호출은 목표 유무와
-상관없이 **매번 1회 실행**한다.
+`day_offset`=target_date.day, `group_by: "media"`, **`media` 파라미터는 생략**) 1회 호출로
+가져온다. `media`를 생략하면 이 도구는 등록된 모든 매체(google/meta/naver/airbridge 등)를 한
+응답에 함께 반환한다 — 이 호출 하나로 아래 두 가지를 전부 충당한다:
+1. 이 섹션의 매출 실적 — airbridge 행 중 광고 채널(`Google Ads`/`Meta Ads`/`Naver Ads`) 행의
+   `airbridge_revenue` 합.
+2. 아래 「계산 규칙」의 **no-budget fallback 소진액** — google/meta/naver 행(매체당 이미
+   합산된 한 줄)의 `cost`.
+
+응답에는 `media`가 `google`/`meta`/`naver`/`airbridge` 외의 값(예: `ga4`)인 행도 섞여 올 수
+있다 — 이 섹션이 쓰지 않는 행이므로 무시한다. `get_target_progress_v2` 응답의 `revenue` 행
+`actual` 값은 **매출 실적으로 절대 쓰지 않는다** — google/meta도 이 값이 Airbridge와
+일치한다는 보장이 없으므로 셋 다 예외 없이 Airbridge를 원천으로 쓴다.
 
 ```json
-{ "brand_name": "breezm", "start_month": "당월 YYYY-MM", "end_month": "당월 YYYY-MM", "media": "airbridge", "group_by": "media", "day_offset": "target_date.day" }
+{ "brand_name": "breezm", "start_month": "당월 YYYY-MM", "end_month": "당월 YYYY-MM", "group_by": "media", "day_offset": "target_date.day" }
 ```
+
+⚠️ 이 호출은 **목표 유무를 판단하기 전에, `get_target_progress_v2` 3회 호출과 같은 배치(한
+메시지)에서 동시에** 발사한다 — 예전에는 "목표가 없는 매체가 있으면 그때 가서 fallback을
+추가 호출"하는 조건부 2차 라운드였지만, 이제는 이 호출 하나가 매출 실적과 fallback 소진액
+후보를 항상 함께 가져오므로 조건 분기를 기다릴 필요가 없다 (SKILL.md 「병렬 호출 지침」 참고).
 
 ## 계산 규칙 (매체별로 cost/revenue를 독립적으로 판단)
 
 각 매체(google/meta/naver) 응답을 아래처럼 개별 판단한다:
 
 - **완전히 no-budget 메시지**(`"No {media} budget/target available..."`)인 매체 → `목표 예산`
-  N/A, `소진액`은 `get_ad_performance_monthly_table`(`start_month`=`end_month`=당월,
-  `day_offset`=target_date.day, `media`=해당 매체, `group_by: "total"`) 1회 호출로 대체
-  (fallback) — 이것도 날짜별 합산 없이 한 줄로 바로 받는다.
-
-  ```json
-  { "brand_name": "breezm", "start_month": "당월 YYYY-MM", "end_month": "당월 YYYY-MM", "media": "google", "group_by": "total", "day_offset": "target_date.day" }
-  { "brand_name": "breezm", "start_month": "당월 YYYY-MM", "end_month": "당월 YYYY-MM", "media": "meta", "group_by": "total", "day_offset": "target_date.day" }
-  { "brand_name": "breezm", "start_month": "당월 YYYY-MM", "end_month": "당월 YYYY-MM", "media": "naver", "group_by": "total", "day_offset": "target_date.day" }
-  ```
-  (no-budget이 아닌 매체는 위 호출을 할 필요 없다 — 아래처럼 `get_target_progress_v2`의
+  N/A, `소진액`은 위에서 이미 받아둔 `get_ad_performance_monthly_table`(media 생략) 응답 중
+  해당 매체 행의 `cost`를 그대로 쓴다 — 추가 호출이 필요 없다.
+  (no-budget이 아닌 매체는 이 값을 쓸 필요 없다 — 아래처럼 `get_target_progress_v2`의
   cost actual을 그대로 쓴다.)
 - **표를 반환**하는 매체 → `cost` 행 `target`이 0보다 크면 `목표 예산` = target, `소진액` =
   actual을 그대로 쓴다. `target`이 0이거나 없으면(현재 관측된 바 없음) 위 no-budget과 동일하게

@@ -26,18 +26,17 @@
    - mtd-detailed-section-4(일일 매출 현황)의 일별 전체 매출/광고 매출 응답과
      `list_promotions` 응답.
    - mtd-detailed-section-6(광고 매체별 현황)의 매체별 소진액/광고 매출/ROAS 응답.
-   - **신규 호출**: `get_ad_performance_monthly_table`을 `media="google"`/`"meta"`/`"naver"`
-     (`group_by: "total"`) 3회 + `media="airbridge"`(`group_by: "media"`) 1회, 총 4회
+   - **신규 호출**: `get_ad_performance_monthly_table`을 **`media` 파라미터를 생략**해 1회만
      호출하되 **`day_offset: target_date.day`**를 함께 넣어 `start_month`=전월,
      `end_month`=당월로 지정한다 — 이러면 한 번의 호출로 **당월 MTD 누적치**와 **전월 동기
-     (같은 날짜까지) 누적치**를 동시에 받는다. 일별 데이터는 필요 없다 — 두 기간 각각의
-     누적 합계만 있으면 충분하다.
+     (같은 날짜까지) 누적치**를 동시에, google/meta/naver/airbridge 행 전부(예전에는 4회로
+     나눠 부르던 것) 함께 받는다. 일별 데이터는 필요 없다 — 두 기간 각각의 누적 합계만 있으면
+     충분하다. 응답에서 `media`가 `google`/`meta`/`naver`인 행의 `cost`, `media`가
+     `airbridge`인 행의 `airbridge_revenue`(광고 채널)를 쓴다. `media`가 위 네 가지 외의 값
+     (예: `ga4`)인 행은 무시한다.
 
    ```json
-   { "brand_name": "breezm", "start_month": "전월 YYYY-MM", "end_month": "당월 YYYY-MM", "media": "google", "group_by": "total", "day_offset": "target_date.day" }
-   { "brand_name": "breezm", "start_month": "전월 YYYY-MM", "end_month": "당월 YYYY-MM", "media": "meta", "group_by": "total", "day_offset": "target_date.day" }
-   { "brand_name": "breezm", "start_month": "전월 YYYY-MM", "end_month": "당월 YYYY-MM", "media": "naver", "group_by": "total", "day_offset": "target_date.day" }
-   { "brand_name": "breezm", "start_month": "전월 YYYY-MM", "end_month": "당월 YYYY-MM", "media": "airbridge", "group_by": "media", "day_offset": "target_date.day" }
+   { "brand_name": "breezm", "start_month": "전월 YYYY-MM", "end_month": "당월 YYYY-MM", "group_by": "media", "day_offset": "target_date.day" }
    ```
    ⚠️ `campaign-type`을 넣지 않는다.
 

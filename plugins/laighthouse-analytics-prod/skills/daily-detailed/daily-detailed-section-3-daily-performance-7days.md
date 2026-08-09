@@ -4,19 +4,30 @@
 포함한 최근 7일 일자별 광고 성과. 매출은 Airbridge 매출, 광고 채널은
 `Google Ads`/`Meta Ads`/`Naver Ads` 행.
 
-## MCP 도구 호출: `get_ad_performance_daily_table` × 4
+## MCP 도구 호출: `get_ad_performance_daily_table` × 1
 
 ```json
-{ "brand_name": "breezm", "start_date": "기준일 6일 전 YYYY-MM-DD", "end_date": "target_date", "media": "google", "group_by": "total" }
-{ "brand_name": "breezm", "start_date": "기준일 6일 전 YYYY-MM-DD", "end_date": "target_date", "media": "meta", "group_by": "total" }
-{ "brand_name": "breezm", "start_date": "기준일 6일 전 YYYY-MM-DD", "end_date": "target_date", "media": "naver", "group_by": "total" }
-{ "brand_name": "breezm", "start_date": "기준일 6일 전 YYYY-MM-DD", "end_date": "target_date", "media": "airbridge", "group_by": "media" }
+{ "brand_name": "breezm", "start_date": "기준일 6일 전 YYYY-MM-DD", "end_date": "target_date", "group_by": "media" }
 ```
 
+- **`media` 파라미터를 생략한다** — 생략하면 이 도구는 google/meta/naver/airbridge(및 이
+  보고서가 쓰지 않는 다른 매체, 예: `ga4`)를 **한 번의 호출로 전부** 반환한다. 예전에는
+  매체별로 4번(`google`/`meta`/`naver` 각각 `group_by:"total"` + `airbridge`
+  `group_by:"media"`) 나눠 불렀지만, 이제 이 호출 1개로 동일한 정보를 전부 얻는다:
+  - `media`가 정확히 `"google"`/`"meta"`/`"naver"`인 행 — 매체당 날짜별로 **이미 합산된 한
+    줄**이며, 이 행의 `cost`가 예전에 `group_by:"total"`로 받던 값과 동일하다.
+  - `media`가 `"airbridge"`인 행 — 예전과 동일하게 날짜별·`channel`별로 여러 줄(Google
+    Ads/Meta Ads/Naver Ads/Organic/그 외)이 온다.
+  - `media`가 위 네 가지 외의 값(예: `ga4`)인 행은 이 섹션이 쓰지 않으므로 무시한다.
+- ⚠️ 이 응답은 **section-4(캠페인 성과)/section-5(광고그룹 및 광고 성과)와 공유되지 않는다** —
+  section-4/5는 D-1~D0 이틀만 다루고 각각 `group_by:"campaign"`/`group_by:"ad"`가 필요해
+  이 섹션의 `group_by:"media"` 응답으로는 대체할 수 없다(이 섹션이 필요로 하는 범위가 section-4/5
+  범위(이틀)를 포함하는 방향이라 하더라도, group_by 단위 자체가 달라 재사용이 불가능하다).
+  section-4/5는 각자 별도로 호출한다.
 - 기간은 **기준일(target_date)을 포함해 정확히 7일**(기준일-6일 ~ 기준일)이다. 도구 제한(31일
   이내)을 항상 만족한다.
 - ⚠️ `campaign-type`을 넣지 않는다 — airbridge 행이 조용히 누락된다.
-- ⚠️ `group_by`는 문자열 enum 그대로 보낸다 (`"total"`/`"media"`).
+- ⚠️ `group_by`는 문자열 enum 그대로 보낸다 (`"media"`).
 
 ## MCP 도구 호출: `list_promotions`
 
@@ -29,8 +40,8 @@
 ## 필요 데이터 (일자별 집계)
 
 각 날짜(총 7일)에 대해:
-- `광고비` = google/meta/naver 세 응답의 해당 날짜 `cost` 합
-- `매출` = airbridge 응답의 해당 날짜 광고 채널(`Google Ads`/`Meta Ads`/`Naver Ads`) 행
+- `광고비` = 공유 응답에서 `media`가 google/meta/naver인 세 행의 해당 날짜 `cost` 합
+- `매출` = 공유 응답에서 `media`가 airbridge인 행 중 해당 날짜 광고 채널(`Google Ads`/`Meta Ads`/`Naver Ads`) 행
   `airbridge_revenue` 합
 - `ROAS` = 매출 ÷ 광고비 × 100 (광고비 0이면 N/A)
 - 날짜 레이블은 `M/D(요일)` 형식으로 만든다 (예: `5/15(금)`).

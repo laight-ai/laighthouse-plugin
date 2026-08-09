@@ -86,14 +86,19 @@ MCP 데이터를 받아 **라이트하우스 스타일 성과 보고서**로 렌
 ## 실행 순서
 
 1. 파라미터를 파싱한다. report_type은 `creative-detailed`로 고정되어 있다.
-2. 소재 데이터를 호출한다 — `get_ad_performance_daily_table`을 `media="meta"`,
-   `group_by:"ad"`로 한 번, `media="airbridge"`, `group_by:"ad"`로 한 번 호출하고, 두 응답을
-   `campaign_name`+`asset_group`+`ad_name` 세 필드로 조인해서 소재별 노출/클릭/광고비(메타
-   쪽)와 매출/예약 완료(airbridge 쪽)를 구한다 — Airbridge가 소재(ad) 단위까지 매출/예약을
-   정상적으로 귀속한다(`creative-detailed-section-1-top-creatives.md` 참고). 소재 이미지는
-   `get_ad_creative_info`(메타 응답의 `creative_id`/`platform_account_id`를 그대로 전달)로
-   가져온 `thumbnail_image_url`을 쓴다. **메타(Meta Ads)만 대상**이며, `get_target_progress_v2`
-   나 `day_offset`은 쓰지 않는다.
+2. 소재 데이터를 호출한다 — `get_ad_performance_daily_table`을 **`media` 파라미터를 생략하고**
+   `group_by:"ad"`로 **단 한 번만**(기준일 6일 전 ~ target_date, 7일 범위) 호출한다. `media`를
+   생략하면 등록된 모든 매체(google/meta/naver/airbridge 등)의 행이 한 응답에 함께 온다 — 이
+   응답에서 `media`가 정확히 `"meta"`인 행과 `"airbridge"`인 행만 걸러 쓴다(그 외 매체 행은
+   이 스킬이 쓰지 않으므로 무시한다). **이 호출 1회를 section-1/3/4/5가 전부 공유해서
+   재사용한다** — 매체별로 나눠 여러 번 부르지 않는다(예전에는 section별로 최대 4번까지
+   나눠 불렀다). meta 행과 airbridge 행을 `campaign_name`+`asset_group`+`ad_name` 세 필드로
+   조인해서 소재별 노출/클릭/광고비(메타 쪽)와 매출/예약 완료(airbridge 쪽)를 구한다 —
+   Airbridge가 소재(ad) 단위까지 매출/예약을 정상적으로 귀속한다(`creative-detailed-section-1-top-creatives.md`
+   참고). 소재 이미지는 `get_ad_creative_info`(메타 행의 `creative_id`/`platform_account_id`를
+   그대로 전달)로 가져온 `thumbnail_image_url`을 쓴다 — 이 호출은 위 소재 데이터 호출 결과로
+   ROAS/CTR 랭킹이 정해진 뒤에만 나갈 수 있으므로 순차적으로 의존한다(병렬 배치 대상 아님).
+   **메타(Meta Ads)만 대상**이며, `get_target_progress_v2`나 `day_offset`은 쓰지 않는다.
 3. 나머지 `mcp__laighthouse__*` generic 도구를 호출해 각 섹션 수치 데이터를 가져온다 (각 섹션
    파일에 명시된 정확한 tool명 참고).
    - **generic 도구**(`get_ad_performance_daily_table`/`get_ad_performance_monthly_table`)만
@@ -108,17 +113,66 @@ MCP 데이터를 받아 **라이트하우스 스타일 성과 보고서**로 렌
    프로모션/이벤트 정보를 위해 `mcp__laighthouse__list_promotions`를 추가로 호출하는지 등
    세부 규칙은 `creative-detailed-section-2-executive-summary.md`에 적힌 대로 따른다.
 5. 아래 표의 파일을 **순서대로 전부** import해 HTML을 조합한다.
-6. 이 스킬 폴더의 `assets/chart.umd.min.js` 파일을 읽어 그 내용 전체를 `{CHART_JS_INLINE}` 자리에
-   그대로 삽입한다 (CDN `<script src>` 절대 사용 금지 — 아래 보고서 골격의 경고 참고).
+6. ⚠️ **`chart.umd.min.js`(약 208KB)를 절대 자신의 응답 텍스트로 다시 타이핑(재생성)하지
+   않는다** — 이 파일을 Read해서 그 내용을 자기 출력(tool call 인자, 응답 텍스트)에 그대로
+   복사해 넣으면, 그 208KB(대략 5만 토큰)를 전부 출력 토큰으로 새로 생성해야 하므로 리포트
+   1건당 수십 초~수 분이 그냥 여기서 소모된다. 대신 아래 두 경로로 나눠 처리한다 — **어느
+   쪽이든 모델이 chart.js 바이트를 직접 다시 쓰는 일은 없어야 한다**:
+   - **파일로 저장하는 사본** (7단계의 "파일로 저장" 출력): 먼저
+     `~/Downloads/laighthouse-reports/chart.umd.min.js`가 **이미 존재하는지 확인**한다. **이미
+     있으면 이 단계를 완전히 건너뛴다** — 아무 도구도 쓰지 않는다. **없을 때만** 그 경로에
+     `assets/chart.umd.min.js`를 생성한다 — 전용 "파일 복사" 도구가 있으면 그걸로 바이트
+     그대로 복사하고, 그런 도구가 없고 일반 "파일 쓰기" 도구(내용을 문자열 인자로 받는
+     것)만 있다면 그걸로라도 써서 만든다. 이 비용은 해당 출력 폴더에 리포트가 생성되는 전체
+     기간 통틀어 "생애 첫 리포트 1회"에만 발생한다 — 파일이 일단 존재하면 이후 모든
+     `creative-detailed`(뿐 아니라 Chart.js를 쓰는 다른 report_type도 같은 자산을 공유할 수
+     있다) 리포트는 존재 확인만 하고 곧장 건너뛴다. 파일이 준비되면(새로 만들었든 이미
+     있었든), 저장할 리포트 HTML의 `<head>`에는 `<script src="chart.umd.min.js"></script>`처럼
+     **같은 폴더를 가리키는 상대 경로 `<script src>`**를 쓴다 — `file://`로 연 로컬 HTML이
+     같은 폴더의 로컬 `.js` 파일을 상대 경로로 불러오는 것은 CDN 요청이 아니라 정상적으로
+     동작한다(classic `<script src>`는 ES 모듈/`fetch`와 달리 `file://`에서 CORS 제약이 없다).
+   - **채팅 내부 표시 사본** (Artifact 등 CSP로 상대/외부 스크립트 로드가 막힌 호스트): 이
+     경우에만 어쩔 수 없이 인라인이 필요하다 — 이때도 모델이 직접 텍스트로 옮기지 말고, 파일
+     복사·치환(diff 적용, cp, 템플릿 치환 등 텍스트 재생성이 아닌 도구)이 가능하면 그 방식을
+     우선 쓴다. 그런 도구가 전혀 없는 호스트에서만 최후 수단으로 `{CHART_JS_INLINE}` 치환을
+     쓴다.
 7. 아래 **보고서 골격**에 섹션들을 삽입해 렌더링한다. 완성된 HTML은 아래 **두 곳에 동시에** 낸다 —
    하나만 하고 끝내지 않는다:
    - **채팅 내부 표시**: Claude Code(Artifact)에서 실행 중이면 Artifact 도구로 게시(위 스켈레톤과
-     같은 파일을 갱신). `mcp__visualize__show_widget`이 있는 호스트에서는 그걸 쓴다.
+     같은 파일을 갱신). `mcp__visualize__show_widget`이 있는 호스트에서는 그걸 쓴다. 이 경로는
+     위 6단계의 "채팅 내부 표시 사본"(인라인) 규칙을 따른다.
    - **파일로 저장**: 동일한 최종 HTML을 `~/Downloads/laighthouse-reports/브리즘_creative-detailed_
      {기준_일자}.html` 경로에 그대로 저장한다 (디렉터리가 없으면 새로 만든다). 파일명 예:
-     `브리즘_creative-detailed_2026-05-15.html`.
+     `브리즘_creative-detailed_2026-05-15.html`. 이 경로는 위 6단계의 "파일로 저장하는 사본"
+     (상대 경로 `<script src>`) 규칙을 따른다.
 8. 렌더링 후 사용자에게 보내는 완료 메시지는 아래 **완료 메시지 형식**을 그대로 따른다 — 매번 다른
    문구로 즉석 요약하지 않는다. 저장된 파일 경로를 완료 메시지 마지막 줄에 덧붙인다.
+
+---
+
+## 병렬 호출 지침 (성능 최적화)
+
+> ⚡ 이 스킬은 서브에이전트를 띄우지 않는다 — 오케스트레이터(본 대화)가 MCP를 직접 호출한다.
+> **서로 결과에 의존하지 않는 MCP 호출은 한 메시지 안에서 동시에(병렬 tool call로) 발사한다.**
+> 단, `daily-summary`(동일 플러그인, `daily-summary/CLAUDE.md` 참고)에서 실측으로 확인된 바
+> 있듯 배치해도 MCP 호출 자체가 네트워크 레벨에서 진짜 동시 실행되는 것은 아니다 — 배치의
+> 실제 효과는 "턴 오버헤드 제거"이지 "네트워크 동시 실행"이 아니며, 진짜 속도 개선은 **호출
+> 총 개수를 줄이는 것**에서 나온다(위 2단계의 `media` 생략 통합이 그 예다).
+>
+> ⚠️ **이 스킬은 애초에 배치할 독립 호출이 거의 없다.** 데이터 호출이 2단계의 소재 데이터
+> 호출(`get_ad_performance_daily_table`, `media` 생략 1회) 하나뿐이고, `get_ad_creative_info`는
+> 그 응답으로 정해진 ROAS/CTR 랭킹 소재의 `creative_id`/`platform_account_id`가 있어야 부를 수
+> 있으므로 **순차적으로 의존**한다 — 둘을 한 메시지에 동시에 낼 수 없다. 3단계의 나머지 섹션
+> 호출도 이 스킬에는 존재하지 않는다(section-3/4/5는 모두 2단계 응답을 재사용하며 신규 호출이
+> 없다). 억지로 "병렬 배치"를 적용할 대상 자체가 없다는 점을 명시한다 — 없는 병렬성을 있는
+> 것처럼 서술하지 않는다.
+
+> 🚫 **MCP 응답을 스크래치패드/임시 파일에 썼다가 다시 읽어오지 않는다.** 각 MCP 호출 결과는
+> 이미 그 턴의 대화 컨텍스트 안에 있으므로, HTML을 조합할 때 그 값을 직접 참조해서 쓴다.
+> 응답을 파일로 저장하고 나중에 다시 Read하는 왕복은 시간과 토큰만 소모할 뿐 아무 이득이
+> 없다 — "데이터 가공용 임시 스크립트/노트북을 만들지 않는다"는 위 실행 방식 절대 지침과
+> 같은 이유로, 중간 저장용 JSON/텍스트 파일도 만들지 않는다. 이 스킬이 실행 중 생성하는
+> 파일은 최종 보고서 HTML과(6단계 조건에 해당할 때만) `chart.umd.min.js` 자산 사본뿐이다.
 
 ---
 
@@ -181,18 +235,20 @@ section-2(Executive Summary)는 `mtd-detailed`/`daily-detailed`/`monthly-detaile
 캠페인/매체 차원의 프로모션과 결이 다르기 때문이다.
 
 section-3(일별 CTR)과 section-4(일별 ROAS)는 **같은 "광고비 상위 5개 소재"(7일 합산 기준)를
-공유**한다 — section-3이 소재 선정과 매체(meta) 쪽 7일 데이터를 담당하고, section-4는 그
-선정 결과와 매체 데이터를 재사용하면서 **airbridge 쪽 매출만 새로 호출**한다. 두 차트는
-색상·범례 순서가 정확히 일치해야 한다(같은 소재 = 같은 색). 날짜별로 데이터가 없는 지점은
-0이 아니라 `null`로 두어 차트에서 끊긴 구간으로 표시한다(`spanGaps:false`) — 추정해서 이어
-그리지 않는다.
+공유**한다 — section-3이 소재 선정을 담당하고, section-4는 그 선정 결과를 재사용한다. 매체
+(meta)/airbridge 데이터 자체는 둘 다 새로 호출하지 않고, section-1이 받아둔 `media` 생략 1회
+호출의 공유 응답에서 각자 필요한 행(meta 행은 section-3, airbridge 행은 section-4)만 꺼내
+쓴다. 두 차트는 색상·범례 순서가 정확히 일치해야 한다(같은 소재 = 같은 색). 날짜별로 데이터가
+없는 지점은 0이 아니라 `null`로 두어 차트에서 끊긴 구간으로 표시한다(`spanGaps:false`) —
+추정해서 이어 그리지 않는다.
 
-section-5(소재 단위 누적 성과 표)는 **section-1이 이미 호출한 두 응답(meta/airbridge,
-`group_by:"ad"`, 최근 7일)을 그대로 재사용**한다 — 새 MCP 호출이 없다. section-1은 그
-데이터에서 랭킹 1·2위만 뽑아 카드로 보여줬지만, section-5는 **모든 소재를 전부** 표로
-나열한다는 점이 다르다(같은 원본 데이터의 다른 가공). 지표는 노출/클릭/CTR/광고비/매출/
-예약 완료/예약 완료 CPA/ROAS 8개, 7일 합산 광고비 내림차순 정렬이며, 다른 report_type의 캠페인/
-광고그룹 단위 표들과 동일하게 검색+페이지네이션이 실제로 작동해야 한다.
+section-5(소재 단위 누적 성과 표)는 **section-1이 이미 받아둔 `media` 생략 1회 호출의 공유
+응답(meta 행 + airbridge 행, `group_by:"ad"`, 최근 7일)을 그대로 재사용**한다 — 새 MCP
+호출이 없다. section-1은 그 데이터에서 랭킹 1·2위만 뽑아 카드로 보여줬지만, section-5는
+**모든 소재를 전부** 표로 나열한다는 점이 다르다(같은 원본 데이터의 다른 가공). 지표는
+노출/클릭/CTR/광고비/매출/예약 완료/예약 완료 CPA/ROAS 8개, 7일 합산 광고비 내림차순
+정렬이며, 다른 report_type의 캠페인/광고그룹 단위 표들과 동일하게 검색+페이지네이션이
+실제로 작동해야 한다.
 
 **현재까지 합의된 공통 규칙** (다른 섹션에도 적용될 전제들):
 - **메타(Meta Ads)만 대상**이다 — google/naver는 다루지 않는다.
@@ -200,11 +256,12 @@ section-5(소재 단위 누적 성과 표)는 **section-1이 이미 호출한 �
   헤더의 `{기간}`은 이 7일 범위가 아니라 **기준일 하나만** 표기한다(`daily-detailed`와 동일한 단일
   일자 형식) — 헤더 표기와 실제 데이터 기간이 다르다는 점에 유의한다.
 - 보고서 제목은 항상 "소재 보고서"로 고정한다.
-- 소재별 매출/ROAS는 `get_ad_performance_daily_table`(`media="meta"`, `group_by:"ad"`)와
-  (`media="airbridge"`, `group_by:"ad"`) 두 응답을 `campaign_name`+`asset_group`+`ad_name`
-  세 필드로 조인해서 구한다 — Airbridge가 소재(ad) 단위까지 매출/예약을 정상적으로
-  귀속한다는 것을 실제 API 호출로 확인했다(2026-08-03). 매체 쪽 응답에 이미 `creative_id`/
-  `platform_account_id`가 포함되어 있다.
+- 소재별 매출/ROAS는 `get_ad_performance_daily_table`을 `media` 생략, `group_by:"ad"`로
+  **1회만** 호출한 응답에서 `media`가 `"meta"`인 행과 `"airbridge"`인 행을
+  `campaign_name`+`asset_group`+`ad_name` 세 필드로 조인해서 구한다 — Airbridge가 소재(ad)
+  단위까지 매출/예약을 정상적으로 귀속한다는 것을 실제 API 호출로 확인했다(2026-08-03).
+  매체 쪽 행에 이미 `creative_id`/`platform_account_id`가 포함되어 있다. 이 응답 1개를
+  section-1/3/4/5가 전부 공유한다(예전에는 section마다 최대 4번까지 나눠 호출했다).
 - 소재 이미지는 `get_ad_creative_info`(meta 파라미터에 위 `creative_id`/`platform_account_id`
   를 그대로 전달)로 받은 `thumbnail_image_url`을 `<img src="{url}"
   onerror="this.style.display='none'; this.nextElementSibling.style.display='inline';">` +
@@ -324,21 +381,29 @@ end_idx   = min(labels.length-1, raw_end_idx)
 > **섹션 내부의 차트/표 데이터는 그 기준일까지의 최근 7일**을 다룬다는 점에 유의한다 —
 > 헤더 표기와 실제 데이터 기간이 다르다.
 
-> ⚠️ **Chart.js는 CDN `<script src>`로 절대 불러오지 않는다.** Artifact(claude.ai 아티팩트)의 CSP는
-> 외부 호스트로 나가는 스크립트 요청을 전부 차단하므로, `<script src="https://cdn.jsdelivr.net/...">`
-> 로 로드하면 스크립트 자체가 실행되지 않아 모든 차트가 빈 캔버스로 남는다.
-> 대신 이 스킬 폴더의 `assets/chart.umd.min.js`(Chart.js v4 UMD 빌드, MIT license, 오프라인 자산)를
-> 읽어서 **그 파일 내용 전체를 `<script>...</script>` 태그 안에 그대로 붙여넣는다** (src 속성 없이,
-> 인라인 텍스트로). `{CHART_JS_INLINE}` 자리표시자가 그 자리다 — 절대 CDN URL로 되돌리지 않는다.
+> ⚠️ **Chart.js는 `https://cdn...` 같은 외부 CDN `<script src>`로는 절대 불러오지 않는다.**
+> Artifact(claude.ai 아티팩트)의 CSP는 외부 호스트로 나가는 스크립트 요청을 전부 차단하므로,
+> `<script src="https://cdn.jsdelivr.net/...">`로 로드하면 스크립트 자체가 실행되지 않아 모든
+> 차트가 빈 캔버스로 남는다. 이 스킬 폴더의 `assets/chart.umd.min.js`(Chart.js v4 UMD 빌드,
+> MIT license, 오프라인 자산)를 쓰되, **어느 경로를 쓰든 모델이 그 208KB를 직접 응답 텍스트로
+> 재생성하지 않는다** (위 6단계 참고):
+> - 로컬 파일로 저장하는 경우 → `assets/chart.umd.min.js`를 저장 폴더에 파일 그대로 복사해두고
+>   `<script src="chart.umd.min.js"></script>`(같은 폴더 상대 경로)를 쓴다.
+> - CSP 때문에 인라인이 꼭 필요한 Artifact 등에서만 → 텍스트 재생성이 아닌 도구(파일 복사/치환)로
+>   `{CHART_JS_INLINE}` 자리를 채운다. 그런 도구가 전혀 없을 때만 최후 수단으로 모델이 직접
+>   붙여넣는다.
 
 ```html
 <!DOCTYPE html>
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
+<!-- 로컬 파일 저장본: <script src="chart.umd.min.js"></script>
+     CSP로 상대 경로 로드가 막힌 호스트(Artifact 등)에서만 아래처럼 인라인:
 <script>
 {CHART_JS_INLINE}
 </script>
+-->
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans KR', sans-serif;

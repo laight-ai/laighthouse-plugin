@@ -5,20 +5,29 @@
 7일**을 통째로 합산해서, 그 기간 소재(개별 광고) 단위 **ROAS 1·2위**와 **CTR 1·2위**를 각각
 카드로 보여준다. 날짜별 비교가 아니라 **7일 전체를 하나로 합친 누적 값** 기준이다.
 
-## MCP 도구 호출: `get_ad_performance_daily_table` × 2 (`group_by: "ad"`, 최근 7일)
+## MCP 도구 호출: `get_ad_performance_daily_table` × 1 (`media` 생략, `group_by: "ad"`, 최근 7일)
 
 ```json
-{ "brand_name": "breezm", "start_date": "기준일 6일 전 YYYY-MM-DD", "end_date": "target_date", "media": "meta", "group_by": "ad" }
-{ "brand_name": "breezm", "start_date": "기준일 6일 전 YYYY-MM-DD", "end_date": "target_date", "media": "airbridge", "group_by": "ad" }
+{ "brand_name": "breezm", "start_date": "기준일 6일 전 YYYY-MM-DD", "end_date": "target_date", "group_by": "ad" }
 ```
 
 - 기간은 기준일을 포함해 정확히 7일이다(daily 섹션-3과 동일한 7일 윈도우).
-- `media="meta"` 응답에는 날짜별·소재(`campaign_name`+`asset_group`+`ad_name`)별
-  `cost`/`impression`/`click`과, 소재 이미지 조회에 필요한 `creative_id`/
-  `platform_account_id`가 들어있다.
-- `media="airbridge"` 응답에는 날짜별·소재별 `airbridge_revenue`/`reservation`이 들어있다.
-  **실제로 소재(ad) 단위까지 매출/예약이 정상 귀속됨을 확인했다**(2026-08-03) — 캠페인 값을
-  공유하는 게 아니라 진짜 소재별 값이다.
+- ⚠️ **`media` 파라미터를 생략한다** — 생략하면 등록된 모든 매체(google/meta/naver/airbridge
+  등)의 행이 한 응답에 함께 온다. 예전에는 `media="meta"` 1회 + `media="airbridge"` 1회로
+  나눠 불렀지만, 이제 이 호출 1개로 동일한 정보를 전부 얻는다 — 응답에서 `media`가 정확히
+  `"meta"`인 행과 `"airbridge"`인 행만 걸러 쓰고, 그 외 매체 행(google/naver 등)은 이 스킬이
+  쓰지 않으므로 무시한다.
+  - `media`가 `"meta"`인 행에는 날짜별·소재(`campaign_name`+`asset_group`+`ad_name`)별
+    `cost`/`impression`/`click`과, 소재 이미지 조회에 필요한 `creative_id`/
+    `platform_account_id`가 들어있다.
+  - `media`가 `"airbridge"`인 행에는 날짜별·소재별 `airbridge_revenue`/`reservation`이
+    들어있다. **실제로 소재(ad) 단위까지 매출/예약이 정상 귀속됨을 확인했다**(2026-08-03) —
+    캠페인 값을 공유하는 게 아니라 진짜 소재별 값이다.
+- **이 호출의 응답은 `creative-detailed-section-3-daily-CTR.md`(section-3),
+  `creative-detailed-section-4-daily-ROAS.md`(section-4),
+  `creative-detailed-section-5-daily-creative-performance.md`(section-5)가 그대로
+  재사용한다** — 네 섹션이 각자 호출하지 않는다. section-3은 이 응답의 meta 행을,
+  section-4는 airbridge 행을, section-5는 meta+airbridge 행 전체를 가져다 쓴다.
 - ⚠️ `campaign-type` 금지. ⚠️ `group_by`는 문자열 `"ad"` 그대로 보낸다.
 
 ## MCP 도구 호출: `get_ad_creative_info` × 1 (최종 선정된 소재만)
@@ -37,13 +46,14 @@
 
 ## 필요 데이터 (소재별, 최근 7일 합산)
 
-**매체 지표** (`meta` 응답을 소재(`campaign_name`+`asset_group`+`ad_name`) 단위로 7일 합산):
+**매체 지표** (`media`가 `"meta"`인 행을 소재(`campaign_name`+`asset_group`+`ad_name`) 단위로
+7일 합산):
 - `광고비` = `cost` 합 / `노출` = `impression` 합 / `클릭` = `click` 합
 - `CTR` = 클릭 ÷ 노출 × 100 (노출 0이면 이 소재는 CTR 랭킹에서 제외)
 - `creative_id`/`platform_account_id`는 7일 내 값이 동일해야 정상이다(소재가 도중에 교체되지
   않는 한) — 아무 날짜의 값이나 사용한다.
 
-**airbridge 지표** (`airbridge` 응답을 같은 소재 단위로 7일 합산):
+**airbridge 지표** (`media`가 `"airbridge"`인 행을 같은 소재 단위로 7일 합산):
 - `매출` = `airbridge_revenue` 합 / `예약 완료` = `reservation` 합
 
 **조인**: `campaign_name`+`asset_group`+`ad_name` **세 필드 모두 정확히 일치**해야 같은

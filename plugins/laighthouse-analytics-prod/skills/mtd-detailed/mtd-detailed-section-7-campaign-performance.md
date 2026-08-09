@@ -3,25 +3,27 @@
 **report_type:** `mtd-detailed` — **브리즘(airbridge 기반) 전용** (항상 포함). 매체-캠페인 단위, MTD
 (월초~target_date).
 
-## MCP 도구 호출: `get_ad_performance_daily_table` × 4 (`group_by: "campaign"`)
+## MCP 도구 호출: `get_ad_performance_daily_table` × 1 (`group_by: "campaign"`, `media` 생략)
 
 ```json
-{ "brand_name": "breezm", "start_date": "월초 YYYY-MM-01", "end_date": "target_date", "media": "google", "group_by": "campaign" }
-{ "brand_name": "breezm", "start_date": "월초 YYYY-MM-01", "end_date": "target_date", "media": "meta", "group_by": "campaign" }
-{ "brand_name": "breezm", "start_date": "월초 YYYY-MM-01", "end_date": "target_date", "media": "naver", "group_by": "campaign" }
-{ "brand_name": "breezm", "start_date": "월초 YYYY-MM-01", "end_date": "target_date", "media": "airbridge", "group_by": "campaign" }
+{ "brand_name": "breezm", "start_date": "월초 YYYY-MM-01", "end_date": "target_date", "group_by": "campaign" }
 ```
 
+- **`media` 파라미터를 생략한다** — 생략하면 이 도구는 google/meta/naver/airbridge(및 이
+  보고서가 쓰지 않는 다른 매체, 예: `ga4`)를 **한 번의 호출로 전부** 반환한다. 예전에는
+  매체별로 4번 나눠 불렀지만, 이제 이 호출 1개로 동일한 캠페인별 행을 전부 얻는다 — 각 매체의
+  캠페인별 합산 로직은 매체를 지정해서 부르든 생략해서 부르든 동일하다(내부적으로 매체별
+  쿼리를 그대로 실행해 합치는 구조이므로 결과가 달라지지 않는다).
 - ⚠️ `campaign-type` 금지 — 넣으면 airbridge 행이 조용히 누락된다.
 - ⚠️ `group_by`는 문자열 `"campaign"` 그대로 보낸다.
 
 ## 필요 데이터 (캠페인별 집계)
 
-**매체 지표** (google/meta/naver 응답, 캠페인별로 일별 행을 합산):
+**매체 지표** (공유 응답에서 `media`가 `google`/`meta`/`naver`인 행, 캠페인별로 일별 행을 합산):
 - `노출` = `impression` 합 / `클릭` = `click` 합 / `광고비` = `cost` 합
 - `CTR` = 클릭 ÷ 노출 × 100 (노출 0이면 N/A)
 
-**airbridge 지표** (airbridge 응답, 캠페인별 합산):
+**airbridge 지표** (공유 응답에서 `media`가 `airbridge`인 행, 캠페인별 합산):
 - `매출` = `airbridge_revenue` 합 / `예약 완료` = `reservation` 합
 
 **조인**: 캠페인 이름 **정확 일치(exact match)**로 매체 행과 airbridge 행을 잇는다.

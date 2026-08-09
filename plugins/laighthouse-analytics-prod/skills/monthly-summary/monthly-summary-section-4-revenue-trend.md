@@ -3,13 +3,14 @@
 **report_type:** `monthly-summary` — **브리즘(airbridge 기반) 전용** (항상 포함).
 최근 6개월(당월 포함) 라인 차트. 매출은 Airbridge 매출.
 
-## MCP 도구 호출: `get_ad_performance_monthly_table` × 1
+## MCP 도구 호출 — 별도 호출 없음, section-3의 공유 응답을 재사용
 
-```json
-{ "brand_name": "breezm", "start_month": "5개월 전 YYYY-MM", "end_month": "당월 YYYY-MM", "media": "airbridge", "group_by": "media", "day_offset": "target_date.day" }
-```
-
-- 기간 span 6개월 (당월 포함, 고정). **`day_offset: target_date.day`를 반드시 넣는다**. ⚠️ `campaign-type` 금지.
+이 섹션은 `get_ad_performance_monthly_table`을 직접 호출하지 않는다 —
+`monthly-summary-section-3-monthly-ad-performance.md`가 3단계에서 1회 호출한
+`get_ad_performance_monthly_table`(`media` 생략, `group_by:"media"`, 5개월 전 ~ 당월,
+`day_offset`=target_date.day) 응답 중 `media`가 `"airbridge"`인 행 전체를 그대로 가져다 쓴다.
+이 섹션이 필요로 하는 기간(5개월 전 ~ 당월)과 매체(airbridge)가 section-3의 응답과 완전히
+동일하므로 재사용에 따른 결과 차이가 없다.
 
 ## 필요 데이터 (월별 집계)
 

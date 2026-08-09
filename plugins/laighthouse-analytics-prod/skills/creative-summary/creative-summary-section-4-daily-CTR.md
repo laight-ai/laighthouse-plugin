@@ -5,19 +5,24 @@
 기준일(target_date)을 포함한 **최근 7일** 동안 **광고비(7일 합산)가 가장 큰 소재 5개**를
 뽑아, 그 5개의 일별 CTR을 라인 차트로 보여준다.
 
-## MCP 도구 호출: `get_ad_performance_daily_table` × 1 (`group_by: "ad"`, 최근 7일)
+## MCP 도구 호출: 신규 호출 없음 — section-1의 응답을 그대로 재사용
+
+이 섹션은 section-1(최우수 소재)이 이미 호출한 아래 응답(`media` 생략, `group_by: "ad"`,
+최근 7일)을 그대로 재사용한다 — **다시 호출하지 않는다**:
 
 ```json
-{ "brand_name": "breezm", "start_date": "기준일 6일 전 YYYY-MM-DD", "end_date": "target_date", "media": "meta", "group_by": "ad" }
+{ "brand_name": "breezm", "start_date": "기준일 6일 전 YYYY-MM-DD", "end_date": "target_date", "group_by": "ad" }
 ```
 
-- 기간은 기준일을 포함해 정확히 7일이다. 이 응답은 **section-5(일별 ROAS)도 그대로
-  재사용한다** — section-5는 별도로 이 호출을 다시 하지 않는다.
-- 응답에는 날짜별·소재(`campaign_name`+`asset_group`+`ad_name`)별 `cost`/`impression`/
+- 이 응답에서 `media === "meta"`인 행만 걸러서 쓴다.
+- 이 섹션이 걸러낸 meta 행은 **section-5(일별 ROAS)도 그대로 재사용한다** — section-5는
+  별도로 다시 걸러내지 않는다.
+- meta 행에는 날짜별·소재(`campaign_name`+`asset_group`+`ad_name`)별 `cost`/`impression`/
   `click`/`ctr`이 들어있다. `ctr` 필드가 이미 계산되어 있으므로 그대로 쓴다(직접 계산하지
   않아도 된다 — 단, 값이 비율(0.021 등)로 오는지 %(2.1 등)로 오는지 실제 응답을 확인해서
   일관되게 ×100 처리 여부를 판단한다).
-- ⚠️ `campaign-type` 금지. ⚠️ `group_by`는 문자열 `"ad"` 그대로 보낸다.
+- ⚠️ `campaign-type` 금지(section-1에서 이미 호출했으므로 여기서는 해당 사항 없음 — 재사용만
+  확인). ⚠️ `group_by`는 문자열 `"ad"` 그대로다.
 
 ## 필요 데이터
 

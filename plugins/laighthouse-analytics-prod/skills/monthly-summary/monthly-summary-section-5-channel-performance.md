@@ -6,22 +6,22 @@
 비교한다. 비교 단위는 캠페인이 아니라 매체 — Naver Ads / Google Ads / Meta Ads / Organic /
 Others 5개 항목으로 성과를 구분해서 보여준다.
 
-## MCP 도구 호출: `get_ad_performance_monthly_table` × 4 (전월 vs 당월, `day_offset`)
+## MCP 도구 호출 — 별도 호출 없음, section-3의 공유 응답을 재사용
 
-```json
-{ "brand_name": "breezm", "start_month": "전월 YYYY-MM", "end_month": "당월 YYYY-MM", "media": "google", "group_by": "total", "day_offset": "target_date.day" }
-{ "brand_name": "breezm", "start_month": "전월 YYYY-MM", "end_month": "당월 YYYY-MM", "media": "meta", "group_by": "total", "day_offset": "target_date.day" }
-{ "brand_name": "breezm", "start_month": "전월 YYYY-MM", "end_month": "당월 YYYY-MM", "media": "naver", "group_by": "total", "day_offset": "target_date.day" }
-{ "brand_name": "breezm", "start_month": "전월 YYYY-MM", "end_month": "당월 YYYY-MM", "media": "airbridge", "group_by": "media", "day_offset": "target_date.day" }
-```
+이 섹션은 `get_ad_performance_monthly_table`을 직접 호출하지 않는다 —
+`monthly-summary-section-3-monthly-ad-performance.md`가 3단계에서 1회 호출한
+`get_ad_performance_monthly_table`(`media` 생략, `group_by:"media"`, 5개월 전 ~ 당월,
+`day_offset`=target_date.day) 응답을 그대로 재사용한다. 이 섹션이 필요로 하는 범위(전월~당월,
+2개월)는 section-3의 6개월 범위(5개월 전~당월) 안에 항상 완전히 포함되므로, 그 공유 응답에서
+전월(M-1)·당월(M0) 두 달치 행만 골라 쓰면 별도로 호출했을 때와 결과가 동일하다.
 
-- **`day_offset: target_date.day`를 반드시 넣는다** — 전월을 전체 월이 아니라 당월과 같은
-  일자까지 자른 동일 기간으로 비교하기 위함이다. 이 한 번의 호출로 **전월 동기 값과 당월(MTD)
-  값을 동시에** 받는다 — 별도로 두 번 호출할 필요가 없다.
-- google/meta/naver는 `group_by: "total"`(매체별 월간 `cost` 합)만 필요하다.
-- airbridge는 `group_by: "media"`(채널별 월간 `airbridge_revenue`/`reservation`)로 받는다.
-- ⚠️ 어떤 호출에도 `campaign-type`을 넣지 않는다 — airbridge 행이 조용히 누락된다.
-- ⚠️ `group_by`는 문자열 그대로 보낸다 (`"total"`/`"media"`).
+- `day_offset`=target_date.day가 이미 적용되어 있으므로, 전월도 전체 월이 아니라 당월과 같은
+  일자까지 자른 동일 기간으로 비교된다 — 별도 계산이 필요 없다.
+- google/meta/naver는 공유 응답의 매체별(이미 합산된) 월간 `cost` 행을 그대로 쓴다(section-3의
+  「필요 데이터」에서 쓰는 것과 같은 행이며, 예전 `group_by:"total"`로 받던 값과 동일하다).
+- airbridge는 공유 응답의 채널별 월간 `airbridge_revenue`/`reservation` 행을 그대로 쓴다.
+- ⚠️ 공유 응답 자체가 `campaign-type` 없이, `group_by`는 문자열 `"media"`로 받은 것이다(section-3
+  참고) — 이 섹션에서 별도로 신경 쓸 필요 없다.
 
 ## 필요 데이터 (매체별, M-1/M0 각각 별도로)
 

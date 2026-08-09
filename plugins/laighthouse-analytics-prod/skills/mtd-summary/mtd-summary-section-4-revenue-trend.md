@@ -3,20 +3,23 @@
 **report_type:** `mtd-summary` — **브리즘(airbridge 기반) 전용** (항상 포함). 최근 6개월(당월 포함)
 라인 차트. 매출은 Airbridge 매출.
 
-## MCP 도구 호출: `get_ad_performance_monthly_table` × 1
+## `get_ad_performance_monthly_table` — 별도 호출 없음, section-3의 공유 응답을 재사용
 
-```json
-{ "brand_name": "breezm", "start_month": "5개월 전 YYYY-MM", "end_month": "당월 YYYY-MM", "media": "airbridge", "group_by": "media", "day_offset": "target_date.day" }
-```
-
-- 기간 span 6개월 (당월 포함, 고정). **`day_offset: target_date.day`를 반드시 넣는다**. ⚠️ `campaign-type` 금지.
+- 이 섹션은 `get_ad_performance_monthly_table`을 직접 호출하지 않는다 —
+  `mtd-summary-section-3-monthly-ad-performance.md`가 3단계에서 1회 호출한 응답
+  (`media` 생략, `group_by: "media"`, 5개월 전 ~ 당월, `day_offset`=target_date.day)을 그대로
+  재사용한다. 이 섹션은 그 응답 중 `media`가 `airbridge`인 행만 가져다 쓴다 — 예전에 이
+  섹션이 직접 호출하던 `{ "media": "airbridge", "group_by": "media" }` 호출과 완전히 동일한
+  파라미터·범위이므로 결과는 동일하다.
+- 기간 span 6개월 (당월 포함, 고정). `day_offset: target_date.day`가 이미 적용되어 있다.
+  ⚠️ `campaign-type` 금지 — section-3 공유 응답에도 이미 적용된 규칙이다.
 
 ## 필요 데이터 (월별 집계)
 
 최근 6개월(당월 포함)을 **고정적으로 포함**한다 — 데이터가 없는 월도 labels에서 제외하지 않고
 값을 0으로 채운다.
 
-각 월에 대해:
+각 월에 대해 (section-3 공유 응답의 `media`가 `airbridge`인 행만 사용):
 - `광고 매출` = 광고 채널(`Google Ads`/`Meta Ads`/`Naver Ads`) 행의 `airbridge_revenue` 합
 - `전체 매출` = **모든** `channel` 행의 `airbridge_revenue` 합 (광고 채널 외 채널 포함)
 - airbridge 응답에 해당 월 행이 전혀 없으면 `광고 매출`/`전체 매출` 모두 **0**으로 기록한다.

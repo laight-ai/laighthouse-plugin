@@ -7,23 +7,25 @@
 Others 5개 항목으로 성과를 구분해서 보여준다. `executive-monthly`의 section-5와 완전히
 동일한 내용이며, `monthly`에서는 섹션 순서상 4번이다.
 
-## MCP 도구 호출: `get_ad_performance_monthly_table` × 4 (전월 vs 당월, `day_offset`)
+## MCP 도구 호출 — 별도 호출 없음, section-3의 공유 응답을 재사용
 
-```json
-{ "brand_name": "breezm", "start_month": "전월 YYYY-MM", "end_month": "당월 YYYY-MM", "media": "google", "group_by": "total", "day_offset": "target_date.day" }
-{ "brand_name": "breezm", "start_month": "전월 YYYY-MM", "end_month": "당월 YYYY-MM", "media": "meta", "group_by": "total", "day_offset": "target_date.day" }
-{ "brand_name": "breezm", "start_month": "전월 YYYY-MM", "end_month": "당월 YYYY-MM", "media": "naver", "group_by": "total", "day_offset": "target_date.day" }
-{ "brand_name": "breezm", "start_month": "전월 YYYY-MM", "end_month": "당월 YYYY-MM", "media": "airbridge", "group_by": "media", "day_offset": "target_date.day" }
-```
+이 섹션은 `get_ad_performance_monthly_table`을 직접 호출하지 않는다 —
+`monthly-detailed-section-3-monthly-ad-performance.md`가 호출한 **1회 호출**
+(`start_month`=5개월 전, `end_month`=당월, `group_by:"media"`, `media` 생략,
+`day_offset`=target_date.day) 응답을 그대로 재사용한다. 이 섹션이 필요로 하는 전월(M-1)·
+당월(M0) 두 달은 section-3의 6개월 범위 안에 완전히 포함되며, `day_offset`도 section-3와
+동일한 값이 범위 내 모든 월에 균일하게 적용되므로(도구 구현상 `day_offset`은 당월뿐 아니라
+과거 월에도 동일하게 적용된다) M-1·M0 각각의 값이 별도로 호출했을 때와 완전히 동일하다.
 
-- **`day_offset: target_date.day`를 반드시 넣는다** — 전월을 전체 월이 아니라 당월과 같은
-  일자까지 자른 동일 기간으로 비교하기 위함이다. 이 한 번의 호출로 **전월 동기 값과 당월(MTD)
-  값을 동시에** 받는다 — 별도로 두 번 호출할 필요가 없다.
-- google/meta/naver는 `group_by: "total"`(매체별 월간 `cost`/`impression`/`click` 합 — CTR
-  계산에 `impression`/`click`도 필요하다)만 필요하다.
-- airbridge는 `group_by: "media"`(채널별 월간 `airbridge_revenue`/`reservation`)로 받는다.
+- 이전에는 이 섹션이 `start_month`=전월, `end_month`=당월 범위로 4회(`google`/`meta`/`naver`
+  `group_by:"total"` + `airbridge` `group_by:"media"`) 직접 호출했지만, section-3가 이미
+  `media` 생략 1회 호출로 더 넓은 6개월 범위(같은 `day_offset`)를 받아두므로 이 섹션은 그
+  응답에서 M-1·M0 두 달 행만 골라 쓰면 된다 — 추가 호출이 전혀 필요 없다.
+- 공유 응답에서 `media`가 정확히 `"google"`/`"meta"`/`"naver"`인 행은 매체당 월별로 이미
+  합산된 한 줄(`cost`/`impression`/`click` 포함 — CTR 계산에 `impression`/`click`도 필요하다)
+  이고, `media`가 `"airbridge"`인 행은 월별·`channel`별 여러 줄(`airbridge_revenue`/
+  `reservation`)이다.
 - ⚠️ 어떤 호출에도 `campaign-type`을 넣지 않는다 — airbridge 행이 조용히 누락된다.
-- ⚠️ `group_by`는 문자열 그대로 보낸다 (`"total"`/`"media"`).
 
 ## 필요 데이터 (매체별, M-1/M0 각각 별도로)
 

@@ -4,28 +4,39 @@
 6개월(당월 포함), 연-월 단위. 매출은 Airbridge 매출, 광고 채널은
 `Google Ads`/`Meta Ads`/`Naver Ads` 행.
 
-## MCP 도구 호출: `get_ad_performance_monthly_table` × 4
+## MCP 도구 호출: `get_ad_performance_monthly_table` × 1 (`media` 생략, section-4/5 공유)
 
 ```json
-{ "brand_name": "breezm", "start_month": "5개월 전 YYYY-MM", "end_month": "당월 YYYY-MM", "media": "google", "group_by": "total", "day_offset": "target_date.day" }
-{ "brand_name": "breezm", "start_month": "5개월 전 YYYY-MM", "end_month": "당월 YYYY-MM", "media": "meta", "group_by": "total", "day_offset": "target_date.day" }
-{ "brand_name": "breezm", "start_month": "5개월 전 YYYY-MM", "end_month": "당월 YYYY-MM", "media": "naver", "group_by": "total", "day_offset": "target_date.day" }
-{ "brand_name": "breezm", "start_month": "5개월 전 YYYY-MM", "end_month": "당월 YYYY-MM", "media": "airbridge", "group_by": "media", "day_offset": "target_date.day" }
+{ "brand_name": "breezm", "start_month": "5개월 전 YYYY-MM", "end_month": "당월 YYYY-MM", "group_by": "media", "day_offset": "target_date.day" }
 ```
 
+- **`media` 파라미터를 생략한다** — 생략하면 이 도구는 google/meta/naver/airbridge(및 이
+  보고서가 쓰지 않는 다른 매체, 예: `ga4`)를 **한 번의 호출로 전부** 반환한다. 예전에는
+  매체별로 4번(`google`/`meta`/`naver` 각각 `group_by:"total"` + `airbridge`
+  `group_by:"media"`) 나눠 불렀지만, 이제 이 호출 1개로 동일한 정보를 전부 얻는다:
+  - `media`가 정확히 `"google"`/`"meta"`/`"naver"`인 행 — 매체당 월별로 **이미 합산된 한
+    줄**이며, 이 행의 `cost`가 예전에 `group_by:"total"`로 받던 값과 동일하다.
+  - `media`가 `"airbridge"`인 행 — 예전과 동일하게 월별·`channel`별로 여러 줄(Google
+    Ads/Meta Ads/Naver Ads/Organic/그 외)이 온다.
+  - `media`가 위 네 가지 외의 값(예: `ga4`)인 행은 이 섹션이 쓰지 않으므로 무시한다.
+- **이 호출의 응답은 `mtd-summary-section-4-revenue-trend.md`(section-4)와
+  `mtd-summary-section-5-channel-comparison.md`(section-5)가 그대로 재사용한다** — 세
+  섹션이 각자 호출하지 않는다. section-4는 이 응답을 6개월 그대로, section-5는 이 응답의
+  마지막 2개월(전월, 당월)에 해당하는 행만 가져다 쓴다(section-5가 필요로 하는 전월~당월
+  범위는 이 섹션의 6개월 범위 안에 완전히 포함된다).
 - 기간 span은 6개월 (도구 제한 24개월 이내). **`day_offset: target_date.day`를 반드시 넣는다** —
   당월(진행 중인 달)은 이 값이 없으면 target_date가 아니라 실제 오늘 날짜까지 누적된 데이터를
   반환해, 섹션 1(목표 달성 현황)의 target_date 기준 수치와 어긋나는 문제가 생길 수 있다. `day_offset`
   을 넣으면 당월 데이터가 다른 섹션과 동일하게 target_date까지만 잘려서 온다.
 - ⚠️ `campaign-type`을 넣지 않는다 — airbridge 행이 조용히 누락된다.
-- ⚠️ `group_by`는 문자열 enum 그대로 보낸다 (`"total"`/`"media"`).
+- ⚠️ `group_by`는 문자열 enum 그대로 보낸다 (`"media"`).
 
 ## 필요 데이터 (월별 집계)
 
 각 월에 대해:
-- `광고비` = google/meta/naver 세 응답의 해당 월 `cost` 합
-- `매출` = airbridge 응답의 해당 월 광고 채널(`Google Ads`/`Meta Ads`/`Naver Ads`) 행
-  `airbridge_revenue` 합
+- `광고비` = 공유 응답에서 `media`가 `google`/`meta`/`naver`인 세 행의 해당 월 `cost` 합
+- `매출` = 공유 응답에서 `media`가 `airbridge`인 행 중 해당 월 광고 채널(`Google
+  Ads`/`Meta Ads`/`Naver Ads`) 행의 `airbridge_revenue` 합
 - `ROAS` = 매출 ÷ 광고비 × 100 (광고비 0이면 N/A)
 
 ## HTML

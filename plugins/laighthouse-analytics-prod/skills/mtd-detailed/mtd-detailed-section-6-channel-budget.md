@@ -15,35 +15,26 @@
 
 ## ⚠️ 광고 매출(실적)은 항상 Airbridge에서만 가져온다
 
-**절대 규칙**: `광고 매출`은 목표 유무와 무관하게 **항상**
+**절대 규칙**: `광고 매출`은 목표 유무와 무관하게 **항상** 섹션 1이 이미 호출한
 `get_ad_performance_monthly_table`(`start_month`=당월, `end_month`=당월,
-`day_offset`=target_date.day, `media="airbridge"`, `group_by: "media"`) 1회 호출로 가져온다.
-이 호출은 날짜별 행을 합산할 필요 없이 **채널당 이미 합산된 한 줄**을 그대로 반환한다(속도상
-`get_ad_performance_daily_table`로 날짜별 행을 받아 직접 합산하는 것보다 훨씬 빠르다). 응답에서
-해당 채널 행(매체 ↔ 채널 대응: google ↔ `Google Ads`, meta ↔ `Meta Ads`, naver ↔ `Naver Ads`)의
+`day_offset`=target_date.day, `group_by: "media"`, `media` 생략) 1회 호출 응답을 **그대로
+재사용**한다 — 재호출하지 않는다. 이 호출은 `media`를 생략해 google/meta/naver/airbridge
+행을 전부 한 번에 반환하므로(섹션 1 참고), 이 섹션이 필요로 하는 채널별 `airbridge_revenue`와
+아래 no-budget fallback 소진액(`cost`)을 별도 호출 없이 모두 충당한다. 응답에서 해당 채널
+행(매체 ↔ 채널 대응: google ↔ `Google Ads`, meta ↔ `Meta Ads`, naver ↔ `Naver Ads`)의
 `airbridge_revenue`를 그대로 쓴다. `get_target_progress_v2`의 `revenue` 행 `actual`은 **절대
 쓰지 않는다** — 실제로 naver는 이 값이 0으로 반환되지만 같은 기간 Airbridge에는 naver 채널
-매출이 정상적으로 존재하는 문제가 생길 수 있다. 이 호출은 섹션 1이 이미 호출했다면(매번 실행하는
-호출이므로 항상 호출했을 것이다) **그대로 재사용**한다 — 재호출하지 않는다.
+매출이 정상적으로 존재하는 문제가 생길 수 있다.
 
 ```json
-{ "brand_name": "breezm", "start_month": "당월 YYYY-MM", "end_month": "당월 YYYY-MM", "media": "airbridge", "group_by": "media", "day_offset": "target_date.day" }
+{ "brand_name": "breezm", "start_month": "당월 YYYY-MM", "end_month": "당월 YYYY-MM", "group_by": "media", "day_offset": "target_date.day" }
 ```
 
 ## 매체별 계산 규칙 (cost/revenue 독립 판단)
 
 특정 매체가 `"No {media} budget/target available for {month}."` 메시지를 반환하면 그 매체의
-`월 예산`/`예산 소진율`은 N/A, `소진액`은 `get_ad_performance_monthly_table`(`start_month`=
-`end_month`=당월, `day_offset`=target_date.day, `media`=해당 매체, `group_by: "total"`) 1회
-호출로 대체한다 — 이것도 날짜별 합산 없이 한 줄로 바로 받는다. 섹션 1이 같은 매체에 대해
-이미 이 호출을 했다면(섹션 1도 동일한 no-budget 매체에 대해 같은 fallback을 쓰므로 보통
-그렇다) 재사용하고, 아니라면 새로 호출한다.
-
-```json
-{ "brand_name": "breezm", "start_month": "당월 YYYY-MM", "end_month": "당월 YYYY-MM", "media": "google", "group_by": "total", "day_offset": "target_date.day" }
-{ "brand_name": "breezm", "start_month": "당월 YYYY-MM", "end_month": "당월 YYYY-MM", "media": "meta", "group_by": "total", "day_offset": "target_date.day" }
-{ "brand_name": "breezm", "start_month": "당월 YYYY-MM", "end_month": "당월 YYYY-MM", "media": "naver", "group_by": "total", "day_offset": "target_date.day" }
-```
+`월 예산`/`예산 소진율`은 N/A, `소진액`은 위 섹션 1의 공유 응답(media 생략) 중 해당 매체 행의
+`cost`로 대체한다 — 추가 호출이 필요 없다.
 
 표를 반환하는 매체는 `cost` 행을 그대로 쓴다: `월 예산` = target, `소진액` = actual,
 `예산 소진율` = progress_ratio × 100. (`target`이 0이면 no-budget과 동일하게 N/A + 대체 처리)

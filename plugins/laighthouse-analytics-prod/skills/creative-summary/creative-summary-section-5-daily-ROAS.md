@@ -6,18 +6,24 @@
 보여준다 — 소재 선정과 매체 쪽 데이터는 section-4의 결과를 그대로 재사용하고, 이 섹션은
 airbridge 매출만 추가로 조회한다.
 
-## MCP 도구 호출: `get_ad_performance_daily_table` × 1 (`group_by: "ad"`, 최근 7일, airbridge만 신규)
+## MCP 도구 호출: 신규 호출 없음 — section-1의 응답을 그대로 재사용
+
+이 섹션은 section-1(최우수 소재)이 이미 호출한 아래 응답(`media` 생략, `group_by: "ad"`,
+최근 7일)을 그대로 재사용한다 — **다시 호출하지 않는다**:
 
 ```json
-{ "brand_name": "breezm", "start_date": "기준일 6일 전 YYYY-MM-DD", "end_date": "target_date", "media": "airbridge", "group_by": "ad" }
+{ "brand_name": "breezm", "start_date": "기준일 6일 전 YYYY-MM-DD", "end_date": "target_date", "group_by": "ad" }
 ```
 
-- **`media="meta"` 쪽 응답은 section-4에서 이미 받았으므로 재사용한다** — 이 섹션에서 다시
-  호출하지 않는다. 이 섹션이 새로 호출하는 것은 `media="airbridge"` 하나뿐이다.
+- 이 응답에서 `media === "airbridge"`인 행만 걸러서 쓴다.
+- **`media === "meta"` 쪽 행(section-4가 이미 걸러낸 것)도 재사용한다** — 이 섹션에서 다시
+  걸러내지 않는다. 두 필터링 모두 section-1이 받은 같은 원본 응답에서 나온다.
 - 기간은 section-4와 정확히 동일한 7일이다.
-- 응답에는 날짜별·소재(`campaign_name`+`asset_group`+`ad_name`)별 `airbridge_revenue`가
-  들어있다 — **소재(ad) 단위까지 매출이 정상 귀속됨을 확인했다**(2026-08-03).
-- ⚠️ `campaign-type` 금지. ⚠️ `group_by`는 문자열 `"ad"` 그대로 보낸다.
+- airbridge 행에는 날짜별·소재(`campaign_name`+`asset_group`+`ad_name`)별
+  `airbridge_revenue`가 들어있다 — **소재(ad) 단위까지 매출이 정상 귀속됨을 확인했다**
+  (2026-08-03).
+- ⚠️ `campaign-type` 금지(section-1에서 이미 호출했으므로 여기서는 해당 사항 없음 — 재사용만
+  확인). ⚠️ `group_by`는 문자열 `"ad"` 그대로다.
 
 ## 필요 데이터
 

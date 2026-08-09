@@ -5,21 +5,23 @@
 같은 캠페인 단위 표이지만, 비교 시점이 하루가 아니라 한 달이다(section-4의 매체 성과 비교와
 같은 M-1 vs M0 방식을 캠페인 단위로 적용한 버전).
 
-## MCP 도구 호출: `get_ad_performance_monthly_table` × 4 (전월 vs 당월, `day_offset`,
-`group_by: "campaign"`)
+## MCP 도구 호출: `get_ad_performance_monthly_table` × 1 (`media` 생략, 전월 vs 당월,
+`day_offset`, `group_by: "campaign"`)
 
 ```json
-{ "brand_name": "breezm", "start_month": "전월 YYYY-MM", "end_month": "당월 YYYY-MM", "media": "google", "group_by": "campaign", "day_offset": "target_date.day" }
-{ "brand_name": "breezm", "start_month": "전월 YYYY-MM", "end_month": "당월 YYYY-MM", "media": "meta", "group_by": "campaign", "day_offset": "target_date.day" }
-{ "brand_name": "breezm", "start_month": "전월 YYYY-MM", "end_month": "당월 YYYY-MM", "media": "naver", "group_by": "campaign", "day_offset": "target_date.day" }
-{ "brand_name": "breezm", "start_month": "전월 YYYY-MM", "end_month": "당월 YYYY-MM", "media": "airbridge", "group_by": "campaign", "day_offset": "target_date.day" }
+{ "brand_name": "breezm", "start_month": "전월 YYYY-MM", "end_month": "당월 YYYY-MM", "group_by": "campaign", "day_offset": "target_date.day" }
 ```
 
+- **`media` 파라미터를 생략한다** — 예전에는 매체별로 4번(`google`/`meta`/`naver`/`airbridge`
+  각각 `group_by:"campaign"`) 나눠 불렀지만, `media`를 생략하면 이 도구가 google/meta/naver/
+  airbridge(및 이 보고서가 쓰지 않는 다른 매체)를 **한 번의 호출로 전부** `group_by:"campaign"`
+  기준으로 반환한다 — 매체별 4호출과 동일한 행 구성(매체×캠페인×월)을 응답의 `media` 필드로
+  구분해서 그대로 받는다.
 - **`day_offset: target_date.day`를 반드시 넣는다** — 전월을 전체 월이 아니라 당월과 같은
   일자까지 자른 동일 기간으로 비교하기 위함이다. 이 한 번의 호출로 **전월 동기 값과
   당월(MTD) 값을 동시에** 받는다.
 - `group_by: "campaign"`은 `get_ad_performance_monthly_table`에서 실제로 지원됨을 확인했다 —
-  응답이 `month`별·`campaign_name`별로 나뉘어 온다. google/meta/naver 응답에는 `cost`뿐
+  응답이 `month`별·`media`별·`campaign_name`별로 나뉘어 온다. google/meta/naver 행에는 `cost`뿐
   아니라 CTR 계산에 필요한 `impression`/`click`도 포함되어 있다.
 - ⚠️ **실제로 확인된 데이터 특성**: 캠페인 단위 데이터는 매체마다 보존 기간이 다르다 —
   google/meta/naver(광고비 쪽)는 전월 데이터가 있어도, **airbridge(매출/예약 쪽)는 전월에
@@ -28,6 +30,8 @@
   독립적으로** M-1 유무가 갈릴 수 있다 — 하나가 없다고 해서 나머지도 없다고 가정하지 않는다.
 - ⚠️ 어떤 호출에도 `campaign-type`을 넣지 않는다 — airbridge 행이 조용히 누락된다.
 - ⚠️ `group_by`는 문자열 `"campaign"` 그대로 보낸다.
+- 이 섹션의 `group_by:"campaign"` 응답은 section-3/4가 쓰는 `group_by:"media"` 응답과 행
+  granularity(그룹 기준)가 다르므로 서로 공유하지 않는다 — 이 섹션만의 독립된 1회 호출이다.
 
 ## 필요 데이터 (캠페인별, M-1/M0 각각 별도로)
 
