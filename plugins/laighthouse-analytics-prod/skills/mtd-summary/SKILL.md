@@ -122,36 +122,14 @@ MCP 데이터를 받아 **라이트하우스 스타일 성과 보고서**로 렌
    프로모션/이벤트 정보를 위해 `mcp__laighthouse__list_promotions`를 추가로 호출하는지 등
    세부 규칙은 `mtd-summary-section-2-executive-summary.md`에 적힌 대로 따른다.
 5. 아래 표의 파일을 **순서대로 전부** import해 HTML을 조합한다.
-6. ⚠️ **`chart.umd.min.js`(약 208KB)를 절대 자신의 응답 텍스트로 다시 타이핑(재생성)하지
-   않는다** — 이 파일을 Read해서 그 내용을 자기 출력(tool call 인자, 응답 텍스트)에 그대로
-   복사해 넣으면, 그 208KB(대략 5만 토큰)를 전부 출력 토큰으로 새로 생성해야 하므로 리포트
-   1건당 수십 초~수 분이 그냥 여기서 소모된다(2026-08-09 확인 — 보고서가 느린 가장 유력한
-   원인 중 하나로 지목됨). 대신 호스트에 따라 아래 두 경로로 나눈다 — **어느 쪽이든 모델이
-   chart.js 바이트를 직접 다시 쓰는 일은 없어야 한다**:
-   - **파일 시스템에 저장할 수 있는 호스트 (전용 "파일 복사" 도구 유무와 무관)**: 먼저
-     `~/Downloads/laighthouse-reports/chart.umd.min.js`가 **이미 존재하는지 확인**한다(파일
-     목록/존재 확인이 가능한 도구로). **이미 있으면 이 단계를 완전히 건너뛴다** — 아무 도구도
-     쓰지 않는다. **없을 때만** 그 경로에 `assets/chart.umd.min.js`를 생성한다 — 전용 "파일
-     복사" 도구가 있으면 그걸로 바이트 그대로 복사하고, 그런 도구가 없고 일반 "파일 쓰기"
-     도구(내용을 문자열 인자로 받는 것)만 있다면 그걸로라도 써서 만든다. **후자의 경우 그
-     순간만 208KB를 한 번 다뤄야 하지만, 그건 해당 폴더에 리포트가 생성되는 전체 기간 통틀어
-     "딱 한 번"뿐이다** — 그 파일이 일단 존재하면 이후의 모든 `mtd-summary`(뿐 아니라
-     Chart.js를 쓰는 다른 report_type도 같은 자산을 공유할 수 있다) 리포트는 존재 확인만 하고
-     곧장 건너뛰므로, 매 리포트마다 반복되던 비용이 "생애 첫 리포트 1회"로 상각(amortize)된다.
-     파일이 준비되면(새로 만들었든 이미 있었든), 저장할 리포트 HTML의 `<head>`에는
-     `<script src="chart.umd.min.js"></script>`처럼 **같은 폴더를 가리키는 상대 경로
-     `<script src>`**를 쓴다 — `file://`로 연 로컬 HTML이 같은 폴더의 로컬 `.js` 파일을
-     상대 경로로 불러오는 것은 CDN 요청이 아니라 정상적으로 동작한다(2026-08-09 조사로 확인 —
-     classic `<script src>`는 ES 모듈/`fetch`와 달리 `file://`에서 CORS 제약이 없다).
-   - **CSP로 외부/상대 스크립트 로드가 막힌 호스트(Claude Code/claude.ai Artifact 등)**: 이
-     경우에만 어쩔 수 없이 인라인이 필요하다 — 이때도 모델이 직접 텍스트로 옮기지 말고, 파일
-     복사·연결(diff 적용, cp, 템플릿 치환 등 텍스트 재생성이 아닌 도구)이 가능하면 그 방식을
-     우선 쓴다. 그런 도구가 전혀 없는 호스트에서만 최후 수단으로 `{CHART_JS_INLINE}` 치환을
-     쓴다.
-   - **Artifact도 `show_widget`도 없는 호스트(예: Claude Desktop 채팅 그 자체)**: 아래 7단계의
-     "채팅 내부 표시" 사본을 아예 만들지 않는다 — 저장 파일 하나만 만들면 충분하다(어차피
-     Desktop 채팅 안에 실행 가능한 HTML을 렌더링할 방법이 없다). 완료 메시지에 저장 경로만
-     안내한다.
+6. ⚠️ **`chart.umd.min.js`(약 208KB)는 `{CHART_JS_INLINE}` 자리에 항상 전체 내용을 그대로
+   인라인한다.** 이 파일을 Read해서 그 내용을 `<script>{CHART_JS_INLINE}</script>` 자리에
+   그대로 붙여넣는다 — 208KB(대략 5만 토큰)를 출력 토큰으로 새로 생성해야 하므로 느리지만
+   (2026-08-09 확인), **정확성(차트가 실제로 렌더링되는 것)이 속도보다 항상 우선한다**.
+   상대 경로 `<script src="chart.umd.min.js">`로 분리해 참조하는 방식은 쓰지 않는다 — 실제
+   호스트 저장/프리뷰 환경에서 sibling 파일을 상대 경로로 못 불러와 차트가 전부 깨지는 사례가
+   확인됐다(자세한 배경은 `CLAUDE.md` 참고). 항상 인라인하므로 "이미 파일이 존재하는지 확인
+   후 건너뛴다"는 절차도 없다 — 매 리포트마다 `{CHART_JS_INLINE}`을 새로 채운다.
 7. 아래 **보고서 골격**에 섹션들을 삽입해 렌더링한다. 완성된 HTML은 호스트가 지원하는 경로
    전부에 낸다 — 단, 위 6단계 규칙대로 지원되지 않는 경로는 만들지 않는다:
    - **채팅 내부 표시** (Artifact 또는 `mcp__visualize__show_widget`이 있는 호스트에서만):
@@ -377,25 +355,20 @@ end_idx   = min(labels.length-1, raw_end_idx)
 > Artifact(claude.ai 아티팩트)의 CSP는 외부 호스트로 나가는 스크립트 요청을 전부 차단하므로,
 > `<script src="https://cdn.jsdelivr.net/...">`로 로드하면 스크립트 자체가 실행되지 않아 모든
 > 차트가 빈 캔버스로 남는다. 이 스킬 폴더의 `assets/chart.umd.min.js`(Chart.js v4 UMD 빌드,
-> MIT license, 오프라인 자산)를 쓰되, **어느 경로를 쓰든 모델이 그 208KB를 직접 응답 텍스트로
-> 재생성하지 않는다** (위 6단계 참고):
-> - 로컬 파일로 저장하는 경우 → `assets/chart.umd.min.js`를 저장 폴더에 파일 그대로 복사해두고
->   `<script src="chart.umd.min.js"></script>`(같은 폴더 상대 경로)를 쓴다.
-> - CSP 때문에 인라인이 꼭 필요한 Artifact 등에서만 → 텍스트 재생성이 아닌 도구(파일 복사/치환)로
->   `{CHART_JS_INLINE}` 자리를 채운다. 그런 도구가 전혀 없을 때만 최후 수단으로 모델이 직접
->   붙여넣는다.
+> MIT license, 오프라인 자산)를 Read해서 그 내용을 `{CHART_JS_INLINE}` 자리에 항상 전체
+> 인라인한다 (위 6단계 참고) — 상대 경로 `<script src="chart.umd.min.js">`로 분리 참조하지
+> 않는다. 저장/프리뷰되는 호스트가 sibling 파일을 relative path로 못 불러오는 경우가 실제로
+> 확인됐고, 그 경우 모든 차트가 깨진다(자세한 배경은 `CLAUDE.md` 참고) — 느리더라도 인라인이
+> 항상 더 안전한 기본값이다.
 
 ```html
 <!DOCTYPE html>
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<!-- 로컬 파일 저장본: <script src="chart.umd.min.js"></script>
-     CSP로 상대 경로 로드가 막힌 호스트(Artifact 등)에서만 아래처럼 인라인:
 <script>
 {CHART_JS_INLINE}
 </script>
--->
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans KR', sans-serif;
