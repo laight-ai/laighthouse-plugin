@@ -91,22 +91,28 @@ MCP 데이터를 받아 **라이트하우스 스타일 성과 보고서**로 렌
    (`daily-summary-section-1-target-achievement.md` 참고). 세 매체 모두
    `"No {media} budget/target available for {month}."` 메시지가 돌아오거나 `cost`/`revenue`
    행의 `target`이 0이면(브리즘은 현재 `revenue` 목표가 세 매체 다 0이다) 해당 목표 필드는
-   N/A로 표시하고, 대체 값은 `get_ad_performance_daily_table`이 아니라
-   **`get_ad_performance_monthly_table`(`start_month`=`end_month`=당월,
-   `day_offset`=target_date.day)**로 가져온다 — 날짜별 행을 직접 합산하는 것보다 훨씬 빠르다
-   (섹션 파일의 대체 규칙 참고). 매출 실적(`기간 매출`/`광고 매출`)은 목표 유무와 무관하게
-   **항상** 이 방식(`media="airbridge"`, `group_by:"media"`, `day_offset`)으로 가져온다 —
-   `get_target_progress_v2`의 `revenue` 행 `actual`은 naver에서 0을 반환하는 경우가 있어
-   매출 실적으로 절대 쓰지 않는다.
+   N/A로 표시하고, 대체 값은 아래 3단계에서 **이미 받아둔**
+   `get_ad_performance_monthly_table`(`media` 생략, `group_by:"media"`) 응답 중 해당 매체
+   행의 `cost`를 그대로 쓴다 — 목표 판정 결과를 기다렸다가 추가로 호출하지 않는다(섹션 파일의
+   대체 규칙 참고). 매출 실적(`기간 매출`/`광고 매출`)도 목표 유무와 무관하게 **항상** 이
+   3단계 호출의 airbridge 행에서 가져온다 — `get_target_progress_v2`의 `revenue` 행 `actual`은
+   naver에서 0을 반환하는 경우가 있어 매출 실적으로 절대 쓰지 않는다.
    ⚠️ ROAS 관련 수치(`target_roas`/`actual_roas`)는 비율값(예: 0.87, 5.06)으로 반환되므로
    반드시 × 100 후 표시한다 (0.87 → 87%, 5.06 → 506%).
 3. 나머지 `mcp__laighthouse__*` generic 도구를 호출해 각 섹션 수치 데이터를 가져온다 (각 섹션
    파일에 명시된 정확한 tool명 참고).
    - **generic 도구**(`get_ad_performance_daily_table`/`get_ad_performance_monthly_table`)만
      쓴다 — naver 전용 도구는 브리즘에 적용되지 않으므로 절대 쓰지 않는다.
+   - ⚠️ **이 두 도구를 부를 때 `media` 파라미터를 아예 생략한다** (섹션 파일에 다르게 적혀
+     있지 않은 한). 생략하면 등록된 모든 매체(google/meta/naver/airbridge 등)가 한 응답에
+     함께 온다 — 매체별로 나눠 여러 번 부르지 않는다. 이렇게 받은 응답 하나를 여러 섹션이
+     공유해서 재사용한다(각 섹션 파일의 "공유 응답 재사용" 절 참고) — 이 스킬의 데이터 호출이
+     `get_target_progress_v2` 3회 + `get_ad_performance_monthly_table` 1회(media 생략) +
+     `get_ad_performance_daily_table` 1회(media 생략) + `list_promotions` 1회, 총 **6회**로
+     줄어드는 이유가 이것이다(예전에는 14회 이상).
    - ⚠️ 이 계열 도구의 `group_by`는 **문자열 enum**(`total`/`media`/`campaign`/`ad-set`/`ad`)이다
-     — `true`/`false` boolean으로 절대 보내지 않는다. 각 섹션 파일에 적힌 값(대부분 `"total"`)을
-     문자열 그대로 그 섹션에서만 쓴다.
+     — `true`/`false` boolean으로 절대 보내지 않는다. 각 섹션 파일에 적힌 값을 문자열 그대로
+     그 섹션에서만 쓴다.
    - ⚠️ **어떤 호출에도 `campaign-type` 파라미터를 넣지 않는다** — 넣으면 airbridge 행이 조용히
      누락된다.
 4. **section-2가 Executive Summary다.** `executive_summary` 텍스트는 `df_dify` MCP를 호출하지
@@ -114,15 +120,36 @@ MCP 데이터를 받아 **라이트하우스 스타일 성과 보고서**로 렌
    프로모션/이벤트 정보를 위해 `mcp__laighthouse__list_promotions`를 추가로 호출하는지 등
    세부 규칙은 `daily-summary-section-2-executive-summary.md`에 적힌 대로 따른다.
 5. 아래 표의 파일을 **순서대로 전부** import해 HTML을 조합한다.
-6. 이 스킬 폴더의 `assets/chart.umd.min.js` 파일을 읽어 그 내용 전체를 `{CHART_JS_INLINE}` 자리에
-   그대로 삽입한다 (CDN `<script src>` 절대 사용 금지 — 아래 보고서 골격의 경고 참고).
-7. 아래 **보고서 골격**에 섹션들을 삽입해 렌더링한다. 완성된 HTML은 아래 **두 곳에 동시에** 낸다 —
-   하나만 하고 끝내지 않는다:
-   - **채팅 내부 표시**: Claude Code(Artifact)에서 실행 중이면 Artifact 도구로 게시(위 스켈레톤과
-     같은 파일을 갱신). `mcp__visualize__show_widget`이 있는 호스트에서는 그걸 쓴다.
-   - **파일로 저장**: 동일한 최종 HTML을 `~/Downloads/laighthouse-reports/브리즘_daily-summary_
-     {기준_일자}.html` 경로에 그대로 저장한다 (디렉터리가 없으면 새로 만든다). 파일명 예:
-     `브리즘_daily-summary_2026-05-15.html`.
+6. ⚠️ **`chart.umd.min.js`(약 208KB)를 절대 자신의 응답 텍스트로 다시 타이핑(재생성)하지
+   않는다** — 이 파일을 Read해서 그 내용을 자기 출력(tool call 인자, 응답 텍스트)에 그대로
+   복사해 넣으면, 그 208KB(대략 5만 토큰)를 전부 출력 토큰으로 새로 생성해야 하므로 리포트
+   1건당 수십 초~수 분이 그냥 여기서 소모된다(2026-08-09 확인 — 보고서가 느린 가장 유력한
+   원인 중 하나로 지목됨). 대신 호스트에 따라 아래 두 경로로 나눈다 — **어느 쪽이든 모델이
+   chart.js 바이트를 직접 다시 쓰는 일은 없어야 한다**:
+   - **파일 시스템에 직접 쓰는 호스트(로컬 diff/파일 복사가 가능한 경우)**: `{CHART_JS_INLINE}`
+     같은 텍스트 치환 대신, `assets/chart.umd.min.js`를 리포트 저장 폴더
+     (`~/Downloads/laighthouse-reports/chart.umd.min.js`)에 **파일 그대로 한 번만 복사**해두고
+     (이미 있으면 재복사하지 않는다), 저장할 리포트 HTML의 `<head>`에는
+     `<script src="chart.umd.min.js"></script>`처럼 **같은 폴더를 가리키는 상대 경로
+     `<script src>`**를 쓴다 — `file://`로 연 로컬 HTML이 같은 폴더의 로컬 `.js` 파일을
+     상대 경로로 불러오는 것은 CDN 요청이 아니라 정상적으로 동작한다.
+   - **CSP로 외부/상대 스크립트 로드가 막힌 호스트(Claude Code/claude.ai Artifact 등)**: 이
+     경우에만 어쩔 수 없이 인라인이 필요하다 — 이때도 모델이 직접 텍스트로 옮기지 말고, 파일
+     복사·연결(diff 적용, cp, 템플릿 치환 등 텍스트 재생성이 아닌 도구)이 가능하면 그 방식을
+     우선 쓴다. 그런 도구가 전혀 없는 호스트에서만 최후 수단으로 `{CHART_JS_INLINE}` 치환을
+     쓴다.
+   - **Artifact도 `show_widget`도 없는 호스트(예: Claude Desktop 채팅 그 자체)**: 아래 7단계의
+     "채팅 내부 표시" 사본을 아예 만들지 않는다 — 저장 파일 하나만 만들면 충분하다(어차피
+     Desktop 채팅 안에 실행 가능한 HTML을 렌더링할 방법이 없다). 완료 메시지에 저장 경로만
+     안내한다.
+7. 아래 **보고서 골격**에 섹션들을 삽입해 렌더링한다. 완성된 HTML은 호스트가 지원하는 경로
+   전부에 낸다 — 단, 위 6단계 규칙대로 지원되지 않는 경로는 만들지 않는다:
+   - **채팅 내부 표시** (Artifact 또는 `mcp__visualize__show_widget`이 있는 호스트에서만):
+     Claude Code(Artifact)에서 실행 중이면 Artifact 도구로 게시(위 스켈레톤과 같은 파일을
+     갱신). `mcp__visualize__show_widget`이 있는 호스트에서는 그걸 쓴다.
+   - **파일로 저장** (모든 호스트, 항상): 최종 HTML을 `~/Downloads/laighthouse-reports/브리즘_
+     daily-summary_{기준_일자}.html` 경로에 그대로 저장한다 (디렉터리가 없으면 새로 만든다).
+     파일명 예: `브리즘_daily-summary_2026-05-15.html`.
 8. 렌더링 후 사용자에게 보내는 완료 메시지는 아래 **완료 메시지 형식**을 그대로 따른다 — 매번 다른
    문구로 즉석 요약하지 않는다. 저장된 파일 경로를 완료 메시지 마지막 줄에 덧붙인다.
 
@@ -131,28 +158,36 @@ MCP 데이터를 받아 **라이트하우스 스타일 성과 보고서**로 렌
 ## 병렬 호출 지침 (성능 최적화)
 
 > ⚡ 이 스킬은 `render-report-docx`처럼 서브에이전트를 띄우지 않는다 — 오케스트레이터(본 대화)가
-> MCP를 직접 호출한다. 대신 **서로 결과에 의존하지 않는 MCP 호출은 반드시 한 메시지 안에서
-> 동시에(병렬 tool call로) 발사한다.** 하나씩 순차 호출하면 호출마다 브랜드 권한 확인 왕복이
-> 누적되어 보고서 생성이 불필요하게 느려진다 — "2단계 먼저, 3단계 나중"이라는 실행 순서상의
-> 서술은 데이터 의존성이 아니라 설명 편의상 나눈 순서일 뿐이다.
+> MCP를 직접 호출한다. **서로 결과에 의존하지 않는 MCP 호출은 한 메시지 안에서 동시에(병렬
+> tool call로) 발사한다.**
+>
+> ⚠️ **주의 (2026-08-09 실측 정정)**: 한 메시지에 여러 tool call을 담아도, 이게 네트워크
+> 레벨에서 진짜 동시 실행된다는 보장은 없다 — Anthropic 공식 문서도 "API는 실행 순서를
+> 강제하지 않으며 동시/순차 여부는 클라이언트 구현에 달려 있다"고 명시한다. 실제로 로컬
+> 환경에서 "배치 5개 호출"과 "완전 순차 5개 호출(각각 별도 턴)"을 측정했더니 배치가 더
+> 빠르긴 했지만(8.65초 vs 14.06초) 5배가 아니라 "턴 사이 모델 사고 시간(호출당 약 1초)"만큼만
+> 줄었다 — MCP 호출 자체는 배치 안에서도 사실상 순차 처리되는 것으로 보인다. 따라서 배치의
+> 실제 효과는 **"턴 오버헤드 제거"**이지 "네트워크 동시 실행"이 아니다 — 진짜 속도 개선은
+> 배치보다 **호출 총 개수를 줄이는 것**(아래 6개 통합 호출)에서 나온다. 그래도 배치는 공짜
+> 이득이니 계속 유지한다 — 하나씩 순차 호출하면 호출마다 브랜드 권한 확인 왕복과 턴 지연이
+> 누적되어 보고서 생성이 느려진다. "2단계 먼저, 3단계 나중"이라는 실행 순서상의 서술은 데이터
+> 의존성이 아니라 설명 편의상 나눈 순서일 뿐이다.
 
-- **2단계**의 `get_target_progress_v2` 3회 호출(media=google/meta/naver)은 서로 독립적이다 — 3개를
-  한 메시지 안에서 동시에 발사한다. 세 응답이 모두 도착한 뒤에만 "모든 매체 target이 0/N/A인지"를
-  판단해 `get_ad_performance_monthly_table` 대체 호출 여부를 정한다 — 이 대체 호출은 3개 응답에
-  의존하는 유일한 조건부 호출이라 앞의 3개와 동시에 낼 수 없다.
-- **3단계**에서 section-2/3/4/5가 필요로 하는 나머지 모든 호출(각 섹션 파일이 지정하는
-  `get_ad_performance_daily_table`/`get_ad_performance_monthly_table`)과 `list_promotions`
-  **1회**(아래 참고)는 서로 다른 섹션 간에도 결과 의존성이 없다 — 위 조건부 대체 호출을 제외한
-  전부를 **한 메시지에서 동시에** 발사한다.
-- 실제로는 2단계의 3개 호출과 3단계의 모든 호출도 서로 독립적이므로, 가능하면 2·3단계를 합쳐
-  **한 메시지에서 최대한 많은 호출을 동시에** 낸다. 예외는 오직 "3개 target 응답을 보고서야 필요
-  여부가 정해지는 월간 대체 호출" 하나뿐이다.
-- ⚠️ **`list_promotions`는 보고서 전체에서 딱 1회만 호출한다.** section-2/3/4가 예전에는
-  조금씩 다른 룩백 기간(7일/6일/6일 전)으로 각자 호출했으나, section-2의 **7일 룩백**
-  (`start_date`=기준일 7일 전, `end_date`=target_date — 세 섹션 중 가장 넓은 범위)으로
-  통일했다. section-3/4는 이제 이 응답을 그대로 재사용하며 별도 호출을 하지 않는다 (각
-  섹션 파일의 "재사용" 절 참고) — 응답 한 번으로 세 섹션 모두 충당되므로 위 "동시 발사" 대상
-  목록에도 `list_promotions`는 한 번만 포함시킨다.
+- ⚠️ **이제 이 스킬 전체가 조건부 2차 라운드 없이 데이터 호출 6개를 전부 한 메시지에서 동시에
+  발사한다** — 예전에는 "target_progress 3개 결과를 먼저 보고, no-budget인 매체가 있으면
+  그때 가서 월간 대체 호출을 추가로 낸다"는 조건부 흐름이었지만, `get_ad_performance_
+  monthly_table`을 `media` 생략(전체 매체 반환)으로 바꾸면서 이 호출이 **매출 실적 +
+  fallback 소진액 후보를 항상 함께** 가져오게 됐다. 즉 목표 판정 결과를 기다릴 이유 자체가
+  없어졌다 — 아래 6개를 처음부터 전부 한 메시지에 담아 발사한다:
+  1. `get_target_progress_v2` × 3 (media=google/meta/naver)
+  2. `get_ad_performance_monthly_table` × 1 (`media` 생략, `group_by:"media"`,
+     `day_offset`=target_date.day) — section-1의 매출 실적 + fallback 소진액 후보 공유
+  3. `get_ad_performance_daily_table` × 1 (`media` 생략, `group_by:"media"`, 기준일 6일 전
+     ~ target_date) — section-3/4/5 공유
+  4. `list_promotions` × 1 (기준일 7일 전 ~ target_date) — section-2/3/4 공유
+- 결과적으로 이 스킬의 데이터 호출은 **총 6회**(모두 한 배치)로 끝난다 — 예전 14회 이상, 그
+  전전 세대(매체별 분리 호출 + 조건부 fallback)까지 합치면 17회 이상이었던 것에서 크게
+  줄었다.
 
 > 🚫 **MCP 응답을 스크래치패드/임시 파일에 썼다가 다시 읽어오지 않는다.** 각 MCP 호출 결과는
 > 이미 그 턴의 대화 컨텍스트 안에 있으므로, HTML을 조합할 때 그 값을 직접 참조해서 쓴다.
@@ -348,21 +383,29 @@ end_idx   = min(labels.length-1, raw_end_idx)
 > 자체를 바꾸지 않는다 — 라벨은 항상 "보고서 기간:"으로 고정하고, 그 뒤에 오는 내용만
 > 위 형식(단일 날짜 + "기준")으로 채운다.
 
-> ⚠️ **Chart.js는 CDN `<script src>`로 절대 불러오지 않는다.** Artifact(claude.ai 아티팩트)의 CSP는
-> 외부 호스트로 나가는 스크립트 요청을 전부 차단하므로, `<script src="https://cdn.jsdelivr.net/...">`
-> 로 로드하면 스크립트 자체가 실행되지 않아 모든 차트가 빈 캔버스로 남는다.
-> 대신 이 스킬 폴더의 `assets/chart.umd.min.js`(Chart.js v4 UMD 빌드, MIT license, 오프라인 자산)를
-> 읽어서 **그 파일 내용 전체를 `<script>...</script>` 태그 안에 그대로 붙여넣는다** (src 속성 없이,
-> 인라인 텍스트로). `{CHART_JS_INLINE}` 자리표시자가 그 자리다 — 절대 CDN URL로 되돌리지 않는다.
+> ⚠️ **Chart.js는 `https://cdn...` 같은 외부 CDN `<script src>`로는 절대 불러오지 않는다.**
+> Artifact(claude.ai 아티팩트)의 CSP는 외부 호스트로 나가는 스크립트 요청을 전부 차단하므로,
+> `<script src="https://cdn.jsdelivr.net/...">`로 로드하면 스크립트 자체가 실행되지 않아 모든
+> 차트가 빈 캔버스로 남는다. 이 스킬 폴더의 `assets/chart.umd.min.js`(Chart.js v4 UMD 빌드,
+> MIT license, 오프라인 자산)를 쓰되, **어느 경로를 쓰든 모델이 그 208KB를 직접 응답 텍스트로
+> 재생성하지 않는다** (위 6단계 참고):
+> - 로컬 파일로 저장하는 경우 → `assets/chart.umd.min.js`를 저장 폴더에 파일 그대로 복사해두고
+>   `<script src="chart.umd.min.js"></script>`(같은 폴더 상대 경로)를 쓴다.
+> - CSP 때문에 인라인이 꼭 필요한 Artifact 등에서만 → 텍스트 재생성이 아닌 도구(파일 복사/치환)로
+>   `{CHART_JS_INLINE}` 자리를 채운다. 그런 도구가 전혀 없을 때만 최후 수단으로 모델이 직접
+>   붙여넣는다.
 
 ```html
 <!DOCTYPE html>
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
+<!-- 로컬 파일 저장본: <script src="chart.umd.min.js"></script>
+     CSP로 상대 경로 로드가 막힌 호스트(Artifact 등)에서만 아래처럼 인라인:
 <script>
 {CHART_JS_INLINE}
 </script>
+-->
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans KR', sans-serif;

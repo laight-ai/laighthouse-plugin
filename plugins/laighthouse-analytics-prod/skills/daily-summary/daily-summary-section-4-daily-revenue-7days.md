@@ -5,12 +5,14 @@
 report_type의 section-3(최근 7일 성과, 광고비/매출/ROAS 혼합 차트)보다 더 간결하게, 임원이
 한눈에 매출 추이만 보도록 만든 라인 차트다 (executive-mtd의 매출 추이 섹션과 같은 관계).
 
-## MCP 도구 호출: `get_ad_performance_daily_table` × 1
+## `get_ad_performance_daily_table` — 별도 호출 없음, section-3의 공유 응답을 재사용
 
-```json
-{ "brand_name": "breezm", "start_date": "기준일 6일 전 YYYY-MM-DD", "end_date": "target_date", "media": "airbridge", "group_by": "media" }
-```
-
+- 이 섹션은 `get_ad_performance_daily_table`을 직접 호출하지 않는다 —
+  `daily-summary-section-3-daily-performance-7days.md`가 3단계에서 1회 호출한 응답
+  (`media` 생략, `group_by: "media"`, 기준일 6일 전 ~ target_date)을 그대로 재사용한다. 이
+  섹션은 그 응답 중 `media`가 `airbridge`인 행만 가져다 쓴다 — 예전에 이 섹션이 직접 호출하던
+  `{ "media": "airbridge", "group_by": "media" }` 호출과 완전히 동일한 파라미터·범위이므로
+  결과는 동일하다.
 - **기준일(target_date)을 포함해 정확히 7일**(기준일-6일 ~ 기준일)이다 — `mtd`처럼 월초부터가
   아니다. 도구 제한(31일 이내)을 항상 만족한다. ⚠️ `campaign-type` 금지.
 
@@ -24,7 +26,7 @@ report_type의 section-3(최근 7일 성과, 광고비/매출/ROAS 혼합 차트
 
 ## 필요 데이터 (일별 집계)
 
-각 일자에 대해:
+각 일자에 대해 (section-3 공유 응답의 `media`가 `airbridge`인 행만 사용):
 - `광고 매출` = 광고 채널(`Google Ads`/`Meta Ads`/`Naver Ads`) 행의 `airbridge_revenue` 합
 - `전체 매출` = 모든 `channel` 행의 `airbridge_revenue` 합
 

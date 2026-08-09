@@ -6,23 +6,19 @@
 Organic / Others 5개 항목으로 성과를 구분해서 보여준다(임원이 캠페인 단위 디테일 없이 매체
 구조만 훑어보도록 만든 섹션).
 
-## MCP 도구 호출: `get_ad_performance_daily_table` × 4 (D-1~D0 이틀만)
+## `get_ad_performance_daily_table` — 별도 호출 없음, section-3의 공유 응답을 재사용
 
-```json
-{ "brand_name": "breezm", "start_date": "target_date-1일 YYYY-MM-DD", "end_date": "target_date", "media": "google", "group_by": "total" }
-{ "brand_name": "breezm", "start_date": "target_date-1일 YYYY-MM-DD", "end_date": "target_date", "media": "meta", "group_by": "total" }
-{ "brand_name": "breezm", "start_date": "target_date-1일 YYYY-MM-DD", "end_date": "target_date", "media": "naver", "group_by": "total" }
-{ "brand_name": "breezm", "start_date": "target_date-1일 YYYY-MM-DD", "end_date": "target_date", "media": "airbridge", "group_by": "media" }
-```
-
-- `start_date`는 항상 `target_date`의 하루 전날이다. 이 도구는 날짜별로 행을 나눠서 반환하므로,
-  D-1 행과 D-0 행을 합산하지 않고 끝까지 따로 유지한다 (section-4와 동일한 방식).
-- google/meta/naver 응답은 `group_by: "total"`(각 매체의 날짜별 `cost` 총합)만 필요하다 —
-  캠페인 단위로 나눌 필요가 없다.
-- airbridge 응답은 `group_by: "media"`(날짜별·채널별 `airbridge_revenue`/`reservation`)로
-  받는다.
-- ⚠️ 어떤 호출에도 `campaign-type`을 넣지 않는다 — airbridge 행이 조용히 누락된다.
-- ⚠️ `group_by`는 문자열 그대로 보낸다 (`"total"`/`"media"`).
+- 이 섹션은 `get_ad_performance_daily_table`을 직접 호출하지 않는다 —
+  `daily-summary-section-3-daily-performance-7days.md`가 3단계에서 1회 호출한 응답(`media`
+  생략, `group_by: "media"`, 기준일 6일 전 ~ target_date)을 그대로 재사용하고, 그중 **마지막
+  이틀(target_date의 하루 전날 = D-1, target_date = D-0)에 해당하는 행만** 가져다 쓴다 — 이
+  섹션이 필요로 하는 D-1~D0 범위는 section-3의 7일 범위 안에 완전히 포함되므로 별도 호출 없이
+  그대로 재사용해도 결과는 동일하다.
+- `media`가 `google`/`meta`/`naver`인 행(매체당 날짜별로 이미 합산된 한 줄)에서 D-1/D-0 각
+  날짜의 `cost`를 가져온다 — 예전에 각각 `group_by: "total"`로 따로 받던 값과 동일하다.
+- `media`가 `airbridge`인 행에서 D-1/D-0 각 날짜의 `channel`별 `airbridge_revenue`/
+  `reservation`을 가져온다 — 예전에 `airbridge`+`group_by: "media"`로 따로 받던 값과 동일하다.
+- D-1 행과 D-0 행은 합산하지 않고 끝까지 따로 유지한다 (section-4와 동일한 방식).
 
 ## 필요 데이터 (매체별, D-1/D-0 각각 별도로)
 
@@ -37,8 +33,8 @@ Organic / Others 5개 항목으로 성과를 구분해서 보여준다(임원이
   네 상수와 다른 값이 있으면 자동으로 Others에 포함시킨다** — 조용히 버리지 않는다.
 
 각 항목의 지표:
-- `광고비`: Naver Ads/Google Ads/Meta Ads는 각각 대응하는 매체 응답(naver/google/meta)의
-  해당 날짜 `cost`를 그대로 쓴다. **Organic과 Others는 광고비 개념이 없으므로 항상 `-`로
+- `광고비`: Naver Ads/Google Ads/Meta Ads는 각각 공유 응답에서 `media`가 naver/google/meta인
+  행의 해당 날짜 `cost`를 그대로 쓴다. **Organic과 Others는 광고비 개념이 없으므로 항상 `-`로
   표시한다** (google/meta/naver 세 매체의 광고비는 이미 각자의 행에 전부 배정되므로, Others에
   남는 광고비는 없다).
 - `매출` = 해당 항목으로 분류된 airbridge 행(들)의 `airbridge_revenue` 합.
