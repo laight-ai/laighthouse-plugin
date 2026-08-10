@@ -26,7 +26,7 @@ metadata:
 2. **잔여 기간 편성 합계** = `주간 조정안 × remaining_weeks` (매체별·총계 동일)
 3. **일평균 환산** = `주간 금액 ÷ 7` (Scenario 2 전용)
 4. **증감률 Δ%** = (조정안 ÷ base_value − 1) × 100
-5. **일당 예산 (기존 → 변경)** = base_value ÷ 7 → 조정안 ÷ 7, 괄호에 Δ% 표기
+5. **일당 예산 (기존 → 변경)** = base_value ÷ 7 → 조정안 ÷ 7 (금액만, % 없음)
 6. **잔여 예산** = 매체별 월 예산(budget_goal/target) − 집행된 예산(spent/actual); 합계 행은 monthly_budget − month_to_date_cost
 
 ## 플로우
@@ -41,9 +41,9 @@ metadata:
    `cost_change_rate_pct`·`candidate_weekly_budget` 목록 전체와 사용자 답변
    (증액 가능 여부·한도, 프로모션, 예산 소진 필요 여부)을 근거로 매체별 **주간** 예산
    1개 값을 정한다. 아래 **산출 규칙**을 반드시 지킨다.
-3. **2차 조기 호출 (±20% 게이트 트리거)**: 조정안이 정해지면 표를 렌더링하기 전에
+3. **2차 조기 호출 (20% 초과 증액 게이트 트리거)**: 조정안이 정해지면 표를 렌더링하기 전에
    `decisions=[{"media", "final_weekly_budget", "rationale"}, ...]` + 1차 답변 4개 인자로
-   즉시 2차 호출한다 (`approved`/`over_change_confirmed`는 넣지 않는다). ±20% 초과
+   즉시 2차 호출한다 (`approved`/`over_change_confirmed`는 넣지 않는다). 기존 대비 20%를 넘는 증액
    매체가 있으면 서버가 확인을 요구한다:
    - elicitation 가능한 클라이언트에서는 확인 대화상자가 직접 뜬다.
    - 불가 환경에서는 `stage="needs_user_input"`으로 돌아온다 — `questions[0].question`
@@ -51,7 +51,7 @@ metadata:
      답을 기다린다. 스스로 질문을 다시 작문하거나, "시스템이 확인을 요구할 가능성이
      높습니다" 같이 예고만 하고 넘어가는 것은 금지다.
    - 사용자가 동의하면 이후 호출에 `over_change_confirmed=true`를 더하고, 거절하면
-     해당 매체 조정안을 ±20% 이내로 재산출해 2단계부터 다시 진행한다.
+     해당 매체 조정안을 20% 이내 증액으로 재산출해 2단계부터 다시 진행한다.
 4. **표 렌더링**: `stage="needs_user_approval"`(또는 게이트 통과)이 확인되면 아래
    시나리오 판정에 따라 표를 사용자에게 보여준다.
 5. **승인 후 저장**: 사용자가 표를 보고 채팅에서 명시적으로 동의하면 같은 인자에
@@ -63,13 +63,13 @@ metadata:
 
 - **네이버 브랜드검색(`NAVER:BRS`) 예산은 증감하지 않는다** — `base_value`를 그대로 넣고
   rationale에 '유지'라고 적는다.
-- **±20% 초과 변경은 서버가 확인을 요구한다** — ±20% 초과 확인은 위 플로우 3단계의 2차 조기 호출로 서버 게이트에 맡긴다 — LLM이 질문을 대필하지 말고 서버가 돌려준 질문 문구를 그대로 중계한다. 2차 호출에서 어떤 매체든
-  |조정안 − base_value| ÷ base_value가 20%를 넘으면 툴이 확인 elicitation을 띄우거나,
+- **20%를 초과하는 증액은 서버가 확인을 요구한다** — 20%를 초과하는 증액 확인은 위 플로우 3단계의 2차 조기 호출로 서버 게이트에 맡긴다 — LLM이 질문을 대필하지 말고 서버가 돌려준 질문 문구를 그대로 중계한다. 2차 호출에서 어떤 매체든
+  (조정안 − base_value) ÷ base_value가 20%를 넘는 증액이면 툴이 확인 elicitation을 띄우거나,
   elicitation 불가 환경에서는 `stage="needs_user_input"`으로 `over_change_confirmed`
   질문을 돌려준다. 그 경우 초과 매체 목록(+Δ%)을 사용자에게 그대로 보여주고 명시적
   동의를 받은 뒤 같은 인자에 `over_change_confirmed=true`를 더해 재호출한다
   (거절 시 `over_change_confirmed=false`). **사용자에게 보여주고 동의받기 전에는
-  절대 true로 설정하지 않는다.**
+  절대 true로 설정하지 않는다.** 감액은 게이트 대상이 아니며 폭 제한도 없다 — 확인을 피하려고 감액 폭을 20%로 잘라 맞추지 말고, 참고 구간이 가리키는 값을 그대로 제안한다.
 - 변경 없는 매체도 `decisions`에 base_value 그대로 + rationale '유지'로 **전부** 포함한다.
 
 ## 시나리오 판정
@@ -85,7 +85,7 @@ metadata:
 > {month_to_date_cost ÷ monthly_budget × 100:.0f}%가 소진되었습니다.
 > **월 잔여예산: {monthly_budget − month_to_date_cost}원**
 
-MTD 컬럼 데이터 수집 지침 (표 렌더링 전에 매체별로 조회):
+예산 소진량 컬럼 데이터 수집 지침 (표 렌더링 전에 매체별로 조회):
 - media가 `NAVER:채널` 형식(예: `NAVER:BRS`)이면
   `get_naver_channel_budget_progress(brand_name, month="당월 YYYY-MM", as_of_date=week_end_date)`를
   호출해 해당 채널 행의 `spent`를 쓴다. 채널 라벨 매핑: BRS→네이버 브랜드검색,
@@ -97,10 +97,10 @@ MTD 컬럼 데이터 수집 지침 (표 렌더링 전에 매체별로 조회):
 
 표 (매체별 1행, 금액은 천 단위 콤마):
 
-| 매체 | X월 X일까지 집행된 예산 | 잔여 예산 | 잔여 기간({remaining_weeks}주) 편성 합계 | 일당 예산 (기존 → 변경) |
-|---|---:|---:|---:|---:|
-| {media} | {mtd_spent 또는 '-'} | {remaining_budget} | {final_weekly_budget × remaining_weeks} | {base_value ÷ 7:,}원 → {final_weekly_budget ÷ 7:,}원<br>({(final_weekly_budget ÷ base_value − 1) × 100:+.1f}% 증가/감소, 동일 시 변동 없음) |
-| **합계** | {Σmtd_spent (수집된 값만 합산, '-' 제외 시 '*' 각주)} | {monthly_budget − month_to_date_cost} | {Σfinal × remaining_weeks} | {Σbase ÷ 7:,}원 → {Σfinal ÷ 7:,}원<br>({(Σfinal ÷ Σbase − 1) × 100:+.1f}% 증가/감소, 동일 시 변동 없음) |
+| 매체 | 예산 소진량 (X월 X일까지) | 잔여 예산 | 기존 → 조정안 (주간) | 잔여 기간({remaining_weeks}주) 편성 합계 | 일당 예산 (기존 → 변경) |
+|---|---:|---:|---:|---:|---:|
+| {media} | {mtd_spent 또는 '-'} | {remaining_budget} | {base_value:,} → {final_weekly_budget:,} ({Δ%:+.1f}%) 또는 (+0.0% 유지) | {final_weekly_budget × remaining_weeks} | {base_value ÷ 7:,}원 → {final_weekly_budget ÷ 7:,}원 |
+| **합계** | {Σmtd_spent (수집된 값만 합산, '-' 제외 시 '*' 각주)} | {monthly_budget − month_to_date_cost} | {Σbase:,} → {Σfinal:,} ({(Σfinal ÷ Σbase − 1) × 100:+.1f}%) | {Σfinal × remaining_weeks} | {Σbase ÷ 7:,}원 → {Σfinal ÷ 7:,}원 |
 
 "X월 X일"은 `budget_reference.week_end_date`(집계 기준일, 위 컨텍스트 문장과 동일 기준)를 쓴다.
 
