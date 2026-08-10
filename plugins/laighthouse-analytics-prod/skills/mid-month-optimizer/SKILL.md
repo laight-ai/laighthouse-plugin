@@ -60,9 +60,9 @@ metadata:
 
 ## Scenario 1 — 월 예산이 있는 경우
 
-표 위에 컨텍스트 문장을 먼저 쓴다 (X월 X일은 오늘 날짜, 소진율은 허용 계산식 1의 재료로 계산):
+표 위에 컨텍스트 문장을 먼저 쓴다 (X월 X일은 budget_reference.week_end_date — 집계 기준일, 소진율은 허용 계산식 1의 재료로 계산):
 
-> 지금은 X월 X일이며, 이번 달 예산 {monthly_budget}원 중
+> 지금까지 집계된 예산은 X월 X일까지이며, 이번 달 예산 {monthly_budget}원 중
 > {month_to_date_cost ÷ monthly_budget × 100:.0f}%가 소진되었습니다.
 > **월 잔여예산: {monthly_budget − month_to_date_cost}원**
 
