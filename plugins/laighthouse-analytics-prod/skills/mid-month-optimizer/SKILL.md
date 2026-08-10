@@ -6,7 +6,7 @@ description: >
   optimize_mid_month_budget을 2회 호출하는 플로우와, 월 예산 유무에 따른 시나리오별
   조정안 표 렌더링 형식을 정의한다.
 metadata:
-  version: "1.0.0"
+  version: "1.1.0"
 ---
 
 ## 역할
@@ -32,18 +32,22 @@ metadata:
 ## 플로우
 
 1. **1차 호출**: `optimize_mid_month_budget(brand_name=...)` — `decisions` 없이.
-   - `stage="needs_user_input"`이면 `questions`의 질문을 사용자에게 그대로 물은 뒤,
-     답변을 해당 인자(`can_increase_budget` / `increase_limit_note` /
-     `unlisted_promotion_note` / `must_exhaust_budget`)에 담아 재호출한다.
-     `collected`의 기존 답변은 바꾸지 말고 그대로 함께 전달한다.
+   - 툴이 묻는 질문은 `unlisted_promotion_note`(미기입 프로모션·이벤트) 하나뿐이다.
+     `stage="needs_user_input"`이면 `questions`의 질문을 사용자에게 그대로 물은 뒤,
+     답변을 `unlisted_promotion_note` 인자에 담아 재호출한다.
+   - 증액 여부와 예산 소진 여부는 더 이상 묻지 않으며
+     `can_increase_budget=false`(월 총액 고정) / `must_exhaust_budget=true`(예산 소진)가
+     기본 적용된다 — 사용자가 대화에서 명시적으로 다르게 요구한 경우에만 해당 인자를
+     명시 전달해 오버라이드한다.
    - `stage="context"`가 나올 때까지 반복.
 2. **조정안 산출**: `context.budget_reference.groups[].references[]`의
-   `cost_change_rate_pct`·`candidate_weekly_budget` 목록 전체와 사용자 답변
-   (증액 가능 여부·한도, 프로모션, 예산 소진 필요 여부)을 근거로 매체별 **주간** 예산
-   1개 값을 정한다. 아래 **산출 규칙**을 반드시 지킨다.
+   `cost_change_rate_pct`·`candidate_weekly_budget` 목록 전체와 사용자의 프로모션 답변,
+   그리고 기본 정책값(증액 불가·예산 소진 — 오버라이드했다면 그 값)을 근거로 매체별
+   **주간** 예산 1개 값을 정한다. 아래 **산출 규칙**을 반드시 지킨다.
 3. **20% 초과 증액 게이트 (증액이 있을 때만)**: 조정안 중 기존(base_value) 대비 20%를
    넘는 **증액** 매체가 하나라도 있으면, 표를 렌더링하기 전에
-   `decisions=[...]` + 1차 답변 4개 인자로 2차를 조기 호출해 서버 게이트를 트리거한다
+   `decisions=[...]` + `unlisted_promotion_note`(오버라이드한 인자가 있으면 그것도 함께)로
+   2차를 조기 호출해 서버 게이트를 트리거한다
    (`approved`/`over_change_confirmed`는 넣지 않는다). 증액 매체가 없으면 이 단계를
    건너뛰고 바로 4단계(표 렌더링)로 간다.
    - elicitation 가능한 클라이언트에서는 확인 대화상자가 직접 뜨고, 사용자가 확인하면
@@ -65,7 +69,7 @@ metadata:
 
 ## 산출 규칙
 
-- **증액 불가 = 월 총액 고정**: can_increase_budget=false는 이번 달 총 예산을 늘릴 수 없다는 뜻이지, 개별 매체 증액 금지가 아니다. 총액 한도 내에서 한 매체를 늘리고 다른 매체를 줄이는 재배분은 허용되며, 참고치의 양수 후보도 재배분 범위에서는 선택할 수 있다. 성과 하락 근거가 없는 매체는 base_value 유지가 기본값이다. 이 경우 주간 합계의 상한은 (monthly_budget − month_to_date_cost) ÷ remaining_weeks다 — 월 전망이 월 예산을 넘는 조정안은 서버가 오류로 거부한다.
+- **증액 불가 = 월 총액 고정 (기본값)**: can_increase_budget는 기본 false다 — 이번 달 총 예산을 늘릴 수 없다는 뜻이지, 개별 매체 증액 금지가 아니다. 총액 한도 내에서 한 매체를 늘리고 다른 매체를 줄이는 재배분은 허용되며, 참고치의 양수 후보도 재배분 범위에서는 선택할 수 있다. 성과 하락 근거가 없는 매체는 base_value 유지가 기본값이다. 이 경우 주간 합계의 상한은 (monthly_budget − month_to_date_cost) ÷ remaining_weeks다 — 월 전망이 월 예산을 넘는 조정안은 서버가 오류로 거부한다.
 - **참고치 후보는 근거이지 선택지가 아니다**: 총액 상한 등 제약에 걸리면 방향이 다른 후보로 갈아타지 말고, 원래 근거가 가리키는 방향을 유지한 채 상한에 맞춰 금액을 보정한다. 예: 참고치가 +33.5%를 가리키는데 상한이 +27.4%까지만 허용하면 +27.4%로 보정하고, rationale에 "참고치 +33.5%를 총액 상한에 맞춰 +27.4%로 보정"이라고 명시한다. 제약 때문에 증액 근거 매체를 감액으로 뒤집는 것은 금지다.
 - **네이버 브랜드검색(`NAVER:BRS`) 예산은 증감하지 않는다** — `base_value`를 그대로 넣고
   rationale에 '유지'라고 적는다.
