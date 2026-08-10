@@ -23,7 +23,7 @@ metadata:
 
 **허용 계산식** (이 스킬에 명시된 표기 변환):
 1. **월 잔여예산** = `monthly_budget − month_to_date_cost`
-2. **잔여 기간 조정안 합계** = `주간 조정안 × remaining_weeks` (매체별·총계 동일)
+2. **잔여 기간 편성 합계** = `주간 조정안 × remaining_weeks` (매체별·총계 동일)
 3. **일평균 환산** = `주간 금액 ÷ 7` (Scenario 2 전용)
 
 ## 플로우
@@ -68,7 +68,7 @@ metadata:
 
 표 (매체별 1행, 금액은 천 단위 콤마):
 
-| 매체 | 기존 (주간) | 조정안 (주간) | 잔여 기간({remaining_weeks}주) 조정안 합계 |
+| 매체 | 기존 (주간) | 조정안 (주간) | 잔여 기간({remaining_weeks}주) 편성 합계 |
 |---|---:|---:|---:|
 | {media} | {base_value} | {final_weekly_budget} | {final_weekly_budget × remaining_weeks} |
 | **합계** | {Σbase} | {Σfinal} | {Σfinal × remaining_weeks} |
