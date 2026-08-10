@@ -25,6 +25,8 @@ metadata:
 1. **월 잔여예산** = `monthly_budget − month_to_date_cost`
 2. **잔여 기간 편성 합계** = `주간 조정안 × remaining_weeks` (매체별·총계 동일)
 3. **일평균 환산** = `주간 금액 ÷ 7` (Scenario 2 전용)
+4. **증감률 Δ%** = (조정안 ÷ base_value − 1) × 100
+5. **일당 예산 (기존 → 변경)** = base_value ÷ 7 → 조정안 ÷ 7, 괄호에 Δ% 표기
 
 ## 플로우
 
@@ -49,8 +51,13 @@ metadata:
 
 - **네이버 브랜드검색(`NAVER:BRS`) 예산은 증감하지 않는다** — `base_value`를 그대로 넣고
   rationale에 '유지'라고 적는다.
-- **매체별 조정안이 기존(base_value) 대비 ±20%를 초과하면**, 저장(2차 호출) 전에 초과
-  사실과 사유를 사용자에게 알리고 그대로 진행할지 확인을 받는다.
+- **±20% 초과 변경은 서버가 확인을 요구한다** — 2차 호출에서 어떤 매체든
+  |조정안 − base_value| ÷ base_value가 20%를 넘으면 툴이 확인 elicitation을 띄우거나,
+  elicitation 불가 환경에서는 `stage="needs_user_input"`으로 `over_change_confirmed`
+  질문을 돌려준다. 그 경우 초과 매체 목록(+Δ%)을 사용자에게 그대로 보여주고 명시적
+  동의를 받은 뒤 같은 인자에 `over_change_confirmed=true`를 더해 재호출한다
+  (거절 시 `over_change_confirmed=false`). **사용자에게 보여주고 동의받기 전에는
+  절대 true로 설정하지 않는다.**
 - 변경 없는 매체도 `decisions`에 base_value 그대로 + rationale '유지'로 **전부** 포함한다.
 
 ## 시나리오 판정
@@ -66,12 +73,24 @@ metadata:
 > {month_to_date_cost ÷ monthly_budget × 100:.0f}%가 소진되었습니다.
 > **월 잔여예산: {monthly_budget − month_to_date_cost}원**
 
+MTD 컬럼 데이터 수집 지침 (표 렌더링 전에 매체별로 조회):
+- media가 `NAVER:채널` 형식(예: `NAVER:BRS`)이면
+  `get_naver_channel_budget_progress(brand_name, month="당월 YYYY-MM", as_of_date=week_end_date)`를
+  호출해 해당 채널 행의 `spent`를 쓴다. 채널 라벨 매핑: BRS→네이버 브랜드검색,
+  PLINK→네이버 파워링크, NVSHOP→네이버 쇼핑검색.
+- media가 최상위 매체명(naver/google/meta/tiktok)이면
+  `get_target_progress_v2(brand_name, month, media, as_of_date=week_end_date)`의 cost 행
+  actual 값을 쓴다.
+- 매핑 실패·데이터 없음이면 해당 칸은 '-'로 표기하고 추정하지 않는다.
+
 표 (매체별 1행, 금액은 천 단위 콤마):
 
-| 매체 | 기존 (주간) | 조정안 (주간) | 잔여 기간({remaining_weeks}주) 편성 합계 |
-|---|---:|---:|---:|
-| {media} | {base_value} | {final_weekly_budget} | {final_weekly_budget × remaining_weeks} |
-| **합계** | {Σbase} | {Σfinal} | {Σfinal × remaining_weeks} |
+| 매체 | X월 X일까지 집행된 예산 | 조정안 (주간) | 일당 예산 (기존 → 변경) | 잔여 기간({remaining_weeks}주) 편성 합계 |
+|---|---:|---:|---:|---:|
+| {media} | {mtd_spent 또는 '-'} | {final_weekly_budget} | {base_value ÷ 7:,}원 → {final_weekly_budget ÷ 7:,}원 (Δ% 표기: 증가면 `+X.X% 증가`, 감소면 `−X.X% 감소`, 0이면 `변동 없음`) | {final_weekly_budget × remaining_weeks} |
+| **합계** | {Σmtd_spent (수집된 값만 합산, '-' 제외 시 '*' 각주)} | {Σfinal} | {Σbase ÷ 7:,}원 → {Σfinal ÷ 7:,}원 (Δ% 표기: 증가면 `+X.X% 증가`, 감소면 `−X.X% 감소`, 0이면 `변동 없음`) | {Σfinal × remaining_weeks} |
+
+"X월 X일"은 `budget_reference.week_end_date`(집계 기준일, 위 컨텍스트 문장과 동일 기준)를 쓴다.
 
 표 아래 월 전망 한 줄:
 
