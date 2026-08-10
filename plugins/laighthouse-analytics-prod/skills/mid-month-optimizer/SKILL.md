@@ -55,7 +55,7 @@ metadata:
 
 ## 시나리오 판정
 
-`context.budget_reference.monthly_budget`이 **양수면 Scenario 1(월 예산 있음)**,
+`context.budget_reference.monthly_budget`이 **null도 0도 아니면 Scenario 1(월 예산 있음)**,
 **null 또는 0이면 Scenario 2(월 예산 없음)**.
 
 ## Scenario 1 — 월 예산이 있는 경우
@@ -88,3 +88,5 @@ metadata:
 | **합계** | {Σbase ÷ 7} | {Σfinal ÷ 7} | {…:+.1f}% |
 
 `monthly_budget`이 없으므로 월 잔여예산·월 전망 문장은 쓰지 않는다.
+
+기존 일평균이 0이면 Δ는 계산하지 않고 '-'로 표기한다.
