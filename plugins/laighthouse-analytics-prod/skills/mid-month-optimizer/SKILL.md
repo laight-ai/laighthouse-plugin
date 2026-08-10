@@ -19,7 +19,7 @@ metadata:
 ## 데이터 처리 원칙 (절대 지침)
 
 > 🚫 MCP 응답 값을 의심·재집계·보정하지 않는다. 이 스킬에서 허용되는 계산은 아래
-> **허용 계산식** 3개와 조정안 산출(references 기반 주간 예산 결정)뿐이다.
+> **허용 계산식** 5개와 조정안 산출(references 기반 주간 예산 결정)뿐이다.
 
 **허용 계산식** (이 스킬에 명시된 표기 변환):
 1. **월 잔여예산** = `monthly_budget − month_to_date_cost`
@@ -80,7 +80,7 @@ MTD 컬럼 데이터 수집 지침 (표 렌더링 전에 매체별로 조회):
   PLINK→네이버 파워링크, NVSHOP→네이버 쇼핑검색.
 - media가 최상위 매체명(naver/google/meta/tiktok)이면
   `get_target_progress_v2(brand_name, month, media, as_of_date=week_end_date)`의 cost 행
-  actual 값을 쓴다.
+  actual 값을 쓴다. 이 툴의 응답은 JSON이 아니라 마크다운 표 문자열이므로, 표에서 cost 행의 actual 칸 값을 읽어낸다.
 - 매핑 실패·데이터 없음이면 해당 칸은 '-'로 표기하고 추정하지 않는다.
 
 표 (매체별 1행, 금액은 천 단위 콤마):
