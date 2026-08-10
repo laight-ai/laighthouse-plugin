@@ -26,7 +26,7 @@ metadata:
 2. **잔여 기간 편성 합계** = `주간 조정안 × remaining_weeks` (매체별·총계 동일)
 3. **일평균 환산** = `주간 금액 ÷ 7` (Scenario 2 전용)
 4. **증감률 Δ%** = (조정안 ÷ base_value − 1) × 100
-5. **일당 예산 (기존 → 변경)** = base_value ÷ 7 → 조정안 ÷ 7 (금액만, % 없음)
+5. **일당 예산 (기존 → 변경)** = base_value ÷ 7 → 조정안 ÷ 7, 괄호에 주간과 동일한 Δ% 표기
 6. **잔여 예산** = 매체별 월 예산(budget_goal/target) − 집행된 예산(spent/actual); 합계 행은 monthly_budget − month_to_date_cost
 
 ## 플로우
@@ -96,18 +96,18 @@ metadata:
 - media가 `NAVER:채널` 형식(예: `NAVER:BRS`)이면
   `get_naver_channel_budget_progress(brand_name, month="당월 YYYY-MM", as_of_date=week_end_date)`를
   호출해 해당 채널 행의 `spent`를 쓴다. 채널 라벨 매핑: BRS→네이버 브랜드검색,
-  PLINK→네이버 파워링크, NVSHOP→네이버 쇼핑검색. 잔여 예산 컬럼은 같은 응답의 해당 채널 `budget_goal − spent`를 쓴다.
+  PLINK→네이버 파워링크, NVSHOP→네이버 쇼핑검색, GFA_AD→네이버 GFA 애드부스트, GFA_DP→네이버 GFA 디스플레이. 잔여 예산 컬럼은 같은 응답의 해당 채널 `budget_goal − spent`를 쓴다.
 - media가 최상위 매체명(naver/google/meta/tiktok)이면
   `get_target_progress_v2(brand_name, month, media, as_of_date=week_end_date)`의 cost 행
   actual 값을 쓴다. 이 툴의 응답은 JSON이 아니라 마크다운 표 문자열이므로, 표에서 cost 행의 actual 칸 값을 읽어낸다. 잔여 예산 컬럼은 같은 응답의 cost 행 `target − actual`을 쓴다.
-- 매핑 실패·데이터 없음이면 해당 칸은 '-'로 표기하고 추정하지 않는다.
+- 이 조회는 표 렌더링 전에 **반드시 실제로 호출**한다 — 호출을 생략하고 '-'로 채우는 것은 금지다. brand_name은 이 플로우에서 지금까지 쓰던 값을 그대로 쓴다. 호출이 실패하거나 응답에 해당 채널이 없을 때만 그 칸을 '-'로 표기하고, 실패 사실(어떤 툴이 어떤 오류였는지)을 표 아래에 한 줄로 알린다. 값을 추정하거나 기억으로 채우지 않는다.
 
 표 (매체별 1행, 금액은 천 단위 콤마):
 
 | 매체 | 예산 소진량 (X월 X일까지) | 잔여 예산 | 기존 → 조정안 (주간) | 잔여 기간({remaining_weeks}주) 편성 합계 | 일당 예산 (기존 → 변경) |
 |---|---:|---:|---:|---:|---:|
-| {media} | {mtd_spent 또는 '-'} | {remaining_budget} | {base_value:,} → {final_weekly_budget:,} ({Δ%:+.1f}%) 또는 (+0.0% 유지) | {final_weekly_budget × remaining_weeks} | {base_value ÷ 7:,}원 → {final_weekly_budget ÷ 7:,}원 |
-| **합계** | {Σmtd_spent (수집된 값만 합산, '-' 제외 시 '*' 각주)} | {monthly_budget − month_to_date_cost} | {Σbase:,} → {Σfinal:,} ({(Σfinal ÷ Σbase − 1) × 100:+.1f}%) | {Σfinal × remaining_weeks} | {Σbase ÷ 7:,}원 → {Σfinal ÷ 7:,}원 |
+| {media} | {mtd_spent 또는 '-'} | {remaining_budget} | {base_value:,} → {final_weekly_budget:,} ({Δ%:+.1f}%) 또는 (+0.0% 유지) | {final_weekly_budget × remaining_weeks} | {base_value ÷ 7:,}원 → {final_weekly_budget ÷ 7:,}원 ({Δ%:+.1f}%) 또는 (+0.0% 유지) |
+| **합계** | {Σmtd_spent (수집된 값만 합산, '-' 제외 시 '*' 각주)} | {monthly_budget − month_to_date_cost} | {Σbase:,} → {Σfinal:,} ({(Σfinal ÷ Σbase − 1) × 100:+.1f}%) | {Σfinal × remaining_weeks} | {Σbase ÷ 7:,}원 → {Σfinal ÷ 7:,}원 ({(Σfinal ÷ Σbase − 1) × 100:+.1f}%) |
 
 "X월 X일"은 `budget_reference.week_end_date`(집계 기준일, 위 컨텍스트 문장과 동일 기준)를 쓴다.
 
