@@ -19,7 +19,7 @@ metadata:
 ## 데이터 처리 원칙 (절대 지침)
 
 > 🚫 MCP 응답 값을 의심·재집계·보정하지 않는다. 이 스킬에서 허용되는 계산은 아래
-> **허용 계산식** 5개와 조정안 산출(references 기반 주간 예산 결정)뿐이다.
+> **허용 계산식** 6개와 조정안 산출(references 기반 주간 예산 결정)뿐이다.
 
 **허용 계산식** (이 스킬에 명시된 표기 변환):
 1. **월 잔여예산** = `monthly_budget − month_to_date_cost`
@@ -27,6 +27,7 @@ metadata:
 3. **일평균 환산** = `주간 금액 ÷ 7` (Scenario 2 전용)
 4. **증감률 Δ%** = (조정안 ÷ base_value − 1) × 100
 5. **일당 예산 (기존 → 변경)** = base_value ÷ 7 → 조정안 ÷ 7, 괄호에 Δ% 표기
+6. **잔여 예산** = 매체별 월 예산(budget_goal/target) − 집행된 예산(spent/actual); 합계 행은 monthly_budget − month_to_date_cost
 
 ## 플로우
 
@@ -40,8 +41,9 @@ metadata:
    `cost_change_rate_pct`·`candidate_weekly_budget` 목록 전체와 사용자 답변
    (증액 가능 여부·한도, 프로모션, 예산 소진 필요 여부)을 근거로 매체별 **주간** 예산
    1개 값을 정한다. 아래 **산출 규칙**을 반드시 지킨다.
-3. **표 렌더링**: 아래 시나리오 판정에 따라 표를 사용자에게 보여준다.
-4. **동의 후 2차 호출**: 사용자가 채팅에서 명시적으로 동의하면
+3. **±20% 사전 확인 (필수)**: 조정안 중 기존(base_value) 대비 ±20%를 초과하는 매체가 하나라도 있으면, **표를 렌더링하기 전에** 초과 매체 목록과 Δ%를 나열하며 사용자에게 "이대로 진행할까요?"라고 직접 묻고 답을 기다린다. "시스템에서 별도 확인을 요구할 가능성이 높습니다" 같이 예고만 하고 넘어가는 것은 금지 — 반드시 질문하고 답을 받은 뒤에만 다음 단계로 간다. 사용자가 동의하면 이후 2차 호출에 `over_change_confirmed=true`를 함께 전달하고(이미 동의를 받았으므로 서버가 같은 질문을 반복하지 않는다), 거절하면 해당 매체 조정안을 ±20% 이내로 재산출해 이 단계부터 다시 진행한다.
+4. **표 렌더링**: 아래 시나리오 판정에 따라 표를 사용자에게 보여준다.
+5. **동의 후 2차 호출**: 사용자가 채팅에서 명시적으로 동의하면
    `decisions=[{"media", "final_weekly_budget", "rationale"}, ...]` + 1차 답변 4개 인자를
    그대로 담아 재호출한다. `stage="needs_user_approval"`이면 `message`를 보여주고 동의를
    받은 뒤 `approved=true`로 재호출(거절이면 `approved=false`). **사용자에게 보여주고
@@ -51,7 +53,7 @@ metadata:
 
 - **네이버 브랜드검색(`NAVER:BRS`) 예산은 증감하지 않는다** — `base_value`를 그대로 넣고
   rationale에 '유지'라고 적는다.
-- **±20% 초과 변경은 서버가 확인을 요구한다** — 2차 호출에서 어떤 매체든
+- **±20% 초과 변경은 서버가 확인을 요구한다** — ±20% 초과 조정안은 위 플로우의 사전 확인 단계에서 표 렌더링 전에 반드시 사용자에게 직접 물어야 한다. 2차 호출에서 어떤 매체든
   |조정안 − base_value| ÷ base_value가 20%를 넘으면 툴이 확인 elicitation을 띄우거나,
   elicitation 불가 환경에서는 `stage="needs_user_input"`으로 `over_change_confirmed`
   질문을 돌려준다. 그 경우 초과 매체 목록(+Δ%)을 사용자에게 그대로 보여주고 명시적
@@ -77,18 +79,18 @@ MTD 컬럼 데이터 수집 지침 (표 렌더링 전에 매체별로 조회):
 - media가 `NAVER:채널` 형식(예: `NAVER:BRS`)이면
   `get_naver_channel_budget_progress(brand_name, month="당월 YYYY-MM", as_of_date=week_end_date)`를
   호출해 해당 채널 행의 `spent`를 쓴다. 채널 라벨 매핑: BRS→네이버 브랜드검색,
-  PLINK→네이버 파워링크, NVSHOP→네이버 쇼핑검색.
+  PLINK→네이버 파워링크, NVSHOP→네이버 쇼핑검색. 잔여 예산 컬럼은 같은 응답의 해당 채널 `budget_goal − spent`를 쓴다.
 - media가 최상위 매체명(naver/google/meta/tiktok)이면
   `get_target_progress_v2(brand_name, month, media, as_of_date=week_end_date)`의 cost 행
-  actual 값을 쓴다. 이 툴의 응답은 JSON이 아니라 마크다운 표 문자열이므로, 표에서 cost 행의 actual 칸 값을 읽어낸다.
+  actual 값을 쓴다. 이 툴의 응답은 JSON이 아니라 마크다운 표 문자열이므로, 표에서 cost 행의 actual 칸 값을 읽어낸다. 잔여 예산 컬럼은 같은 응답의 cost 행 `target − actual`을 쓴다.
 - 매핑 실패·데이터 없음이면 해당 칸은 '-'로 표기하고 추정하지 않는다.
 
 표 (매체별 1행, 금액은 천 단위 콤마):
 
-| 매체 | X월 X일까지 집행된 예산 | 조정안 (주간) | 일당 예산 (기존 → 변경) | 잔여 기간({remaining_weeks}주) 편성 합계 |
+| 매체 | X월 X일까지 집행된 예산 | 잔여 예산 | 잔여 기간({remaining_weeks}주) 편성 합계 | 일당 예산 (기존 → 변경) |
 |---|---:|---:|---:|---:|
-| {media} | {mtd_spent 또는 '-'} | {final_weekly_budget} | {base_value ÷ 7:,}원 → {final_weekly_budget ÷ 7:,}원 (Δ% 표기: 증가면 `+X.X% 증가`, 감소면 `−X.X% 감소`, 0이면 `변동 없음`) | {final_weekly_budget × remaining_weeks} |
-| **합계** | {Σmtd_spent (수집된 값만 합산, '-' 제외 시 '*' 각주)} | {Σfinal} | {Σbase ÷ 7:,}원 → {Σfinal ÷ 7:,}원 (Δ% 표기: 증가면 `+X.X% 증가`, 감소면 `−X.X% 감소`, 0이면 `변동 없음`) | {Σfinal × remaining_weeks} |
+| {media} | {mtd_spent 또는 '-'} | {remaining_budget} | {final_weekly_budget × remaining_weeks} | {base_value ÷ 7:,}원 → {final_weekly_budget ÷ 7:,}원<br>({(final_weekly_budget ÷ base_value − 1) × 100:+.1f}% 증가/감소, 동일 시 변동 없음) |
+| **합계** | {Σmtd_spent (수집된 값만 합산, '-' 제외 시 '*' 각주)} | {monthly_budget − month_to_date_cost} | {Σfinal × remaining_weeks} | {Σbase ÷ 7:,}원 → {Σfinal ÷ 7:,}원<br>({(Σfinal ÷ Σbase − 1) × 100:+.1f}% 증가/감소, 동일 시 변동 없음) |
 
 "X월 X일"은 `budget_reference.week_end_date`(집계 기준일, 위 컨텍스트 문장과 동일 기준)를 쓴다.
 
