@@ -15,7 +15,13 @@ MCP 응답 JSON을 받아 stdout으로 완성된 행 배열만 낸다. 중간 �
   - 매체 쪽에만 있는(airbridge 미매칭) 캠페인은 그 달의 매출/예약 완료/CPA/ROAS를 "-"로
     표시한다(N/A 아님) — CTR만 노출 0일 때 N/A를 쓴다.
 
-입력 (stdin, JSON):
+⚠️ **`get_ad_performance_monthly_table`은 JSON 행 배열이 아니라 마크다운 표(파이프 `|` 텍스트)
+문자열**을 반환한다. 그 원본을 손으로 JSON으로 옮겨 적거나 파싱용 스크립트를 새로 만들지
+않는다 — 아래 (B) 입력 형태로 원본 문자열을 그대로 넘기면 이 스크립트가 직접 파싱한다.
+
+입력 (stdin, JSON) — 둘 중 한 형태:
+
+(A) 이미 파싱된 행 객체로 넘길 때:
 {
   "m1_month": "YYYY-MM",
   "m0_month": "YYYY-MM",
@@ -28,12 +34,22 @@ MCP 응답 JSON을 받아 stdout으로 완성된 행 배열만 낸다. 중간 �
                                        # month/campaign_name/airbridge_revenue/reservation 포함)
 }
 
+(B) **권장 — MCP 도구가 실제로 반환하는 원본 마크다운 문자열을 그대로 넘길 때** (각 호출의
+    응답 문자열을 파싱·가공·선별 없이 그대로 배열에 담는다 — 응답이 크다고 "주요 행만" 손으로
+    골라 옮기면 임계값 초과 행이 누락될 위험이 있으므로 절대 하지 않는다):
+{
+  "m1_month": "...", "m0_month": "...",
+  "markdown": [ "<google 호출 응답 원본>", "<meta 응답 원본>", "<naver 응답 원본>",
+                "<airbridge 응답 원본>" ]   # media 필드로 자동 분리, ga4 등은 자동 제외
+}
+
 출력 (stdout, JSON): [{"search": "매체 캠페인 (소문자)", "html": "<tr>...</tr>"}, ...]
 M0 광고비 내림차순, threshold 이하 제외, HTML까지 완성된 상태 — 그대로
 {MONTHLY_CAMPAIGN_ROWS} 자리에 넣으면 된다.
 
 사용 예:
-  echo '{"m1_month":"2026-06","m0_month":"2026-07", ...}' | python3 assets/monthly_campaign_rows.py
+  echo '{"m1_month":"2026-06","m0_month":"2026-07","markdown":["<원본 문자열>", ...]}' \
+    | python3 assets/monthly_campaign_rows.py
 """
 import sys
 import json
@@ -43,6 +59,40 @@ sys.stdin = io.TextIOWrapper(sys.stdin.buffer, encoding="utf-8")
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 
 MEDIA_LABEL = {"google": "Google Ads", "meta": "Meta Ads", "naver": "Naver Ads"}
+
+STRING_FIELDS = {"month", "media", "campaign_name", "asset_group", "ad_name", "channel"}
+
+
+def _coerce_cell(key, value):
+    value = value.strip()
+    if key in STRING_FIELDS:
+        return value
+    if value == "":
+        return None
+    try:
+        f = float(value)
+    except ValueError:
+        return value
+    return int(f) if f.is_integer() else f
+
+
+def parse_markdown_table(text):
+    """`get_ad_performance_monthly_table`이 반환하는 파이프(|) 마크다운 표 문자열을 행 dict
+    리스트로 파싱한다."""
+    lines = [ln for ln in text.strip().splitlines() if ln.strip()]
+    if not lines:
+        return []
+    header = [c.strip() for c in lines[0].strip().strip("|").split("|")]
+    rows = []
+    for line in lines[1:]:
+        cells = [c.strip() for c in line.strip().strip("|").split("|")]
+        if all(c == "" or set(c) <= {"-"} for c in cells):
+            continue
+        if len(cells) != len(header):
+            continue
+        rows.append({h: _coerce_cell(h, v) for h, v in zip(header, cells)})
+    return rows
+
 
 # 각 지표의 색상 규칙: True면 "증가=빨강(긍정)", False면 "감소=빨강(긍정)" (CPA만 False)
 POSITIVE_ON_INCREASE = {
@@ -220,8 +270,16 @@ def main():
     m1_month = payload["m1_month"]
     m0_month = payload["m0_month"]
     threshold = payload.get("threshold", 300000)
-    media_rows = payload["media_rows"]
-    airbridge_rows = payload["airbridge_rows"]
+    if "markdown" in payload:
+        md = payload["markdown"]
+        if isinstance(md, str):
+            md = [md]
+        rows = [r for text in md for r in parse_markdown_table(text)]
+        media_rows = [r for r in rows if r.get("media") in MEDIA_LABEL]
+        airbridge_rows = [r for r in rows if r.get("media") == "airbridge"]
+    else:
+        media_rows = payload["media_rows"]
+        airbridge_rows = payload["airbridge_rows"]
 
     media_idx = {}
     for r in media_rows:

@@ -46,14 +46,22 @@
 ## 계산·조인·정렬·HTML 생성: `assets/monthly_campaign_rows.py` 호출
 
 ⚠️ **아래 "필요 데이터" 절은 계산 로직의 명세(spec)이며, 실제 실행 시 이 계산을 손으로 하거나
-새 스크립트를 짜지 않는다.** `SKILL.md`의 § 실행 방식 절대 지침에 따라, 위 4회 호출로 받은
-google/meta/naver 응답을 합쳐 `media_rows`에, airbridge 응답을 `airbridge_rows`에 넣어 아래처럼
-`assets/monthly_campaign_rows.py`에 stdin으로 파이프한다:
+새 스크립트를 짜지 않는다.** `SKILL.md`의 § 실행 방식 절대 지침에 따라, 위 4회 호출 각각의
+응답을 **원본 그대로**(파싱·JSON 변환·행 선별 없이) `markdown` 배열에 담아 아래처럼
+`assets/monthly_campaign_rows.py`에 stdin으로 파이프한다 — media별로 나누는 것도, 마크다운을
+파싱하는 것도 전부 스크립트가 한다:
 
 ```bash
-echo '{"m1_month":"2026-06","m0_month":"2026-07","threshold":300000,"media_rows":[...google+meta+naver 응답 행 전체...],"airbridge_rows":[...airbridge 응답 행 전체...]}' \
+echo '{"m1_month":"2026-06","m0_month":"2026-07","threshold":300000,"markdown":["<google 응답 원본>","<meta 응답 원본>","<naver 응답 원본>","<airbridge 응답 원본>"]}' \
   | python3 assets/monthly_campaign_rows.py
 ```
+
+⚠️ **`get_ad_performance_monthly_table`은 JSON 행 배열이 아니라 마크다운 표(파이프 `|` 텍스트)를
+반환한다.** 그 원본 문자열을 손으로 JSON 행 객체로 옮겨 적지 않는다 — 응답이 커서 "주요 캠페인만"
+손으로 골라 옮기고 싶어지더라도, 그렇게 하면 ₩300,000 초과인데 우연히 "안 중요해 보인" 캠페인이
+조용히 누락될 위험이 있다(§ 데이터 처리 원칙이 금지하는 부분 처리와 동일한 문제). 4개 응답
+문자열을 **각각 통째로** `markdown` 배열에 넣으면 스크립트가 전체 행을 빠짐없이 파싱한다 —
+이게 유일하게 올바른 방법이다. 마크다운을 파싱하는 별도 스크립트를 새로 만들지도 않는다.
 
 출력된 `[{"search":..., "html":...}, ...]` 배열(이미 M0 광고비 내림차순 정렬, ₩300,000 이하
 필터, `<tr>` HTML까지 완성됨)을 그대로 `{MONTHLY_CAMPAIGN_ROWS}` 자리에 넣는다. 아래 "필요

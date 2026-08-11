@@ -294,6 +294,33 @@ section-5의 M-1/M0 비교 스펙)을 확인한 뒤 구조에 맞게 재적용�
   매체별 4회 호출을 유지한다.
 - **영향받은 파일**: 없음(검토만 수행, 코드/스킬 파일 변경 없음).
 
+## 2026-08-11 (추가) — `assets/monthly_campaign_rows.py`가 마크다운 표 원본을 직접 파싱하도록 확장
+
+`daily-detailed`에서 같은 문제(§ `dxd_table_rows.py`가 JSON 행 배열을 요구하는데, 실제
+`get_ad_performance_daily_table`은 마크다운 표 문자열을 반환해 "마크다운→JSON 변환" 단계가
+누락돼 있던 것)가 발견되어(`daily-detailed/CLAUDE.md` 2026-08-11 (추가 3) 항목 참고),
+`get_ad_performance_monthly_table`을 쓰는 이 스킬의 `assets/monthly_campaign_rows.py`에도
+동일한 문제가 있는지 확인했다.
+
+- **확인한 사실**: `get_ad_performance_monthly_table`의 도구 스키마 설명도 "Ad performance
+  monthly data **as a markdown table**"로 명시되어 있고, 실제로 라이브 호출
+  (`brand_name:"breezm"`, `start_month`/`end_month`:"2026-06", `group_by:"campaign"`,
+  `media:"google"`)로 원본 응답을 확인한 결과 JSON 행 배열이 아니라 파이프(`|`) 마크다운
+  문자열 하나였다 — `daily-detailed`와 완전히 같은 문제.
+- **무엇을 바꿨나**: `monthly_campaign_rows.py`에 `parse_markdown_table()`을 추가하고(월간
+  응답의 날짜 필드가 `logdate`가 아니라 `month`인 점만 다르게 반영), 새 입력 형태
+  `{"markdown": ["<응답1 원본>", ...]}`을 추가했다. `SKILL.md`와
+  `monthly-detailed-section-5-campaign-performance.md`의 asset 스크립트 호출 지침을 이
+  `markdown` 입력 형태를 권장하는 방식으로 갱신하고, "손으로 옮겨 적지 않는다"/"파서
+  스크립트를 새로 만들지 않는다"는 경고를 추가했다.
+- **검증 방법**: 실제 라이브 MCP 호출로 받은 원본 마크다운 문자열(google, 2026-06,
+  `group_by:"campaign"`)을 그대로 `markdown` 배열에 넣어 실행 — ₩278,991 캠페인(N2.SubK)이
+  ₩300,000 필터로 정확히 제외되고, 나머지 3개 캠페인이 M0 광고비 내림차순으로 CTR 값까지
+  정확히 나오는 것을 확인했다. M-1 데이터가 없는 상태(이번 테스트는 M0만 제공)에서 모든 M-1
+  셀과 변화량이 스펙대로 "-"/"(-)"로 나오는 것도 확인했다.
+- **영향받은 파일**: `assets/monthly_campaign_rows.py`, `SKILL.md`(§ 실행 방식 절대 지침),
+  `monthly-detailed-section-5-campaign-performance.md`.
+
 ## 적용하지 않은 항목 (검토했으나 구조상 해당 없음/보류)
 
 - **`get_target_progress_v2` 3회 통합**: `daily-summary`와 동일하게 `media`가 필수 enum이라
