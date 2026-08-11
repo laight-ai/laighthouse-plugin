@@ -70,8 +70,9 @@ def calc_roas(revenue, cost):
 
 
 def delta_relative(d0, d1):
-    """% 변화 (광고비/예약 완료/CPA/매출): D1이 0/None이면 표시 안 함."""
-    if d1 in (None, 0):
+    """% 변화 (광고비/예약 완료/CPA/매출): D0 또는 D1이 없으면(airbridge 미매칭 "-" 포함)
+    표시 안 함, D1이 0이어도 표시 안 함."""
+    if d0 is None or d1 in (None, 0):
         return None
     return (d0 - d1) / d1 * 100
 
