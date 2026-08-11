@@ -345,6 +345,39 @@ Naver 키워드 단위)에 대한 것이었는데, 이를 실측 없이 **`group
   `daily-detailed-section-4-campaign-performance.md`,
   `daily-detailed-section-5-ad-performance.md`.
 
+## 2026-08-11 (추가 4) — `markdown` 입력의 예시를 `echo`에서 heredoc으로 변경 + "파일 저장 후 재실행" 2단계 명시적 금지
+
+바로 위 항목(추가 3) 반영 직후 실제 `daily-detailed` 실행에서, section-4/5 모두 원본 마크다운을
+`assets/dxd_table_rows.py`에 바로 파이프하지 않고 **각 매체 응답을 별도 파일로 저장한 뒤
+(`prep dir` → `save section4 raw markdown` → 이후 section-5에서는 google/meta/naver/airbridge
+4개를 각각 `google_ad.md`/`meta_ad.md`/`naver_ad.md`/... 로 저장) 별도 호출로 그 파일을 다시
+읽어 스크립트를 실행**하는 패턴이 재현됐다.
+
+- **원인 분석**: 위 항목(추가 3)에서 예시로 준 호출 방식이 `echo '{"markdown":[...]}' |
+  python3 ...`였는데, 마크다운 응답은 줄바꿈·따옴표·백틱이 많은 큰 텍스트라 홑따옴표
+  `echo '...'` 안에 그대로 넣으면 셸 이스케이프가 쉽게 깨진다. 모델이 이 문제를 (아마도
+  경험적으로) 피하려고 "안전하게 파일에 먼저 저장한 뒤 스크립트에서 그 파일을 읽는" 방식으로
+  우회한 것으로 보인다 — 즉 "스크래치패드 파일 금지" 원칙 자체를 잊은 게 아니라, 예시로 준
+  `echo` 방식이 실전에서 깨지기 쉬워서 대안을 찾다가 금지된 패턴으로 흘러간 것일 가능성이 높다.
+- **무엇을 바꿨나**: `SKILL.md`와 section-4/5 파일, `assets/dxd_table_rows.py`의 docstring
+  예시를 전부 `echo '...'`에서 **따옴표 있는 heredoc**(`python3 assets/dxd_table_rows.py
+  <<'PYEOF' ... PYEOF`)으로 바꿨다 — 홑따옴표로 감싼 delimiter를 쓰는 heredoc은 셸이 본문을
+  전혀 해석(변수 치환·명령 치환·따옴표 처리)하지 않으므로 크고 특수문자가 많은 텍스트에도
+  안전하다. 그리고 "응답을 먼저 파일로 저장했다가 별도 호출로 다시 읽어서 스크립트를
+  실행하지 않는다"는 문장을 각 위치에 명시적으로 추가했다 — 이 두 단계(파일 저장 → 별도 실행)
+  자체가 금지 대상임을 못박았다. `monthly-detailed`/`creative-summary`의 동일한 asset
+  스크립트·문서에도 같은 교정을 동시에 적용했다.
+- **한계(솔직히 인정)**: heredoc으로 바꿔도, 모델이 원본 마크다운 텍스트 전체를 자신의
+  출력 토큰으로 최소 한 번은 그대로 재생산해야 한다는 사실 자체는 바뀌지 않는다 — 이건 파일에
+  쓰든 heredoc에 쓰든 동일한 비용이다. 이번 수정이 없애는 것은 "파일 저장 + 별도 재실행"이라는
+  **불필요한 추가 왕복**(툴 호출 2회 이상)일 뿐, section-5처럼 Naver 키워드 단위로 응답이 정말
+  큰 경우의 "원본을 한 번 통째로 출력해야 하는" 근본 비용은 이 구조에서 완전히 없앨 방법이
+  없다 — 도구 자체가 서버 쪽에서 임계값 필터링을 지원하지 않는 한 구조적 한계로 남는다.
+- **영향받은 파일**: `assets/dxd_table_rows.py`, `SKILL.md`(§ 실행 방식 절대 지침),
+  `daily-detailed-section-4-campaign-performance.md`,
+  `daily-detailed-section-5-ad-performance.md`. (동일 교정을 `monthly-detailed`,
+  `creative-summary`의 대응 파일에도 함께 적용 — 각 스킬 CLAUDE.md 참고.)
+
 ## 아직 적용 안 한 후보 (추가 조사/논의 필요)
 
 - `get_target_progress_v2` 3회(media=google/meta/naver) 호출을 1회로 합치는 것 — `daily-summary`
