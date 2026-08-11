@@ -18,10 +18,31 @@
 ⚠️ CTR은 항상 click/impression*100으로 직접 계산한다(응답의 `ctr` 필드는 쓰지 않는다) —
 `ctr` 필드가 비율(0.021)인지 %(2.1)인지 응답마다 다를 수 있어 혼동을 피하기 위함.
 
-입력 (stdin, JSON):
+⚠️ **`get_ad_performance_daily_table`은 JSON 행 배열이 아니라 마크다운 표(파이프 `|` 텍스트)
+문자열을 반환한다.** 그 원본을 손으로 JSON으로 옮겨 적거나(전사 실수·행 선별 위험) 파싱용
+스크립트를 새로 만들지 않는다 — 아래 `meta_markdown`/`airbridge_markdown` 입력으로 원본
+문자열을 그대로 넘기면 이 스크립트가 직접 파싱한다.
+
+입력 (stdin, JSON) — 아래 두 형태 중 하나로 meta/airbridge 각각 넘긴다:
+
+(A) 이미 파싱된 행 객체로 넘길 때:
 {
   "meta_rows": [ ... ],       # get_ad_performance_daily_table(media="meta", group_by="ad") 응답 행 그대로
   "airbridge_rows": [ ... ],  # get_ad_performance_daily_table(media="airbridge", group_by="ad") 응답 행 그대로
+  ...
+}
+
+(B) **권장 — MCP 도구가 실제로 반환하는 원본 마크다운 문자열을 그대로 넘길 때** (각 호출의
+    `result` 문자열을 파싱·가공·선별 없이 그대로 넣는다 — 응답이 크다고 "주요 소재만" 손으로
+    골라 옮기지 않는다, 문자열 하나 또는 리스트 둘 다 허용):
+{
+  "meta_markdown": "<media=\"meta\" 호출의 응답 원본 문자열>",
+  "airbridge_markdown": "<media=\"airbridge\" 호출의 응답 원본 문자열>",
+  ...
+}
+
+공통 나머지 필드:
+{
   "top5_keys": [              # section-4/5용. 생략하면 top5 시리즈는 계산하지 않는다(section-3만 필요할 때).
     {"campaign_name": "...", "asset_group": "...", "ad_name": "..."}, ...
   ],
@@ -60,6 +81,45 @@ import io
 
 sys.stdin = io.TextIOWrapper(sys.stdin.buffer, encoding="utf-8")
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
+
+STRING_FIELDS = {"logdate", "date", "media", "campaign_name", "asset_group", "ad_name", "channel"}
+
+
+def _coerce_cell(key, value):
+    value = value.strip()
+    if key in STRING_FIELDS:
+        return value
+    if value == "":
+        return None
+    try:
+        f = float(value)
+    except ValueError:
+        return value
+    return int(f) if f.is_integer() else f
+
+
+def parse_markdown_table(text):
+    """`get_ad_performance_daily_table`이 반환하는 파이프(|) 마크다운 표 문자열을 행 dict
+    리스트로 파싱한다."""
+    lines = [ln for ln in text.strip().splitlines() if ln.strip()]
+    if not lines:
+        return []
+    header = [c.strip() for c in lines[0].strip().strip("|").split("|")]
+    rows = []
+    for line in lines[1:]:
+        cells = [c.strip() for c in line.strip().strip("|").split("|")]
+        if all(c == "" or set(c) <= {"-"} for c in cells):
+            continue
+        if len(cells) != len(header):
+            continue
+        rows.append({h: _coerce_cell(h, v) for h, v in zip(header, cells)})
+    return rows
+
+
+def parse_markdown_input(value):
+    """문자열 또는 문자열 리스트를 받아 파싱된 행을 전부 이어붙인다."""
+    texts = [value] if isinstance(value, str) else list(value)
+    return [r for text in texts for r in parse_markdown_table(text)]
 
 
 def row_date(row):
@@ -162,8 +222,14 @@ def compute_top5(meta_rows, airbridge_rows, dates, top5_keys):
 
 def main():
     payload = json.load(sys.stdin)
-    meta_rows = payload.get("meta_rows", [])
-    airbridge_rows = payload.get("airbridge_rows", [])
+    if "meta_markdown" in payload:
+        meta_rows = parse_markdown_input(payload["meta_markdown"])
+    else:
+        meta_rows = payload.get("meta_rows", [])
+    if "airbridge_markdown" in payload:
+        airbridge_rows = parse_markdown_input(payload["airbridge_markdown"])
+    else:
+        airbridge_rows = payload.get("airbridge_rows", [])
     top5_keys = payload.get("top5_keys")
 
     dates = payload.get("dates")

@@ -60,11 +60,14 @@
 daily meta 응답에서 exact-match로 걸러내 날짜별 CTR을 계산하는 작업은 section-3과 같은
 asset 스크립트 `assets/creative_daily_series.py`로 처리한다 — CTR은 항상
 `click`÷`impression`×100으로 스크립트가 직접 계산한다(응답의 `ctr` 필드가 비율/%
-어느 쪽으로 오는지 매번 판단할 필요가 없어진다).
+어느 쪽으로 오는지 매번 판단할 필요가 없어진다). ⚠️ `get_ad_performance_daily_table` 응답은
+JSON이 아니라 마크다운 표 문자열이므로, section-3과 동일하게 원본 문자열을 그대로
+`meta_markdown`/`airbridge_markdown`에 넣는다 — 손으로 옮겨 적거나 파서 스크립트를 새로
+만들지 않는다.
 
 ```bash
 python3 <스킬 폴더>/assets/creative_daily_series.py <<'EOF'
-{"meta_rows": <media="meta" 응답의 rows>, "airbridge_rows": <media="airbridge" 응답의 rows>,
+{"meta_markdown": "<media=\"meta\" 응답 원본 문자열>", "airbridge_markdown": "<media=\"airbridge\" 응답 원본 문자열>",
  "dates": ["기준일 6일 전", ..., "target_date"],
  "top5_keys": [ {"campaign_name": "...", "asset_group": "...", "ad_name": "..."}, ... ]}
 EOF

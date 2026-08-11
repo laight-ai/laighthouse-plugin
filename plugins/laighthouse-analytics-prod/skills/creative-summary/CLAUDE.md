@@ -274,6 +274,31 @@
 - **왜**: 이 스킬도 서브에이전트 없이 오케스트레이터가 직접 MCP를 호출하는 구조라
   daily-summary와 동일한 논리가 적용된다.
 
+## 2026-08-11 (추가) — `assets/creative_daily_series.py`가 마크다운 표 원본을 직접 파싱하도록 확장
+
+`daily-detailed`에서 발견된 것과 같은 문제(asset 스크립트가 JSON 행 배열을 요구하는데, 실제
+`get_ad_performance_daily_table`은 마크다운 표 문자열을 반환해 "마크다운→JSON 변환" 단계가
+문서화되어 있지 않던 것 — `daily-detailed/CLAUDE.md` 2026-08-11 (추가 3) 참고)가
+`assets/creative_daily_series.py`에도 그대로 있는지 확인했다.
+
+- **확인한 사실**: `get_ad_performance_daily_table`의 도구 스키마 설명이 "Ad performance
+  daily data **as a markdown table**"임을 재확인했고, 실제 라이브 호출(`brand_name:"breezm"`,
+  `start_date`/`end_date`:"2026-07-02"~"2026-07-03", `group_by:"ad"`, `media:"meta"`)로 원본
+  응답이 JSON이 아니라 파이프(`|`) 마크다운 문자열임을 확인했다.
+- **무엇을 바꿨나**: `creative_daily_series.py`에 `parse_markdown_table()`을 추가하고, 새 입력
+  형태 `meta_markdown`/`airbridge_markdown`(문자열 또는 문자열 리스트)을 추가했다. 기존
+  `meta_rows`/`airbridge_rows`(이미 파싱된 행 객체) 입력도 그대로 지원한다(하위 호환). `SKILL.md`
+  와 section-3/4 파일의 asset 스크립트 호출 지침을 `meta_markdown`/`airbridge_markdown`을
+  권장하는 방식으로 갱신했다.
+- **검증 방법**: 실제 라이브 MCP 호출로 받은 원본 마크다운 문자열(meta, 2026-07-02~03,
+  `group_by:"ad"`, 일부 소재)을 `meta_markdown`에 그대로 넣어 실행 — 2026-07-02 CTR
+  0.9176...%(수동 계산 click 39÷impression 4250×100과 일치), 2026-07-03 CTR
+  0.6999...%도 일치함을 확인했다. 기존 `meta_rows`/`airbridge_rows` 입력 형태에 대한 회귀
+  테스트도 재실행해 이상 없음을 확인했다.
+- **영향받은 파일**: `assets/creative_daily_series.py`, `SKILL.md`(§ 실행 방식 절대 지침의
+  asset 스크립트 예외 문단), `creative-summary-section-3-daily-creative-total-performance.md`,
+  `creative-summary-section-4-daily-CTR.md`.
+
 ## 적용하지 않은 것
 
 - **`get_target_progress_v2` 통합**: 이 스킬은 애초에 `get_target_progress_v2`를 쓰지

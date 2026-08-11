@@ -42,16 +42,19 @@ SKILL.md의 Bash 집계 필수 규칙이 이 섹션에는 그대로 전체 범�
 ## 계산: `assets/creative_daily_series.py` 호출 (필수)
 
 이 섹션이 필요로 하는 "모든 소재를 날짜별로 합산 → CTR/ROAS" 계산은 미리 검증된 asset
-스크립트 `assets/creative_daily_series.py`로 옮겨져 있다 — 위에서 받은 `media="meta"`/
-`media="airbridge"` 두 응답의 행을 그대로 이어붙여 stdin으로 넘기면, `overall.ctr_series`/
-`overall.roas_series`(날짜별, 아래 "필요 데이터"의 조인·null 규칙이 이미 반영된 값)를 그대로
-돌려준다. 손으로 조인·합산하거나 즉석 Bash로 다시 계산하지 않는다 — 이 스크립트를 호출하는
-것 자체가 SKILL.md § 실행 방식 절대 지침의 "이미 존재하는 검증된 asset 스크립트 호출은 파일
-생성 금지의 예외"에 해당한다.
+스크립트 `assets/creative_daily_series.py`로 옮겨져 있다. ⚠️ **`get_ad_performance_daily_table`은
+JSON 행 배열이 아니라 마크다운 표(파이프 `|` 텍스트) 문자열을 반환한다** — 그 원본을 손으로
+JSON으로 옮겨 적거나(전사 실수·행 선별 위험) 파싱용 스크립트를 새로 만들지 않는다. 위에서 받은
+`media="meta"`/`media="airbridge"` 두 응답 문자열을 **가공 없이 원본 그대로**
+`meta_markdown`/`airbridge_markdown`에 넣어 stdin으로 넘기면, 스크립트가 직접 파싱하고
+`overall.ctr_series`/`overall.roas_series`(날짜별, 아래 "필요 데이터"의 조인·null 규칙이 이미
+반영된 값)를 돌려준다. 손으로 조인·합산하거나 즉석 Bash로 다시 계산하지 않는다 — 이 스크립트를
+호출하는 것 자체가 SKILL.md § 실행 방식 절대 지침의 "이미 존재하는 검증된 asset 스크립트 호출은
+파일 생성 금지의 예외"에 해당한다.
 
 ```bash
 python3 <스킬 폴더>/assets/creative_daily_series.py <<'EOF'
-{"meta_rows": <media="meta" 응답의 rows>, "airbridge_rows": <media="airbridge" 응답의 rows>,
+{"meta_markdown": "<media=\"meta\" 응답 원본 문자열>", "airbridge_markdown": "<media=\"airbridge\" 응답 원본 문자열>",
  "dates": ["기준일 6일 전", ..., "target_date"]}
 EOF
 ```
