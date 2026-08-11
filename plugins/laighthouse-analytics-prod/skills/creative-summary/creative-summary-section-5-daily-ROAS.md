@@ -29,19 +29,25 @@ section-3/4/5용으로 별도 호출하는 `get_ad_performance_daily_table`에�
 - ⚠️ `campaign-type` 금지(SKILL.md 2단계에서 이미 호출했으므로 여기서는 해당 사항 없음 —
   재사용만 확인). ⚠️ `group_by`는 문자열 `"ad"` 그대로다.
 
-## 필요 데이터
+## 소재 선정
 
-**소재 선정**: section-4에서 이미 뽑은 **7일 합산 광고비 상위 5개 소재**(section-1의
-range_table 응답에서 뽑은 것, section-4 파일 참고)를 그대로 쓴다 — 다시 계산하지 않는다.
-라인 색상·범례 순서도 section-4와 동일하게 맞춘다. **표시 이름**(ad_name 중복 시
-`ad_name (asset_group)`으로 구분한 이름)도 section-4에서 이미 정한 것을 그대로 재사용한다 —
-다시 판단하지 않는다.
+section-4에서 이미 뽑은 **7일 합산 광고비 상위 5개 소재**(section-1의 range_table 응답에서
+뽑은 것, section-4 파일 참고)를 그대로 쓴다 — 다시 계산하지 않는다. 라인 색상·범례 순서도
+section-4와 동일하게 맞춘다. **표시 이름**(ad_name 중복 시 `ad_name (asset_group)`으로
+구분한 이름)도 section-4에서 이미 정한 것을 그대로 재사용한다 — 다시 판단하지 않는다.
 
-**일별 시리즈** (선정된 5개 소재 각각에 대해, 이미 알고 있는 정확한 키로 daily 응답에서
-exact-match 필터링 — 전체 소재를 다시 랭킹 매기지 않는 닫힌 추출):
+## 계산: `assets/creative_daily_series.py` 호출 (필수) — 일별 ROAS 시리즈
+
+이 섹션의 일별 ROAS 시리즈는 section-4가 이미 호출한 `assets/creative_daily_series.py`의
+**같은 출력**에서 나온다 — section-4 파일의 호출 절에 적힌 대로 `top5_keys`를 넘겨 한 번
+호출하면 출력에 `top5.ctr_series`(section-4용)와 `top5.roas_series`(이 섹션용)가 함께
+담겨 있다. **이 섹션에서 스크립트를 다시 호출하지 않는다** — section-4가 받은 같은 출력의
+`top5.roas_series`를 그대로 `{CREATIVE_ROAS_SERIES}`에 쓴다.
+
+스크립트가 이미 구현한 계산 로직(참고용 — 다시 손으로 계산하지 않는다):
 - **조인**: `campaign_name`+`asset_group`+`ad_name` 세 필드가 정확히 일치하는 날짜의
-  airbridge 행을 찾아 `airbridge_revenue`를 가져온다. section-4에서 쓴 같은 소재의 같은
-  날짜 `cost`(메타 쪽)를 분모로 쓴다.
+  airbridge 행을 찾아 `airbridge_revenue`를 가져온다. 같은 소재의 같은 날짜 `cost`(메타
+  쪽)를 분모로 쓴다.
 - 날짜별 `ROAS` = 그 날짜 `airbridge_revenue` ÷ 그 날짜 `cost` × 100.
 - 그 날짜에 매체 쪽 `cost`가 0이거나 없으면, 또는 airbridge 쪽에 그 날짜·그 소재의 매출 행이
   없으면(조인 실패) 그 날짜의 ROAS는 **`0`으로 채운다**(끊긴 구간으로 남기지 않는다 —

@@ -34,12 +34,36 @@ SKILL.md 실행 순서 2단계(2-b)에서 section-3/4/5용으로 별도 호출�
 성과를 측정하지 않는 캠페인·매체(예: 검색광고)의 행이 애초에 나타나지 않지만, 이는
 광고비/노출/클릭에만 해당하는 이야기이고 매출 집계에는 별도의 조인 필터링이 필요하다.)
 
-⚠️ **이 섹션은 section-4/5와 달리 여전히 전체 소재에 대한 완전한 Bash 집계가 필요하다** — "상위
+⚠️ **이 섹션은 section-4/5와 달리 여전히 전체 소재에 대한 완전한 집계가 필요하다** — "상위
 5개"로 좁힐 수 없고(전체 CTR/ROAS 추이가 목적) 날짜별로 **모든** 소재 행을 합산해야 하므로,
 SKILL.md의 Bash 집계 필수 규칙이 이 섹션에는 그대로 전체 범위로 적용된다(section-4/5처럼 5개
 키로 좁혀지는 예외에 해당하지 않는다).
 
-## 필요 데이터 (날짜별, 모든 소재 합산 — 상위 5개로 거르지 않음)
+## 계산: `assets/creative_daily_series.py` 호출 (필수)
+
+이 섹션이 필요로 하는 "모든 소재를 날짜별로 합산 → CTR/ROAS" 계산은 미리 검증된 asset
+스크립트 `assets/creative_daily_series.py`로 옮겨져 있다 — 위에서 받은 `media="meta"`/
+`media="airbridge"` 두 응답의 행을 그대로 이어붙여 stdin으로 넘기면, `overall.ctr_series`/
+`overall.roas_series`(날짜별, 아래 "필요 데이터"의 조인·null 규칙이 이미 반영된 값)를 그대로
+돌려준다. 손으로 조인·합산하거나 즉석 Bash로 다시 계산하지 않는다 — 이 스크립트를 호출하는
+것 자체가 SKILL.md § 실행 방식 절대 지침의 "이미 존재하는 검증된 asset 스크립트 호출은 파일
+생성 금지의 예외"에 해당한다.
+
+```bash
+python3 <스킬 폴더>/assets/creative_daily_series.py <<'EOF'
+{"meta_rows": <media="meta" 응답의 rows>, "airbridge_rows": <media="airbridge" 응답의 rows>,
+ "dates": ["기준일 6일 전", ..., "target_date"]}
+EOF
+```
+
+출력의 `dates`/`overall.ctr_series`/`overall.roas_series`를 그대로
+`{CREATIVE_7DAY_LABELS_WITH_WEEKDAY}`(날짜에 요일을 붙여 표기만 변환)·`{OVERALL_CTR_SERIES}`·
+`{OVERALL_ROAS_SERIES}` 자리에 쓴다. section-4/5가 필요로 하는 `top5` 시리즈는 이 섹션에서는
+`top5_keys`를 넘기지 않아도 되므로(이 섹션은 전체 소재만 필요) 생략 가능하다 — 단, 한 번의
+호출로 section-3/4/5를 모두 처리하고 싶다면 `top5_keys`(section-4 파일이 정하는 상위 5개
+키)를 함께 넘겨 한 번에 받아도 된다.
+
+## 필요 데이터 (계산 명세 — 위 스크립트가 이미 구현한 로직의 참고용 스펙, 날짜별·모든 소재 합산)
 
 각 날짜(7일 전체)에 대해:
 - `전체 광고비` = 그 날짜 `meta` 응답의 **모든 소재 행** `cost` 합

@@ -3,6 +3,92 @@
 `daily-summary`에 먼저 적용한 최적화 세트(`daily-summary/CLAUDE.md` 참고)를 `creative-summary`에
 구조적으로 적용 가능한 범위에서 이식한 기록.
 
+## 2026-08-11 — `daily-detailed`의 3가지 교정을 구조 확인 후 이식(2개 적용, 1개 신규 asset 스크립트로 대체 적용, 1개는 해당 없음)
+
+자매 스킬 `daily-detailed`에서 2026-08-11에 적용한 세 가지 교정(조합 단계 중간 파일 금지
+강화, 스켈레톤 게시를 필수 체크포인트로 승격, D-1/D-0 비교표 계산을 asset 스크립트로 이전)과
+호출 수 재검토 1건을, `creative-summary`의 실제 구조를 확인한 뒤 해당되는 범위에서 적용했다.
+`creative-detailed`와 자매 관계라 일부는 이미 이 CLAUDE.md의 기존 항목에 선제 반영돼 있었다
+(예: Bash 집계 필수화, chart.js 인라인 방식) — 이번엔 그 나머지를 확인했다.
+
+### 1. 적용 — 섹션 HTML 조합 단계까지 "중간 파일 생성 금지" 명시적으로 확장
+
+기존 § 실행 방식 절대 지침은 "이 스킬이 만드는 파일은 오직 최종 보고서 HTML 하나뿐이다"라고
+이미 적혀 있었지만, "집계 단계에는 Bash를 써도 된다"는 바로 아래 예외 문구와의 경계가
+명시적으로 그어져 있지 않았다 — `daily-detailed`의 실제 프로덕션 사고(예외가 조합 단계까지
+확장 해석되어 `section2.html`/`section4_rows.json`/스테이징 HTML 등 여러 중간 파일이
+생성됨)와 동일한 오해가 이 스킬에서도 재발할 수 있는 구조였다. § 실행 방식 절대 지침에
+"이 금지는 데이터 집계 단계뿐 아니라 섹션 HTML을 조합하는 단계에도 동일하게 적용된다"는
+문장과, 금지 예시(섹션별 조각 파일 `section3.html`/`section4.html`, `gen_section.py`류 HTML
+생성 스크립트, 중간 스테이징 HTML)를 구체적으로 추가했다.
+- **영향받은 파일**: `SKILL.md`(§ 실행 방식 절대 지침).
+
+### 2. 적용 — 스켈레톤 선(先) 게시를 번호 붙은 필수 체크포인트로 승격
+
+이 스킬도 다른 대부분의 형제 스킬처럼 스켈레톤 선(先) 게시가 § 실행 방식 절대 지침 아래
+별도 안내문(⏱ 표시)으로만 존재하고, 번호 붙은 § 실행 순서 목록에는 포함되지 않는 구조였다
+— `daily-detailed`가 실제로 겪은 "스켈레톤 없이 전체를 다 만든 뒤 한 번에 저장하려다 툴호출
+예산 소진" 사고와 같은 위험이 구조적으로 동일하게 존재했다. 안내문을 삭제하고, § 실행
+순서의 2단계(소재 데이터 호출) 직후·3단계(나머지 데이터 호출) 이전에 번호 붙은 필수
+체크포인트로 다시 넣었다. 뒤따르는 단계 번호를 3~8 → 4~9로 전부 다시 매겼다(나머지 도구
+호출, Executive Summary, HTML 조합, chart.js 인라인, 렌더링/저장, 완료 메시지 — 그 내부
+순서·내용은 무변경). 4단계(나머지 도구 호출)에 "섹션 데이터가 준비되는 대로 즉시 골격의
+해당 placeholder를 교체·재게시한다"는 문장도 추가했다. 이 renumbering으로 영향받은 다른
+단계 참조(완료 메시지 형식의 "저장 단계" 참조, 보고서 골격 절의 "chart.js 인라인 단계"
+참조)도 함께 갱신했다.
+- **영향받은 파일**: `SKILL.md`(§ 실행 방식 절대 지침, § 실행 순서 전체, § 완료 메시지
+  형식, § 보고서 골격의 단계 참조).
+
+### 3. 대체 적용 — D-1/D-0류 조인 비교표는 없음, 대신 section-3/4/5의 반복 계산을 `assets/creative_daily_series.py`로 이전
+
+`daily-detailed`의 section-4/5가 쓰는 "D-1 vs D-0 조인+파생지표+변화율+화살표+색상+정렬+
+`<tr>` HTML 생성" 패턴은 이 스킬에는 **존재하지 않는다** — creative-summary의 section-4/5는
+이틀을 나란히 비교하는 표가 아니라 **7일 라인 차트**(광고비 상위 5개 소재의 일별 CTR/ROAS
+추이)이고, HTML도 `<tr>` 행이 아니라 Chart.js 시리즈 배열이다. 따라서 `dxd_table_rows.py`를
+그대로 가져다 쓸 수는 없었다.
+- **대신 적용한 것**: 이 스킬 고유의 반복적·계산 집약적 섹션을 재검토한 결과, section-3(전체
+  소재를 날짜별로 합산해 전체 CTR/ROAS 7일 추이를 내는, **5개로 좁혀지지 않는 열린 집계**)이
+  바로 이 스킬 CLAUDE.md의 2026-08-09 (2)/(3) 항목에 기록된 실제 정확도 사고(`group_by:"ad"`
+  응답을 손으로 합산하다 근사치를 반영한 사고)와 가장 정확히 같은 종류의 위험을 안고 있는
+  단계였다. section-4/5(상위 5개 소재의 exact-match 필터링+날짜별 CTR/ROAS)도 조인 로직이
+  section-3과 동일해서 같은 스크립트로 함께 처리할 수 있었다. 신규 asset 스크립트
+  `assets/creative_daily_series.py`를 만들어 (a) 전체 소재 날짜별 합산(section-3의
+  `overall.ctr_series`/`overall.roas_series`, "메타 응답에 있는 소재만 airbridge 매출을
+  조인"하는 규칙 포함)과 (b) 상위 5개 소재의 exact-match 날짜별 시리즈(section-4의
+  `top5.ctr_series`, section-5의 `top5.roas_series` — ROAS는 조인 실패/광고비 0일 때 `0`으로
+  채우는 section-5 고유 규칙 포함)를 모두 계산하도록 했다. CTR은 응답의 `ctr` 필드(비율/%
+  여부가 응답마다 다를 수 있어 혼동 위험이 있던 부분, section-4 파일에 있던 기존 경고문 참고)
+  대신 항상 `click÷impression×100`으로 스크립트가 직접 계산해 이 판단 자체를 없앴다.
+- **왜 asset 스크립트로 옮겼나(vs. 즉석 Bash)**: section-3의 집계는 소재 수만큼(닫힌 5개가
+  아니라 열린 전체) 반복되는 조인+합산이라, 즉석 Bash 명령으로도 처리 가능하지만 매번 로직을
+  다시 작성/검산하게 되면 daily-detailed에서 실제로 있었던 "모델이 프로즈로 한 줄씩 손계산"
+  실패 모드를 피할 수 없다 — `chart.umd.min.js`를 매번 재생성하지 않고 파일로 두는 것과
+  같은 논리로, 이미 검증된 스크립트를 두고 재사용하는 쪽을 택했다.
+- **적용하지 않은 부분**: section-1(range_table 응답을 그냥 내림차순 정렬)과 section-4의
+  "상위 5개 소재 선정"(하나의 필드로 정렬)은 계산이 단순한 정렬뿐이라 스크립트로 옮기지
+  않았다 — 각 섹션 파일에 "스크립트 불필요"로 명시했다.
+- **검증 방법**: `python3 -m py_compile assets/creative_daily_series.py`로 문법 확인.
+  합성 데이터 3케이스로 로컬 실행 확인 — (1) 정상 매칭(2개 소재, 2일, 메타/airbridge 모두
+  매칭), (2) 편측 미매칭(한 소재가 meta에는 있지만 airbridge에 없음 → section-3 전체 매출
+  합산에서 제외되고 section-4/5의 해당 소재 ROAS는 0으로 채워짐), (3) 분모 0/데이터 완전
+  누락(광고비·노출 0인 날, meta_rows에 그 날짜 행이 전혀 없는 날, top5_keys 중 어떤 날에도
+  등장하지 않는 소재) — 세 케이스 모두 overall/top5 시리즈의 null/0 처리가 스펙과 일치함을
+  확인했다.
+- **영향받은 파일**: `assets/creative_daily_series.py`(신규), `SKILL.md`(§ 실행 방식 절대
+  지침에 asset 스크립트 예외 추가), `creative-summary-section-3-daily-creative-total-
+  performance.md`, `creative-summary-section-4-daily-CTR.md`,
+  `creative-summary-section-5-daily-ROAS.md`.
+
+### 4. 해당 없음 — `group_by:"campaign"`류 media 분리 호출 재검토
+
+`daily-detailed`가 재검토한 대상은 section-4(`group_by:"campaign"`)가 media별로 쪼개져 있던
+것을 다시 통합한 것이었다. `creative-summary`에는 `group_by:"campaign"` 호출이 **아예
+없다** — section-1/3/4/5 전부 `group_by:"ad"`만 쓰고, 이미 이 CLAUDE.md의 2026-08-09 (2)
+항목에서 실측 근거(`group_by:"ad"` 응답이 media 생략 시 76만+자로 폭증)를 갖고 `media`를
+명시한 매체별 개별 호출로 확정돼 있다. 낮출 낮은 카디널리티 대상 자체가 없으므로 이 스킬에는
+적용하지 않는다(과도한 일반화를 만들지 않기 위해 실측 근거가 없는 `group_by:"ad"` 호출 수를
+임의로 줄이지 않았다).
+
 ## 2026-08-09 (4) — section-1 랭킹을 `get_ad_performance_range_table`로 전환 (Bash 집계 제거)
 
 `laighthouse-prism`에 신규 MCP 도구 `get_ad_performance_range_table`이 추가됐다 —

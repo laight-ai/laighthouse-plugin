@@ -37,9 +37,8 @@
 - ⚠️ `campaign-type` 금지(section-1과 SKILL.md 2단계에서 이미 호출했으므로 여기서는 해당
   사항 없음 — 재사용만 확인). ⚠️ `group_by`는 문자열 `"ad"` 그대로다.
 
-## 필요 데이터
+## 소재 선정 (7일 전체 합산 기준 — 단순 정렬, 스크립트 불필요)
 
-**소재 선정** (7일 전체 합산 기준):
 1. section-1의 range_table 응답(소재당 1행, 이미 7일 합산된 `cost` 포함)에서 소재
    (`campaign_name`+`asset_group`+`ad_name`)별 `cost` 값을 그대로 읽는다 — **daily 응답에서
    다시 합산하지 않는다**(2026-08-09 (4) 이전에는 daily 응답의 날짜별 행을 직접 더해야 했지만,
@@ -51,16 +50,31 @@
    바꿔 괄호 안에 광고그룹 이름을 추가해 구분한다. `ad_name`이 5개 중 유일하면 그대로 `ad_name`만
    표시한다(불필요하게 모든 이름에 괄호를 붙이지 않는다). 이 표시 이름을 범례·tooltip에 그대로
    쓴다.
-4. 위에서 뽑은 5개 소재의 정확한 키(`campaign_name`+`asset_group`+`ad_name`)를 daily meta
-   응답에서 **exact-match로 걸러낸다** — 전체 소재를 열어서 다시 랭킹을 매기는 게 아니라,
-   이미 알고 있는 5개 키와 정확히 일치하는 행만 뽑는 닫힌 추출이다(최대 5×7=35행). 이 5개
-   키에 해당하는 날짜별 행이 "일별 시리즈"의 원본이 된다.
 
-**일별 시리즈** (선정된 5개 소재 각각에 대해):
-- 날짜별 `CTR` = 그 날짜 행의 `ctr` 필드(또는 `click`÷`impression`×100). 그 날짜에 노출이
-  0이면 해당 포인트는 `null`로 둔다(0으로 채우지 않는다 — 차트에서 끊긴 구간으로 표시됨).
-- 7일 중 특정 날짜에 해당 소재의 행 자체가 없으면(그 날 광고가 게재되지 않음) 그 날짜도
-  `null`로 둔다.
+이 소재 선정은 최대 몇십 행을 한 필드로 내림차순 정렬하는 것뿐이라 스크립트 없이 직접
+처리한다 — 아래 일별 시리즈 계산과는 별개다.
+
+## 계산: `assets/creative_daily_series.py` 호출 (필수) — 일별 CTR 시리즈
+
+위 1~3에서 뽑은 상위 5개 소재의 정확한 키(`campaign_name`+`asset_group`+`ad_name`)를
+daily meta 응답에서 exact-match로 걸러내 날짜별 CTR을 계산하는 작업은 section-3과 같은
+asset 스크립트 `assets/creative_daily_series.py`로 처리한다 — CTR은 항상
+`click`÷`impression`×100으로 스크립트가 직접 계산한다(응답의 `ctr` 필드가 비율/%
+어느 쪽으로 오는지 매번 판단할 필요가 없어진다).
+
+```bash
+python3 <스킬 폴더>/assets/creative_daily_series.py <<'EOF'
+{"meta_rows": <media="meta" 응답의 rows>, "airbridge_rows": <media="airbridge" 응답의 rows>,
+ "dates": ["기준일 6일 전", ..., "target_date"],
+ "top5_keys": [ {"campaign_name": "...", "asset_group": "...", "ad_name": "..."}, ... ]}
+EOF
+```
+
+- `top5_keys`는 위 1~3에서 뽑은 5개 소재를 **그 순서대로**(색상·범례 순서와 일치) 넣는다.
+- 출력의 `top5.ctr_series`가 곧 `{CREATIVE_CTR_SERIES}`다(순서 그대로, 노출 0이거나 그 날짜
+  행 자체가 없으면 이미 `null`로 채워져 있다 — 추가 가공 불필요).
+- 이 호출은 section-5의 `top5.roas_series`도 같은 응답에 함께 담고 있다(section-5 파일 참고)
+  — section-5가 이 계산을 다시 호출할 필요 없이 같은 출력을 재사용한다.
 
 ⚠️ 어떤 호출에도 `campaign-type`을 넣지 않는다.
 
