@@ -309,6 +309,42 @@ Naver 키워드 단위)에 대한 것이었는데, 이를 실측 없이 **`group
   `daily-detailed-section-4-campaign-performance.md`, `SKILL.md`(§ 병렬 호출 지침, § 섹션
   구성).
 
+## 2026-08-11 (추가 3) — `assets/dxd_table_rows.py`가 마크다운 표 원본을 직접 파싱하도록 확장 (MCP 응답 형식 불일치 해소)
+
+`assets/dxd_table_rows.py` 도입(2026-08-11 위 항목) 이후에도 실제 `daily-detailed` 실행에서
+느려지는 사례가 또 있었다. 원인을 대화 기록으로 역추적하고, 실제로
+`mcp__laighthouse__get_ad_performance_daily_table`을 라이브로 호출해 응답 형식을 직접 확인한
+결과, 도구 자체의 스키마 설명이 "Ad performance daily data **as a markdown table**"라고 명시돼
+있고 실제 반환값도 JSON 행 배열이 아니라 **파이프(`|`)로 구분된 마크다운 표 문자열 하나**임을
+확인했다. `dxd_table_rows.py`는 JSON 행 객체 배열(`media_rows`/`airbridge_rows`/`rows`)을
+요구하므로, 이 둘 사이에 "마크다운 → JSON" 변환 단계가 반드시 필요한데 이 변환 방법이 문서화돼
+있지 않았다.
+
+- **실제로 관측된 실패 두 가지**: (1) 이 변환을 위해 별도의 "마크다운 파서 스크립트" 파일을
+  새로 만들려고 시도함 — asset 스크립트 도입으로 막으려던 바로 그 "즉석 스크립트 파일 생성"
+  문제가 변환 단계에서 재발한 것. (2) 응답이 크다는 이유로 포기하고, "주목할 만한"/"상위 지출"
+  행만 손으로 골라 JSON으로 옮겨 적음 — 이건 § 데이터 처리 원칙이 금지하는 "부분 처리·추정"과
+  동일한 문제로, ₩10,000 초과인데 "안 중요해 보인다"고 판단된 행이 조용히 누락될 위험이 있는
+  더 심각한 회귀다(속도 문제가 아니라 정확성 문제).
+- **무엇을 바꿨나**: `dxd_table_rows.py`에 `parse_markdown_table()` 함수를 추가해, 도구가
+  반환하는 원본 마크다운 문자열을 직접 행 dict 리스트로 파싱하도록 했다. 새 입력 형태
+  `{"markdown": ["<응답1 원본 문자열>", "<응답2 원본 문자열>", ...]}`을 추가해 — 기존
+  `media_rows`/`airbridge_rows`(형태 A), `rows`(형태 B)와 나란히 세 번째 옵션(형태 C)으로 —
+  모델이 각 MCP 호출의 응답 문자열을 **가공 없이 그대로** 배열에 담아 넘기면, 스크립트가
+  파싱 + `media` 필드 기준 자동 분리(+ga4 등 제외) + 이후 계산을 전부 처리하도록 했다.
+  section-4/5 파일과 `SKILL.md`의 asset 스크립트 호출 지침을 이 `markdown` 입력 형태를
+  권장하는 방식으로 갱신하고, "손으로 옮겨 적지 않는다"/"파서 스크립트를 새로 만들지 않는다"는
+  경고를 명시적으로 추가했다.
+- **검증 방법**: 합성 데이터가 아니라 **실제 라이브 MCP 호출**(`brand_name:"breezm"`,
+  `start_date`/`end_date`:"2026-07-03", `group_by:"campaign"`, `media:"google"`)로 받은 원본
+  마크다운 문자열을 그대로 `markdown` 배열에 넣어 실행 — ₩8,880 캠페인이 ₩10,000 필터로
+  정확히 제외되고, 나머지 3개 캠페인이 D0 광고비 내림차순(54,832 > 51,568 > 42,082)으로 CTR
+  값까지 정확히 나오는 것을 확인했다. 기존 `media_rows`/`airbridge_rows`, `rows` 입력 형태에
+  대한 이전 회귀 테스트(D0 미매칭 등)도 재실행해 이상 없음을 재확인했다.
+- **영향받은 파일**: `assets/dxd_table_rows.py`, `SKILL.md`(§ 실행 방식 절대 지침),
+  `daily-detailed-section-4-campaign-performance.md`,
+  `daily-detailed-section-5-ad-performance.md`.
+
 ## 아직 적용 안 한 후보 (추가 조사/논의 필요)
 
 - `get_target_progress_v2` 3회(media=google/meta/naver) 호출을 1회로 합치는 것 — `daily-summary`

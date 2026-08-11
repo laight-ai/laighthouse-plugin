@@ -5,10 +5,15 @@
 MCP 응답 JSON을 받아 stdout으로 완성된 행 배열만 낸다. 중간 파일을 만들지 않는다(파이프로만
 입출력).
 
-입력 (stdin, JSON) — 둘 중 한 형태:
+⚠️ **`get_ad_performance_daily_table`은 JSON 행 배열이 아니라 마크다운 표(파이프 `|`로 구분된
+텍스트 한 덩어리)를 반환한다.** 그 원본 문자열을 손으로 JSON으로 옮겨 적거나(전사 실수·행 누락
+위험), 그걸 파싱하는 별도 스크립트 파일을 새로 만들지 않는다 — 아래 (C) 입력 형태로 그 원본
+문자열을 **그대로** 넘기면 이 스크립트가 직접 파싱한다.
 
-(A) media별로 개별 호출한 경우(예: section-5, `group_by:"ad"`는 카디널리티 위험이 있어 매체별
-    개별 호출을 유지):
+입력 (stdin, JSON) — 셋 중 한 형태:
+
+(A) media별로 개별 호출한 경우, 이미 파싱된 행 객체로 넘길 때(예: section-5, `group_by:"ad"`는
+    카디널리티 위험이 있어 매체별 개별 호출을 유지):
 {
   "level": "campaign" | "ad",       # section-4=campaign, section-5=ad
   "d1_date": "YYYY-MM-DD",
@@ -19,12 +24,22 @@ MCP 응답 JSON을 받아 stdout으로 완성된 행 배열만 낸다. 중간 �
   "airbridge_rows": [ ... ]           # media="airbridge" 응답 행 (항상 group_by="campaign")
 }
 
-(B) `media`를 생략해 한 번에 받은 경우(예: section-4, `group_by:"campaign"`은 캠페인 단위라
-    카디널리티가 낮아 안전):
+(B) `media`를 생략해 한 번에 받은 경우, 이미 파싱된 행 객체로 넘길 때(예: section-4,
+    `group_by:"campaign"`은 캠페인 단위라 카디널리티가 낮아 안전):
 {
   "level": "campaign", "d1_date": "...", "d0_date": "...",
   "rows": [ ... ]    # google/meta/naver/airbridge/ga4가 섞인 단일 응답 그대로 — media 필드로
                      # 자동 분리한다(ga4 등 불필요한 매체는 자동 제외)
+}
+
+(C) **권장 — MCP 도구가 실제로 반환하는 원본 마크다운 문자열을 그대로 넘길 때** (A/B의
+    `media_rows`/`airbridge_rows`/`rows` 대신 아래 `markdown` 키 하나만 쓴다. 각 도구 호출의
+    `result` 문자열을 파싱·가공 없이 그대로 배열에 담는다 — 호출이 몇 번이든(section-4는 1개,
+    section-5는 4개) 전부 이 배열 하나에 넣으면 스크립트가 각 문자열을 파싱하고 `media` 필드로
+    media_rows/airbridge_rows를 자동 분리한다):
+{
+  "level": "campaign" | "ad", "d1_date": "...", "d0_date": "...",
+  "markdown": [ "<google 호출의 result 원본 문자열>", "<meta 호출의 result 원본 문자열>", ... ]
 }
 
 출력 (stdout, JSON): [{"search": "매체 캠페인 [광고그룹 광고] (소문자)", "html": "<tr>...</tr>"}, ...]
@@ -32,7 +47,8 @@ D0 광고비 내림차순, threshold 이하 제외, HTML까지 완성된 상태 
 {DAILY_CAMPAIGN_ROWS}/{DAILY_AD_ROWS} 자리에 넣으면 된다.
 
 사용 예:
-  echo '{"level":"campaign", ...}' | python3 assets/dxd_table_rows.py
+  echo '{"level":"campaign", "d1_date":"...", "d0_date":"...", "markdown":["| logdate | media | ...\\n| --- | ...\\n| 2026-07-03 | google | ..."]}' \
+    | python3 assets/dxd_table_rows.py
 """
 import sys
 import json
@@ -42,6 +58,40 @@ sys.stdin = io.TextIOWrapper(sys.stdin.buffer, encoding="utf-8")
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 
 MEDIA_LABEL = {"google": "Google Ads", "meta": "Meta Ads", "naver": "Naver Ads"}
+
+STRING_FIELDS = {"logdate", "media", "campaign_name", "asset_group", "ad_name", "channel"}
+
+
+def _coerce_cell(key, value):
+    value = value.strip()
+    if key in STRING_FIELDS:
+        return value
+    if value == "":
+        return None
+    try:
+        f = float(value)
+    except ValueError:
+        return value  # 예상 못 한 비숫자 값은 문자열 그대로 보존(방어적)
+    return int(f) if f.is_integer() else f
+
+
+def parse_markdown_table(text):
+    """`get_ad_performance_daily_table` 등이 반환하는 파이프(|) 마크다운 표 문자열을
+    행 dict 리스트로 파싱한다. 두 번째 줄(전부 `---`인 구분선)은 건너뛴다."""
+    lines = [ln for ln in text.strip().splitlines() if ln.strip()]
+    if not lines:
+        return []
+    header = [c.strip() for c in lines[0].strip().strip("|").split("|")]
+    rows = []
+    for line in lines[1:]:
+        cells = [c.strip() for c in line.strip().strip("|").split("|")]
+        if all(c == "" or set(c) <= {"-"} for c in cells):
+            continue  # 구분선(| --- | --- | ...) 스킵
+        if len(cells) != len(header):
+            continue  # 길이가 안 맞는 손상된 행은 방어적으로 스킵
+        rows.append({h: _coerce_cell(h, v) for h, v in zip(header, cells)})
+    return rows
+
 
 # 각 지표의 색상 규칙: True면 "증가=빨강(긍정)", False면 "감소=빨강(긍정)" (CPA만 False)
 POSITIVE_ON_INCREASE = {
@@ -237,7 +287,14 @@ def main():
     d1_date = payload["d1_date"]
     d0_date = payload["d0_date"]
     threshold = payload.get("threshold", 10000)
-    if "rows" in payload:
+    if "markdown" in payload:
+        md = payload["markdown"]
+        if isinstance(md, str):
+            md = [md]
+        rows = [r for text in md for r in parse_markdown_table(text)]
+        media_rows = [r for r in rows if r.get("media") in MEDIA_LABEL]
+        airbridge_rows = [r for r in rows if r.get("media") == "airbridge"]
+    elif "rows" in payload:
         rows = payload["rows"]
         media_rows = [r for r in rows if r.get("media") in MEDIA_LABEL]
         airbridge_rows = [r for r in rows if r.get("media") == "airbridge"]

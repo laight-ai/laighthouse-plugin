@@ -43,15 +43,23 @@
 ## 계산·조인·정렬·HTML 생성: `assets/dxd_table_rows.py` 호출
 
 ⚠️ **아래 "필요 데이터" 절은 계산 로직의 명세(spec)이며, 실제 실행 시 이 계산을 손으로 하거나
-새 스크립트를 짜지 않는다.** `SKILL.md`의 § 실행 방식 절대 지침에 따라, 위 4회 호출로 받은
-매체별 응답 행(google/meta/naver, `group_by:"ad"`)을 `media_rows`로 이어붙이고 airbridge
-응답 행(`group_by:"campaign"`)을 `airbridge_rows`로 해서 `level:"ad"`로
-`assets/dxd_table_rows.py`에 stdin으로 파이프한다:
+새 스크립트를 짜지 않는다.** `SKILL.md`의 § 실행 방식 절대 지침에 따라, 위 4회 호출 각각의
+응답을 **원본 그대로**(파싱·JSON 변환·행 선별 없이) `markdown` 배열 하나에 전부 담아
+`level:"ad"`로 `assets/dxd_table_rows.py`에 stdin으로 파이프한다 — google/meta/naver/airbridge
+4개 응답을 media/airbridge로 나누는 것도, 마크다운을 파싱하는 것도 전부 스크립트가 한다:
 
 ```bash
-echo '{"level":"ad","d1_date":"2026-07-14","d0_date":"2026-07-15","media_rows":[...google/meta/naver 행 이어붙임...],"airbridge_rows":[...airbridge 행...]}' \
+echo '{"level":"ad","d1_date":"2026-07-14","d0_date":"2026-07-15","markdown":["<google 응답 원본>","<meta 응답 원본>","<naver 응답 원본>","<airbridge 응답 원본>"]}' \
   | python3 assets/dxd_table_rows.py
 ```
+
+⚠️ **`get_ad_performance_daily_table`은 JSON 행 배열이 아니라 마크다운 표(파이프 `|` 텍스트)를
+반환한다.** 이 섹션은 특히 Naver가 키워드 단위까지 내려가 응답이 매우 커질 수 있는데(§ 위
+"MCP 도구 호출" 절 참고), 그렇다고 응답을 손으로 훑어 "비용이 큰 것 같은" 행만 골라 JSON으로
+옮겨 적지 않는다 — ₩10,000 초과인데 우연히 누락되는 행이 생길 위험이 있고, 이는 § 데이터
+처리 원칙이 금지하는 부분 처리·추정과 동일한 문제다. 4개 응답 문자열을 **각각 통째로**
+`markdown` 배열에 넣으면 스크립트가 전체 행을 빠짐없이 파싱·필터링한다 — 이게 유일하게
+올바른 방법이다. 마크다운을 파싱하는 별도 스크립트를 새로 만들지도 않는다.
 
 출력된 `[{"search":..., "html":...}, ...]` 배열(이미 D0 광고비 내림차순 정렬, ₩10,000 이하
 필터, `asset_group`/`ad_name`이 빈 값이면 `-`로 치환, 캠페인 단위 airbridge 매출 공유,
