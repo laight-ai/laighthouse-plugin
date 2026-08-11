@@ -43,7 +43,28 @@
   상황이면, 파일로 남기지 않는 grep/awk/jq 등으로 캠페인별 합산·정렬을 수행하고 그 결과
   요약표만 컨텍스트에 남긴다. 절대 근사치로 채우지 않는다.
 
-## 필요 데이터 (캠페인별, M-1/M0 각각 별도로)
+## 계산·조인·정렬·HTML 생성: `assets/monthly_campaign_rows.py` 호출
+
+⚠️ **아래 "필요 데이터" 절은 계산 로직의 명세(spec)이며, 실제 실행 시 이 계산을 손으로 하거나
+새 스크립트를 짜지 않는다.** `SKILL.md`의 § 실행 방식 절대 지침에 따라, 위 4회 호출로 받은
+google/meta/naver 응답을 합쳐 `media_rows`에, airbridge 응답을 `airbridge_rows`에 넣어 아래처럼
+`assets/monthly_campaign_rows.py`에 stdin으로 파이프한다:
+
+```bash
+echo '{"m1_month":"2026-06","m0_month":"2026-07","threshold":300000,"media_rows":[...google+meta+naver 응답 행 전체...],"airbridge_rows":[...airbridge 응답 행 전체...]}' \
+  | python3 assets/monthly_campaign_rows.py
+```
+
+출력된 `[{"search":..., "html":...}, ...]` 배열(이미 M0 광고비 내림차순 정렬, ₩300,000 이하
+필터, `<tr>` HTML까지 완성됨)을 그대로 `{MONTHLY_CAMPAIGN_ROWS}` 자리에 넣는다. 아래 "필요
+데이터"에 적힌 조인·파생지표·변화율·색상·"(-)" 규칙은 전부 이 스크립트가 이미 구현하고
+있다 — `daily-detailed`의 `assets/dxd_table_rows.py`와 계산 뼈대는 비슷하지만, ① 날짜가 아니라
+월로 조인하고, ② M-1 값 자체가 없어 비교가 불가능하면(daily처럼 변화량 칸을 비우는 게 아니라)
+**"(-)"를 화살표·색 없이 회색으로 표시**하며, ③ 필터 기준이 ₩300,000이라는 점이 다르다 —
+이 차이 때문에 `dxd_table_rows.py`를 그대로 재사용하지 않고 이 스킬 전용 스크립트를 새로
+만들었다. 스크립트를 고칠 필요가 생기면 이 문서도 함께 갱신한다.
+
+## 필요 데이터 (캠페인별, M-1/M0 각각 별도로) — 위 스크립트의 계산 명세
 
 각 월(M-1, M0) 각각에 대해, 캠페인별로:
 
