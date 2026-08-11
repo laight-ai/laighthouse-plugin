@@ -299,6 +299,17 @@
   asset 스크립트 예외 문단), `creative-summary-section-3-daily-creative-total-performance.md`,
   `creative-summary-section-4-daily-CTR.md`.
 
+## 2026-08-11 (추가 2) — `echo` 예시를 heredoc으로 교체 (자매 스킬 `daily-detailed` 사고에 따른 선제 교정)
+
+`daily-detailed`에서 `markdown` 입력 도입 직후, 예시로 준 `echo '...'`가 크고 특수문자 많은
+마크다운 텍스트에서 셸 이스케이프가 깨지기 쉬워 모델이 "파일에 먼저 저장 → 별도 호출로
+재실행"이라는 금지된 2단계로 우회한 사고가 확인됐다(`daily-detailed/CLAUDE.md` 2026-08-11
+(추가 4) 참고). section-3/4는 이미 heredoc(`<<'EOF'`)을 쓰고 있어 이 문제가 없었지만,
+`assets/creative_daily_series.py`의 docstring 예시만 `echo` 방식이라 일관성을 위해 함께
+heredoc으로 바꾸고, "파일 저장 후 재실행 금지" 경고를 section-3/4에도 명시적으로 추가했다.
+- **영향받은 파일**: `assets/creative_daily_series.py`,
+  `creative-summary-section-3-daily-creative-total-performance.md`.
+
 ## 적용하지 않은 것
 
 - **`get_target_progress_v2` 통합**: 이 스킬은 애초에 `get_target_progress_v2`를 쓰지

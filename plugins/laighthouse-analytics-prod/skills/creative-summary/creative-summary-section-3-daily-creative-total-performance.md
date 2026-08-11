@@ -59,6 +59,11 @@ python3 <스킬 폴더>/assets/creative_daily_series.py <<'EOF'
 EOF
 ```
 
+⚠️ **응답을 먼저 파일로 저장했다가 별도 호출로 다시 읽어서 스크립트를 실행하지 않는다** — 위처럼
+따옴표 있는 heredoc(`<<'EOF'`) 하나로 응답을 받은 바로 그 Bash 호출 안에서 한 번에 끝낸다.
+`echo '...'`는 크고 줄바꿈·따옴표가 많은 마크다운 응답에서 셸 이스케이프가 깨지기 쉬워서 쓰지
+않는다.
+
 출력의 `dates`/`overall.ctr_series`/`overall.roas_series`를 그대로
 `{CREATIVE_7DAY_LABELS_WITH_WEEKDAY}`(날짜에 요일을 붙여 표기만 변환)·`{OVERALL_CTR_SERIES}`·
 `{OVERALL_ROAS_SERIES}` 자리에 쓴다. section-4/5가 필요로 하는 `top5` 시리즈는 이 섹션에서는

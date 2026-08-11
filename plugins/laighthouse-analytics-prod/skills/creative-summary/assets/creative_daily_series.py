@@ -72,8 +72,10 @@
   }
 }
 
-사용 예:
-  echo '{"meta_rows": [...], "airbridge_rows": [...]}' | python3 assets/creative_daily_series.py
+사용 예 (단 한 번의 Bash 호출 안에서 따옴표 있는 heredoc으로 — echo나 파일 저장 후 재실행 X):
+  python3 assets/creative_daily_series.py <<'PYEOF'
+  {"meta_markdown": "<원본 문자열>", "airbridge_markdown": "<원본 문자열>"}
+  PYEOF
 """
 import sys
 import json
