@@ -212,9 +212,11 @@ MCP 데이터를 받아 **라이트하우스 스타일 성과 보고서**로 렌
 > 순차 5개 호출을 비교했더니 배치가 더 빠르긴 했지만(8.65초 vs 14.06초) 5배가 아니라 "턴 사이
 > 모델 사고 시간(호출당 약 1초)"만큼만 줄었다 — MCP 호출 자체는 배치 안에서도 사실상 순차
 > 처리되는 것으로 보인다). 따라서 배치의 실제 효과는 **"턴 오버헤드 제거"**이지 "네트워크 동시
-> 실행"이 아니다 — 진짜 속도 개선은 배치보다 **호출 총 개수를 줄이는 것**(section-1/3처럼
-> `group_by`가 낮은 카디널리티인 경우의 `media` 생략 통합 호출 참고 — section-4/5는 응답 크기
-> 문제로 매체별 개별 호출로 되돌렸으니 이 최적화 대상이 아니다)에서 나온다. 그래도 배치는
+> 실행"이 아니다 — 진짜 속도 개선은 배치보다 **호출 총 개수를 줄이는 것**(section-1/3/4처럼
+> `group_by`가 낮은 카디널리티인 경우의 `media` 생략 통합 호출 참고 — section-5(`group_by:
+> "ad"`)만 예외로, Naver가 키워드 단위까지 내려가 응답이 폭증할 실측 위험이 있어 매체별 개별
+> 호출을 유지한다. section-4(`group_by:"campaign"`)는 캠페인 단위라 카디널리티가 낮아 다시
+> `media` 생략 1회 호출로 통합했다 — 자세한 배경은 `CLAUDE.md` 참고)에서 나온다. 그래도 배치는
 > 공짜 이득이니 계속 유지한다 — 하나씩 순차
 > 호출하면 호출마다 브랜드 권한 확인 왕복과 턴 지연이 누적되어 보고서 생성이 느려진다.
 
@@ -274,13 +276,16 @@ section-4(캠페인 성과)·section-5(광고그룹 및 광고 성과)는 `mtd-d
 D-1~D-0 딱 이틀)을 다룬다 — 다른 report_type과 기간 정의 자체가 다르다는 점에 유의한다.
 section-3은 `get_ad_performance_daily_table`을 `media` 생략 + `group_by:"media"`로 1회
 호출해 매체별 일자별 광고비와 airbridge 채널별 일자별 매출을 한 번에 받는다(`group_by:"media"`는
-행 수가 매체 개수만큼만 늘어나므로 `media` 생략이 안전하다). 반면 section-4(`group_by:"campaign"`)
-와 section-5(`group_by:"ad"`)는 캠페인/광고 단위로 행이 늘어나는 고카디널리티 호출이라 `media`를
-생략하지 않고 **매체별로 각각 호출한다** — section-4는 google/meta/naver/airbridge 4회,
-section-5는 google/meta/naver 각 1회(`group_by:"ad"`) + airbridge 1회(`group_by:"campaign"`,
-캠페인 단위 매출 귀속이라 group_by가 다름) 총 4회. section-3/4/5는 각각 다루는 기간(7일 vs
-D-1~D0)과 `group_by` 단위가 서로 달라 응답을 섹션 간에 공유하지 않는다(각 섹션 파일의 MCP
-호출 절 참고). 전부
+행 수가 매체 개수만큼만 늘어나므로 `media` 생략이 안전하다). section-4(`group_by:"campaign"`)도
+캠페인 단위로만 집계되어 카디널리티가 낮으므로 마찬가지로 `media` 생략 **1회 호출**로 받는다.
+반면 section-5(`group_by:"ad"`)는 광고(Naver는 키워드) 단위까지 행이 늘어나는 고카디널리티
+호출이라 `media`를 생략하지 않고 **매체별로 각각 호출한다** — google/meta/naver 각 1회
+(`group_by:"ad"`) + airbridge 1회(`group_by:"campaign"`, 캠페인 단위 매출 귀속이라 group_by가
+다름) 총 4회. section-4/5의 계산·조인·정렬·`<tr>` HTML 생성은 두 섹션이 공유하는
+`assets/dxd_table_rows.py`가 처리한다(section-4는 `rows`에 단일 응답을, section-5는
+`media_rows`/`airbridge_rows`에 매체별 응답을 각각 넘긴다 — 각 섹션 파일의 "계산·조인·정렬·
+HTML 생성" 절 참고). section-3/4/5는 각각 다루는 기간(7일 vs D-1~D0)과 `group_by` 단위가
+서로 달라 응답을 섹션 간에 공유하지 않는다(각 섹션 파일의 MCP 호출 절 참고). 전부
 section-1과 달리 `get_target_progress_v2`나 `day_offset`을 쓰지 않는다(고정 일수 구간이라
 MTD 컷오프 개념이 없다). section-3의 프로모션 오버레이는
 `mtd-detailed-section-4-daily-revenue.md`와 같은 브래킷 방식이며, 카테고리 축 밴드 폭 보정

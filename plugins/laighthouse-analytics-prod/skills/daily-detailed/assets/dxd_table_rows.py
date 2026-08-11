@@ -5,7 +5,10 @@
 MCP 응답 JSON을 받아 stdout으로 완성된 행 배열만 낸다. 중간 파일을 만들지 않는다(파이프로만
 입출력).
 
-입력 (stdin, JSON):
+입력 (stdin, JSON) — 둘 중 한 형태:
+
+(A) media별로 개별 호출한 경우(예: section-5, `group_by:"ad"`는 카디널리티 위험이 있어 매체별
+    개별 호출을 유지):
 {
   "level": "campaign" | "ad",       # section-4=campaign, section-5=ad
   "d1_date": "YYYY-MM-DD",
@@ -14,6 +17,14 @@ MCP 응답 JSON을 받아 stdout으로 완성된 행 배열만 낸다. 중간 �
   "media_rows": [ ... ],              # google/meta/naver get_ad_performance_daily_table 응답 행을
                                        # 그대로 이어붙인 리스트 (media 필드로 매체 구분)
   "airbridge_rows": [ ... ]           # media="airbridge" 응답 행 (항상 group_by="campaign")
+}
+
+(B) `media`를 생략해 한 번에 받은 경우(예: section-4, `group_by:"campaign"`은 캠페인 단위라
+    카디널리티가 낮아 안전):
+{
+  "level": "campaign", "d1_date": "...", "d0_date": "...",
+  "rows": [ ... ]    # google/meta/naver/airbridge/ga4가 섞인 단일 응답 그대로 — media 필드로
+                     # 자동 분리한다(ga4 등 불필요한 매체는 자동 제외)
 }
 
 출력 (stdout, JSON): [{"search": "매체 캠페인 [광고그룹 광고] (소문자)", "html": "<tr>...</tr>"}, ...]
@@ -226,8 +237,13 @@ def main():
     d1_date = payload["d1_date"]
     d0_date = payload["d0_date"]
     threshold = payload.get("threshold", 10000)
-    media_rows = payload["media_rows"]
-    airbridge_rows = payload["airbridge_rows"]
+    if "rows" in payload:
+        rows = payload["rows"]
+        media_rows = [r for r in rows if r.get("media") in MEDIA_LABEL]
+        airbridge_rows = [r for r in rows if r.get("media") == "airbridge"]
+    else:
+        media_rows = payload["media_rows"]
+        airbridge_rows = payload["airbridge_rows"]
 
     media_idx = index_media_by_date_key(media_rows, level)
     ab_idx = index_airbridge_by_date_campaign(airbridge_rows)

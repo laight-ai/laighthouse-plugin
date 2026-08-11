@@ -4,22 +4,23 @@
 단위로 **전날(D-1)과 기준일(D-0) 딱 이틀만** 비교한다 — `mtd` 섹션 7(캠페인 성과)처럼 월초부터
 누적 합산하지 않는다.
 
-## MCP 도구 호출: `get_ad_performance_daily_table` × 4 (`group_by: "campaign"`, D-1~D0 이틀만, 매체별 각각 호출)
+## MCP 도구 호출: `get_ad_performance_daily_table` × 1 (`media` 생략, `group_by: "campaign"`, D-1~D0 이틀만)
 
 ```json
-{ "brand_name": "breezm", "start_date": "target_date-1일 YYYY-MM-DD", "end_date": "target_date", "media": "google", "group_by": "campaign" }
-{ "brand_name": "breezm", "start_date": "target_date-1일 YYYY-MM-DD", "end_date": "target_date", "media": "meta", "group_by": "campaign" }
-{ "brand_name": "breezm", "start_date": "target_date-1일 YYYY-MM-DD", "end_date": "target_date", "media": "naver", "group_by": "campaign" }
-{ "brand_name": "breezm", "start_date": "target_date-1일 YYYY-MM-DD", "end_date": "target_date", "media": "airbridge", "group_by": "campaign" }
+{ "brand_name": "breezm", "start_date": "target_date-1일 YYYY-MM-DD", "end_date": "target_date", "group_by": "campaign" }
 ```
 
-- **`media`를 생략하지 않고 이 섹션에 필요한 google/meta/naver/airbridge 네 매체를 각각 별도로
-  호출한다.** 예전에는 네 매체 모두 `group_by`가 `"campaign"`으로 같다는 이유로 `media`를
-  생략한 1회 호출로 통합했었지만, `group_by:"campaign"`처럼 행 수가 많아질 수 있는 호출에서
-  `media`를 생략하면 이 섹션에 필요 없는 매체(예: `ga4`)의 행까지 같은 응답에 섞여 들어와
-  응답 크기가 불필요하게 커진다 — 실제 프로덕션 실행에서 이런 유형의 응답이 모델 컨텍스트를
-  넘어설 정도로 커진 사례가 확인되어, 매체별로 필요한 것만 받도록 되돌렸다. 네 번의 호출은
-  서로 데이터 의존성이 없으므로 한 메시지 안에서 병렬로 발사한다(위 "병렬 호출 지침" 참고).
+- **`media`를 생략해서 한 번만 호출한다.** google/meta/naver/airbridge/ga4가 섞인 단일 응답이
+  돌아온다 — 그대로 `assets/dxd_table_rows.py`에 `rows`로 넘기면 스크립트가 `media` 필드
+  기준으로 자동 분리하고 ga4 등 불필요한 매체는 걸러낸다(아래 "계산·조인·정렬·HTML 생성" 절
+  참고). ⚠️ **section-5(`group_by:"ad"`)와는 다르다** — section-5는 Naver가 키워드 단위까지
+  내려가 응답이 수백 행으로 폭증할 수 있어 매체별 개별 호출을 유지하지만, `group_by:"campaign"`
+  (이 섹션)은 캠페인 단위로만 집계되어 카디널리티가 훨씬 낮다(실제 실행에서 매체당 2일치 4~14행
+  수준). 한때 이 섹션도 4회(매체별)로 되돌린 적이 있었는데, 그 근거는 section-5의
+  `group_by:"ad"` 폭증 사례를 실측 없이 이 섹션에 선제적으로 적용한 것이었다 — 실제 캠페인
+  단위 응답 크기를 재확인한 뒤 다시 1회 호출로 합쳤다(자세한 배경은 `CLAUDE.md` 참고). **만약
+  브랜드가 늘어나 캠페인 수가 매체당 두세 자릿수를 넘어서는 경우가 확인되면, 응답 크기를 다시
+  재보고 필요 시 매체별 호출로 재분리한다** — 그 전까지는 1회 호출을 기본으로 한다.
 - `start_date`는 항상 `target_date`의 하루 전날이다 (기간 span 2일 → 31일 제한을 항상 만족).
 - **이 도구는 원래도 날짜별로 행을 나눠서 반환한다** — mtd 섹션 7에서 "캠페인별로 일별 행을
   합산한다"고 한 것 자체가 날짜별 행이 따로 온다는 뜻이다. 여기서는 그 날짜별 행을 **합산하지
@@ -30,12 +31,12 @@
 ## 계산·조인·정렬·HTML 생성: `assets/dxd_table_rows.py` 호출
 
 ⚠️ **아래 "필요 데이터" 절은 계산 로직의 명세(spec)이며, 실제 실행 시 이 계산을 손으로 하거나
-새 스크립트를 짜지 않는다.** `SKILL.md`의 § 실행 방식 절대 지침에 따라, 위 4회 호출로 받은
-매체별 응답 행(google/meta/naver)을 `media_rows`로 이어붙이고 airbridge 응답 행을
-`airbridge_rows`로 해서 아래처럼 `assets/dxd_table_rows.py`에 stdin으로 파이프한다:
+새 스크립트를 짜지 않는다.** `SKILL.md`의 § 실행 방식 절대 지침에 따라, 위 1회 호출로 받은
+단일 응답을 `rows`에 그대로 넣어 아래처럼 `assets/dxd_table_rows.py`에 stdin으로 파이프한다 —
+media별로 나누는 건 스크립트가 한다:
 
 ```bash
-echo '{"level":"campaign","d1_date":"2026-07-14","d0_date":"2026-07-15","media_rows":[...google/meta/naver 행 이어붙임...],"airbridge_rows":[...airbridge 행...]}' \
+echo '{"level":"campaign","d1_date":"2026-07-14","d0_date":"2026-07-15","rows":[...위 1회 호출 응답 행 전체...]}' \
   | python3 assets/dxd_table_rows.py
 ```
 

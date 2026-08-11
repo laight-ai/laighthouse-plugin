@@ -270,14 +270,53 @@ CLAUDE.md`의 해당 항목을 그대로 따른다 — 이 스킬 전용으로 �
   `daily-detailed-section-4-campaign-performance.md`,
   `daily-detailed-section-5-ad-performance.md`.
 
+## 2026-08-11 (추가 2) — dxd_table_rows.py 버그 수정 + section-4의 `media` 생략 통합을 재적용(section-5는 그대로 유지)
+
+### 1. `dxd_table_rows.py`: D0 airbridge 미매칭 시 delta 계산이 TypeError로 죽는 버그 수정
+
+실제 `daily-detailed` 실행에서 `assets/dxd_table_rows.py`를 호출하다가 `delta_relative`에서
+`TypeError: unsupported operand type(s) for -: 'NoneType' and 'int'`가 발생했다. D0 쪽 캠페인이
+airbridge에 매칭되지 않으면(`-` 표시) 예약완료/CPA/매출이 `None`인데, `delta_relative`가 D1만
+`None`/`0` 체크하고 D0가 `None`인 경우를 놓쳤다 — 로컬 검증 시 "D1 미매칭" 케이스만 테스트하고
+"D0 미매칭" 케이스(대칭 상황)를 놓친 게 원인이었다.
+- **무엇을 바꿨나**: `delta_relative(d0, d1)`이 `d0 is None`도 함께 체크하도록 수정.
+- **검증 방법**: D0만 airbridge 미매칭인 합성 케이스(D1은 매칭, D0는 미매칭)를 추가해 재현·
+  수정 확인 — 이제 크래시 없이 해당 지표는 "-"로, delta는 표시되지 않는다.
+- **영향받은 파일**: `assets/dxd_table_rows.py`.
+
+### 2. section-4를 다시 `media` 생략 1회 호출로 통합 (section-5는 그대로 4회 유지)
+
+바로 위 2026-08-09 (추가)에서 section-4/5 둘 다 매체별 개별 호출로 되돌린 근거를 재검토했다 —
+그 되돌림의 실측 근거(`creative-summary`의 `group_by:"ad"` 응답이 766,576자까지 커진 사례,
+`media:"meta"` 단독 `group_by:"ad"` 7일 응답도 132,913자)는 전부 **`group_by:"ad"`**(광고/
+Naver 키워드 단위)에 대한 것이었는데, 이를 실측 없이 **`group_by:"campaign"`인 section-4에도
+선제적으로 확장 적용**한 상태였다. 실제 `daily-detailed` 실행 기록을 다시 보면 section-4의
+매체별 응답은 2일치 기준 매체당 4~14행 수준으로, section-5가 겪은 "수백 행" 폭증과는 카디널리티
+자체가 다르다(campaign 단위 집계 vs ad/키워드 단위 집계).
+- **무엇을 바꿨나**: section-4만 `media` 생략 1회 호출로 다시 통합했다(4회→1회). section-5는
+  `group_by:"ad"`의 실측된 폭증 위험이 그대로 유효하므로 매체별 개별 호출(4회)을 유지한다.
+  `assets/dxd_table_rows.py`가 이제 두 입력 형태를 모두 받는다 — 매체별로 나눠 온
+  `media_rows`/`airbridge_rows`(section-5)와, `media` 생략으로 한 번에 받은 단일 `rows`
+  (section-4, 스크립트가 `media` 필드로 자동 분리하고 ga4 등은 자동 제외).
+- **왜**: "호출 총 개수를 줄이는 것"이 유일하게 실제 속도를 줄이는 최적화라는 이 스킬의 기존
+  원칙(§ 병렬 호출 지침)에 따라, 카디널리티가 실제로 낮은 section-4에 굳이 4회 호출을 유지할
+  이유가 없었다. section-5와 뭉쳐서 "고카디널리티라 위험하다"고 판단한 게 과도한 일반화였다.
+- **모니터링 필요**: 캠페인 수가 매체당 두세 자릿수를 넘는 브랜드가 생기면 section-4의 통합
+  응답 크기를 다시 재보고, 필요하면 매체별 호출로 재분리한다(각 섹션 파일에 이 캐비어트를
+  적어뒀다). 아직 실측으로 재확인한 것은 아니고 과거 실행 기록 기반의 판단이므로, 다음 실제
+  실행에서 응답 크기를 관찰해 이 판단이 맞는지 확인한다.
+- **영향받은 파일**: `assets/dxd_table_rows.py`,
+  `daily-detailed-section-4-campaign-performance.md`, `SKILL.md`(§ 병렬 호출 지침, § 섹션
+  구성).
+
 ## 아직 적용 안 한 후보 (추가 조사/논의 필요)
 
 - `get_target_progress_v2` 3회(media=google/meta/naver) 호출을 1회로 합치는 것 — `daily-summary`
   와 동일한 이유로 보류한다(도구 스키마가 `media`를 필수 enum으로 요구해 생략 불가능, 백엔드
   스키마 변경 필요, 매체별 메시지 포맷 차이로 로직 복잡화 우려). 자세한 내용은
   `daily-summary/CLAUDE.md`의 해당 항목 참고.
-- (2026-08-09 위 되돌림으로 무효화됨) section-5의 google/meta/naver 통합 호출과 airbridge
-  호출을 더 줄이는 방법 — 애초에 `group_by`가 다르면 하나로 합칠 수 없다는 것이 한계였고,
-  이제는 응답 크기 문제로 google/meta/naver 통합 자체도 되돌렸으므로 이 후보는 더 이상 유효하지
-  않다. section-4/5는 앞으로도 매체별 개별 호출을 유지한다 — 호출 수를 줄이는 방향의 추가
-  최적화는 시도하지 않는다.
+- (2026-08-11 위 항목으로 부분 무효화됨) section-5의 google/meta/naver 통합 호출과 airbridge
+  호출을 더 줄이는 방법 — `group_by`가 다르면 하나로 합칠 수 없다는 것이 한계였고, `group_by:
+  "ad"` 응답 크기 문제로 google/meta/naver 통합 자체도 여전히 위험하다고 판단해 section-5는
+  매체별 개별 호출(4회)을 유지한다 — 호출 수를 줄이는 방향의 추가 최적화는 section-5에서는
+  시도하지 않는다. (section-4는 위 2026-08-11 항목으로 이미 1회 호출로 재통합됐다.)
