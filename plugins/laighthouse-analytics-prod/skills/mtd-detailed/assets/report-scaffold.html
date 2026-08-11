@@ -36,18 +36,6 @@
       <span style="font-size:13px; color:#64748b; margin-top:4px; display:block;">📅 {기간}</span>
     </div>
     <div style="display:flex; gap:8px;">
-      <!-- 구글 드라이브 저장 (비활성) -->
-      <button disabled
-        style="padding:8px 14px; background:#f1f5f9; border:1px solid #e2e8f0; border-radius:8px; font-size:13px; color:#94a3b8; cursor:not-allowed; display:flex; align-items:center; gap:6px;">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="#94a3b8"><path d="M6.5 20q-2.275 0-3.888-1.575Q1 16.85 1 14.575q0-1.95 1.175-3.475Q3.35 9.575 5.25 9.15q.625-2.3 2.5-3.725T12 4q2.925 0 4.963 2.037Q19 8.075 19 11q1.725.2 2.863 1.487Q23 13.775 23 15.5q0 1.875-1.312 3.188Q20.375 20 18.5 20Z"/></svg>
-        Google Drive
-      </button>
-      <!-- 메일 보내기 (HTML 클립보드 복사 → 붙여넣기) -->
-      <button onclick="sendMail()"
-        style="padding:8px 14px; background:white; border:1px solid #e2e8f0; border-radius:8px; font-size:13px; color:#374151; cursor:pointer; display:flex; align-items:center; gap:6px;">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#374151" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
-        메일 보내기
-      </button>
       <!-- PDF 저장 -->
       <button onclick="downloadReport()"
         style="padding:8px 14px; background:#3b82f6; border:none; border-radius:8px; font-size:13px; color:white; cursor:pointer; display:flex; align-items:center; gap:6px;">
@@ -72,49 +60,6 @@
 function changeColor(v){ return v>0?'#16a34a':v<0?'#dc2626':'#6b7280'; }
 function changeLabel(v,s='%'){ return v>0?`▲ +${v.toFixed(1)}${s}`:v<0?`▼ ${v.toFixed(1)}${s}`:'-'; }
 function fmtUSD(v){ return '$'+Number(v).toLocaleString(); }
-
-/* ── 버튼 핸들러 ── */
-/* ── 메일 보내기 (보고서 HTML → 클립보드 복사 → 메일 본문 붙여넣기) ── */
-function sendMail(){
-  const reportEl = document.getElementById('report-content');
-  if(!reportEl) return;
-
-  // 버튼 임시 숨김 후 HTML 추출
-  const btns = reportEl.querySelectorAll('button');
-  btns.forEach(b => b.style.display = 'none');
-  const html = reportEl.innerHTML;
-  btns.forEach(b => b.style.display = '');
-
-  // ClipboardItem으로 HTML 서식 복사 (Gmail/Outlook에서 붙여넣기 시 서식 유지)
-  if(navigator.clipboard && window.ClipboardItem){
-    const blob = new Blob([html], { type: 'text/html' });
-    navigator.clipboard.write([new ClipboardItem({ 'text/html': blob })])
-      .then(() => alert('보고서가 클립보드에 복사되었습니다.\nGmail / Outlook 메일 본문에 Ctrl+V로 붙여넣기 하세요.'))
-      .catch(() => _fallbackCopy(html));
-  } else {
-    _fallbackCopy(html);
-  }
-}
-
-function _fallbackCopy(html){
-  const el = document.createElement('div');
-  el.innerHTML = html;
-  el.style.cssText = 'position:fixed;left:-9999px;top:0;';
-  document.body.appendChild(el);
-  const range = document.createRange();
-  range.selectNodeContents(el);
-  const sel = window.getSelection();
-  sel.removeAllRanges();
-  sel.addRange(range);
-  try {
-    document.execCommand('copy');
-    alert('보고서가 클립보드에 복사되었습니다.\nGmail / Outlook 메일 본문에 Ctrl+V로 붙여넣기 하세요.');
-  } catch(e) {
-    alert('복사 실패: 브라우저 권한을 확인해주세요.');
-  }
-  sel.removeAllRanges();
-  document.body.removeChild(el);
-}
 
 /* ── PDF 저장 (차트 렌더링 완료 후 인쇄) ── */
 function downloadReport(){
