@@ -1,6 +1,6 @@
 # laighthouse-analytics
 
-라이트하우스 MCP 연동 데이터를 브리즘(airbridge 기반) 성과 보고서(HTML)와 Word(.docx) 보고서로
+라이트하우스 MCP 연동 데이터를(airbridge 기반) 성과 보고서(HTML)와 Word(.docx) 보고서로
 렌더링하는 Cowork 플러그인입니다.
 
 ## 컴포넌트
@@ -9,14 +9,14 @@
 |------|------|------|
 | MCP | laighthouse | `https://app.laight.ai/data/mcp` 연동 |
 | MCP | laighthouse_local | `https://sedative-duct-numerous.ngrok-free.dev/api/mcp` 연동(개발용) |
-| 스킬 | mtd-detailed | 브리즘 MTD 보고서(HTML, 7개 섹션, 실무 상세) 렌더링 |
-| 스킬 | mtd-summary | 브리즘 Executive MTD 보고서(HTML, 5개 섹션, 임원용 핵심 요약) 렌더링 |
-| 스킬 | daily-detailed | 브리즘 데일리 보고서(HTML, 5개 섹션, 실무 상세) 렌더링 |
-| 스킬 | daily-summary | 브리즘 Executive 데일리 보고서(HTML, 5개 섹션, 임원용 핵심 요약) 렌더링 |
-| 스킬 | monthly-detailed | 브리즘 월간 보고서(HTML, 5개 섹션, 실무 상세) 렌더링 |
-| 스킬 | monthly-summary | 브리즘 Executive 월간 보고서(HTML, 5개 섹션, 임원용 핵심 요약) 렌더링 |
-| 스킬 | creative-detailed | 브리즘 소재 보고서(HTML, 5개 섹션, 실무 상세) 렌더링 |
-| 스킬 | creative-summary | 브리즘 Executive 소재 보고서(HTML, 5개 섹션, 임원용 핵심 요약) 렌더링 |
+| 스킬 | mtd-detailed |  MTD 보고서(HTML, 7개 섹션, 실무 상세) 렌더링 |
+| 스킬 | mtd-summary |  Executive MTD 보고서(HTML, 5개 섹션, 임원용 핵심 요약) 렌더링 |
+| 스킬 | daily-detailed |  데일리 보고서(HTML, 5개 섹션, 실무 상세) 렌더링 |
+| 스킬 | daily-summary |  Executive 데일리 보고서(HTML, 5개 섹션, 임원용 핵심 요약) 렌더링 |
+| 스킬 | monthly-detailed |  월간 보고서(HTML, 5개 섹션, 실무 상세) 렌더링 |
+| 스킬 | monthly-summary |  Executive 월간 보고서(HTML, 5개 섹션, 임원용 핵심 요약) 렌더링 |
+| 스킬 | creative-detailed |  소재 보고서(HTML, 5개 섹션, 실무 상세) 렌더링 |
+| 스킬 | creative-summary |  Executive 소재 보고서(HTML, 5개 섹션, 임원용 핵심 요약) 렌더링 |
 | 스킬 | render-report-docx | MCP 결과를 편집 가능한 Word(.docx) 보고서로 렌더링 |
 
 ## 사용법
@@ -35,7 +35,7 @@
 보고서 종류를 고정한다.
 
 ### Word 문서 렌더링 (.docx)
-> "브리즘 MTD 보고서를 워드로 만들어줘"
+> " MTD 보고서를 워드로 만들어줘"
 > "Monthly 보고서 docx로 저장해줘"
 
 대용량 표(키워드/캠페인 등)는 docx에서 매출 0원 행을 자동 제외하고 상위 50행까지 싣습니다.
