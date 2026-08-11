@@ -321,6 +321,22 @@ section-5의 M-1/M0 비교 스펙)을 확인한 뒤 구조에 맞게 재적용�
 - **영향받은 파일**: `assets/monthly_campaign_rows.py`, `SKILL.md`(§ 실행 방식 절대 지침),
   `monthly-detailed-section-5-campaign-performance.md`.
 
+## 2026-08-11 (추가 2) — `markdown` 입력 예시를 `echo`에서 heredoc으로 변경 (자매 스킬 `daily-detailed` 사고에 따른 선제 교정)
+
+`daily-detailed`에서 위 `markdown` 입력 도입 직후 실제 실행 중, 예시로 준 `echo '{"markdown":
+[...]}' | python3 ...`가 크고 특수문자 많은 마크다운 텍스트에서 셸 이스케이프가 깨지기 쉬워
+모델이 "파일에 먼저 저장 → 별도 호출로 재실행"이라는 금지된 2단계로 우회한 사고가 확인됐다
+(`daily-detailed/CLAUDE.md` 2026-08-11 (추가 4) 참고). 이 스킬의 `assets/
+monthly_campaign_rows.py`도 같은 예시 방식을 쓰고 있어 동일한 위험이 있다고 판단해 선제
+교정했다.
+- **무엇을 바꿨나**: `SKILL.md`, `monthly-detailed-section-5-campaign-performance.md`,
+  `assets/monthly_campaign_rows.py`의 docstring 예시를 전부 `echo '...'`에서 따옴표 있는
+  heredoc(`python3 assets/monthly_campaign_rows.py <<'PYEOF' ... PYEOF`)으로 바꾸고,
+  "응답을 먼저 파일로 저장했다가 별도 호출로 다시 읽어서 실행하지 않는다"는 경고를 명시적으로
+  추가했다.
+- **영향받은 파일**: `assets/monthly_campaign_rows.py`, `SKILL.md`(§ 실행 방식 절대 지침),
+  `monthly-detailed-section-5-campaign-performance.md`.
+
 ## 적용하지 않은 항목 (검토했으나 구조상 해당 없음/보류)
 
 - **`get_target_progress_v2` 3회 통합**: `daily-summary`와 동일하게 `media`가 필수 enum이라

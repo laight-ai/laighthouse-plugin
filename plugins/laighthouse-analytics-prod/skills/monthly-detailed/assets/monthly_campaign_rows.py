@@ -47,9 +47,10 @@ MCP 응답 JSON을 받아 stdout으로 완성된 행 배열만 낸다. 중간 �
 M0 광고비 내림차순, threshold 이하 제외, HTML까지 완성된 상태 — 그대로
 {MONTHLY_CAMPAIGN_ROWS} 자리에 넣으면 된다.
 
-사용 예:
-  echo '{"m1_month":"2026-06","m0_month":"2026-07","markdown":["<원본 문자열>", ...]}' \
-    | python3 assets/monthly_campaign_rows.py
+사용 예 (단 한 번의 Bash 호출 안에서 따옴표 있는 heredoc으로 — echo나 파일 저장 후 재실행 X):
+  python3 assets/monthly_campaign_rows.py <<'PYEOF'
+  {"m1_month":"2026-06","m0_month":"2026-07","markdown":["<원본 문자열>", ...]}
+  PYEOF
 """
 import sys
 import json
