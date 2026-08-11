@@ -9,7 +9,7 @@ Others 5개 항목으로 성과를 구분해서 보여준다.
 ## MCP 도구 호출 — 별도 호출 없음, section-3의 공유 응답을 재사용
 
 이 섹션은 `get_ad_performance_monthly_table`을 직접 호출하지 않는다 —
-`monthly-summary-section-3-monthly-ad-performance.md`가 3단계에서 1회 호출한
+`monthly-summary-section-3-monthly-ad-performance.md`가 4단계에서 1회 호출한
 `get_ad_performance_monthly_table`(`media` 생략, `group_by:"media"`, 5개월 전 ~ 당월,
 `day_offset`=target_date.day) 응답을 그대로 재사용한다. 이 섹션이 필요로 하는 범위(전월~당월,
 2개월)는 section-3의 6개월 범위(5개월 전~당월) 안에 항상 완전히 포함되므로, 그 공유 응답에서

@@ -6,7 +6,7 @@
 ## MCP 도구 호출 — 별도 호출 없음, section-3의 공유 응답을 재사용
 
 이 섹션은 `get_ad_performance_monthly_table`을 직접 호출하지 않는다 —
-`monthly-summary-section-3-monthly-ad-performance.md`가 3단계에서 1회 호출한
+`monthly-summary-section-3-monthly-ad-performance.md`가 4단계에서 1회 호출한
 `get_ad_performance_monthly_table`(`media` 생략, `group_by:"media"`, 5개월 전 ~ 당월,
 `day_offset`=target_date.day) 응답 중 `media`가 `"airbridge"`인 행 전체를 그대로 가져다 쓴다.
 이 섹션이 필요로 하는 기간(5개월 전 ~ 당월)과 매체(airbridge)가 section-3의 응답과 완전히
