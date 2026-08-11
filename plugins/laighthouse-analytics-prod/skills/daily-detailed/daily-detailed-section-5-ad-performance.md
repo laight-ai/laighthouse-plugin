@@ -40,7 +40,27 @@
 - ⚠️ `campaign-type` 금지 — 넣으면 airbridge 행이 조용히 누락된다.
 - ⚠️ `group_by`는 문자열 그대로 보낸다 (`"ad"`/`"campaign"`).
 
-## 필요 데이터 (매체/캠페인/광고그룹/광고별, D-1/D-0 각각 별도로)
+## 계산·조인·정렬·HTML 생성: `assets/dxd_table_rows.py` 호출
+
+⚠️ **아래 "필요 데이터" 절은 계산 로직의 명세(spec)이며, 실제 실행 시 이 계산을 손으로 하거나
+새 스크립트를 짜지 않는다.** `SKILL.md`의 § 실행 방식 절대 지침에 따라, 위 4회 호출로 받은
+매체별 응답 행(google/meta/naver, `group_by:"ad"`)을 `media_rows`로 이어붙이고 airbridge
+응답 행(`group_by:"campaign"`)을 `airbridge_rows`로 해서 `level:"ad"`로
+`assets/dxd_table_rows.py`에 stdin으로 파이프한다:
+
+```bash
+echo '{"level":"ad","d1_date":"2026-07-14","d0_date":"2026-07-15","media_rows":[...google/meta/naver 행 이어붙임...],"airbridge_rows":[...airbridge 행...]}' \
+  | python3 assets/dxd_table_rows.py
+```
+
+출력된 `[{"search":..., "html":...}, ...]` 배열(이미 D0 광고비 내림차순 정렬, ₩10,000 이하
+필터, `asset_group`/`ad_name`이 빈 값이면 `-`로 치환, 캠페인 단위 airbridge 매출 공유,
+`<tr>` HTML까지 완성됨)을 그대로 `{DAILY_AD_ROWS}` 자리에 넣는다. 아래 "필요 데이터"에 적힌
+조인·파생지표·변화율·색상 규칙은 전부 이 스크립트가 이미 구현하고 있다 — 스크립트를 수정하지
+않는 한 아래 명세를 다시 구현할 필요는 없다(section-4와 같은 asset을 `level` 파라미터로만
+다르게 호출하는 것이다).
+
+## 필요 데이터 (매체/캠페인/광고그룹/광고별, D-1/D-0 각각 별도로) — 위 스크립트의 계산 명세
 
 각 날짜(D-1, D-0) 각각에 대해:
 
