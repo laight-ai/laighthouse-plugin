@@ -43,12 +43,22 @@ MCP 응답 JSON을 받아 stdout으로 완성된 행 배열만 낸다. 중간 �
                 "<airbridge 응답 원본>" ]   # media 필드로 자동 분리, ga4 등은 자동 제외
 }
 
+(C) **응답이 캡처 훅 스텁(`[laighthouse-capture-hook] ... 저장됨: <경로>`)으로 온 경우** —
+    캡처 파일을 Read로 열어 내용을 옮기지 말고 경로만 넘긴다(스크립트가 파일을 직접 읽는다.
+    `{"result": ...}` JSON 래퍼로 저장된 파일도 자동 언래핑):
+{
+  "m1_month": "...", "m0_month": "...",
+  "markdown_files": [ "<스텁에 적힌 저장 경로1>", "<경로2>", ... ]
+}
+`markdown`과 `markdown_files`를 섞어 써도 된다(예: 일부 응답만 훅에 캡처된 경우) — 두 배열의
+내용을 합쳐서 처리한다.
+
 출력 (stdout, JSON): [{"search": "매체 캠페인 (소문자)", "html": "<tr>...</tr>"}, ...]
-M0 광고비 내림차순, threshold 이하 제외, HTML까지 완성된 상태 — 그대로
-{MONTHLY_CAMPAIGN_ROWS} 자리에 넣으면 된다.
+M0 광고비 내림차순, threshold 이하 제외, HTML까지 완성된 상태 — 출력을 파일로 저장해
+build_report.py의 `s5.rows_file`에 경로로 넘기면 된다.
 
 사용 예 (단 한 번의 Bash 호출 안에서 따옴표 있는 heredoc으로 — echo나 파일 저장 후 재실행 X):
-  python3 assets/monthly_campaign_rows.py <<'PYEOF'
+  python3 assets/monthly_campaign_rows.py <<'PYEOF' > /tmp/s5_rows.json
   {"m1_month":"2026-06","m0_month":"2026-07","markdown":["<원본 문자열>", ...]}
   PYEOF
 """
@@ -75,6 +85,25 @@ def _coerce_cell(key, value):
     except ValueError:
         return value
     return int(f) if f.is_integer() else f
+
+
+def unwrap_json_result(text):
+    """Cowork(Claude Desktop) 캡처 훅이 저장한 파일은 `{"result": "<본문>"}` JSON 래퍼일 수
+    있다(줄바꿈이 리터럴 \\n) — 래퍼면 벗기고, 아니면 그대로 돌려준다."""
+    for _ in range(3):
+        if not isinstance(text, str) or not text.lstrip().startswith("{"):
+            return text
+        try:
+            obj = json.loads(text)
+        except (json.JSONDecodeError, ValueError):
+            return text
+        if isinstance(obj, dict) and isinstance(obj.get("result"), str):
+            text = obj["result"]
+        elif isinstance(obj, str):
+            text = obj
+        else:
+            return text
+    return text
 
 
 def parse_markdown_table(text):
@@ -271,11 +300,18 @@ def main():
     m1_month = payload["m1_month"]
     m0_month = payload["m0_month"]
     threshold = payload.get("threshold", 300000)
-    if "markdown" in payload:
-        md = payload["markdown"]
+    if "markdown" in payload or "markdown_files" in payload:
+        md = payload.get("markdown", [])
         if isinstance(md, str):
             md = [md]
-        rows = [r for text in md for r in parse_markdown_table(text)]
+        md = list(md)
+        files = payload.get("markdown_files", [])
+        if isinstance(files, str):
+            files = [files]
+        for path in files:
+            with open(path, encoding="utf-8") as f:
+                md.append(f.read())
+        rows = [r for text in md for r in parse_markdown_table(unwrap_json_result(text))]
         media_rows = [r for r in rows if r.get("media") in MEDIA_LABEL]
         airbridge_rows = [r for r in rows if r.get("media") == "airbridge"]
     else:

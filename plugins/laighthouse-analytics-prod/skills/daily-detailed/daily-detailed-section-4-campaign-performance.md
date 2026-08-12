@@ -1,351 +1,44 @@
 # Breezm Daily Section 4: 캠페인 성과 (D-1 vs D-0)
 
-**report_type:** `daily-detailed` — **브리즘(airbridge 기반) 전용** (항상 포함). 매체-캠페인
-단위로 **전날(D-1)과 기준일(D-0) 딱 이틀만** 비교한다 — `mtd` 섹션 7(캠페인 성과)처럼 월초부터
-누적 합산하지 않는다.
+**report_type:** `daily-detailed` — **브리즘(airbridge 기반) 전용** (항상 포함). 캠페인 단위로
+**전날(D-1)과 기준일(D-0) 딱 이틀만** 비교한다.
 
-## MCP 도구 호출: `get_ad_performance_daily_table` × 1 (`media` 생략, `group_by: "campaign"`, D-1~D0 이틀만)
+> ℹ️ 표 HTML/검색/페이지네이션/색상·화살표 렌더링은 전부 템플릿+빌더가, 조인·파생지표·변화율·
+> 필터·정렬·`<tr>` 생성은 `assets/dxd_table_rows.py`가 한다 — 모델의 역할은 아래 MCP 1회 호출과
+> 스크립트 실행뿐이다.
+
+## MCP 도구 호출: `get_ad_performance_daily_table` × 1 (D-1~D0 이틀, `media` 생략)
 
 ```json
-{ "brand_name": "breezm", "start_date": "target_date-1일 YYYY-MM-DD", "end_date": "target_date", "group_by": "campaign" }
+{ "brand_name": "breezm", "start_date": "target_date-1일 YYYY-MM-DD", "end_date": "target_date", "media": null, "group_by": "campaign" }
 ```
 
-- **`media`를 생략해서 한 번만 호출한다.** google/meta/naver/airbridge/ga4가 섞인 단일 응답이
-  돌아온다 — 그대로 `assets/dxd_table_rows.py`에 `rows`로 넘기면 스크립트가 `media` 필드
-  기준으로 자동 분리하고 ga4 등 불필요한 매체는 걸러낸다(아래 "계산·조인·정렬·HTML 생성" 절
-  참고). ⚠️ **section-5(`group_by:"ad"`)와는 다르다** — section-5는 Naver가 키워드 단위까지
-  내려가 응답이 수백 행으로 폭증할 수 있어 매체별 개별 호출을 유지하지만, `group_by:"campaign"`
-  (이 섹션)은 캠페인 단위로만 집계되어 카디널리티가 훨씬 낮다(실제 실행에서 매체당 2일치 4~14행
-  수준). 한때 이 섹션도 4회(매체별)로 되돌린 적이 있었는데, 그 근거는 section-5의
-  `group_by:"ad"` 폭증 사례를 실측 없이 이 섹션에 선제적으로 적용한 것이었다 — 실제 캠페인
-  단위 응답 크기를 재확인한 뒤 다시 1회 호출로 합쳤다(자세한 배경은 `CLAUDE.md` 참고). **만약
-  브랜드가 늘어나 캠페인 수가 매체당 두세 자릿수를 넘어서는 경우가 확인되면, 응답 크기를 다시
-  재보고 필요 시 매체별 호출로 재분리한다** — 그 전까지는 1회 호출을 기본으로 한다.
-- `start_date`는 항상 `target_date`의 하루 전날이다 (기간 span 2일 → 31일 제한을 항상 만족).
-- **이 도구는 원래도 날짜별로 행을 나눠서 반환한다** — mtd 섹션 7에서 "캠페인별로 일별 행을
-  합산한다"고 한 것 자체가 날짜별 행이 따로 온다는 뜻이다. 여기서는 그 날짜별 행을 **합산하지
-  않고 D-1 행과 D-0 행을 끝까지 따로 유지**한다.
-- ⚠️ `campaign-type` 금지 — 넣으면 airbridge 행이 조용히 누락된다.
-- ⚠️ `group_by`는 문자열 `"campaign"` 그대로 보낸다.
+- `start_date`는 항상 target_date의 하루 전날. **`media`는 생략**(넣지 않음) — 캠페인 단위는
+  카디널리티가 낮아 1회 통합 호출이 안전하다(응답의 `media` 필드로 스크립트가 자동 분리,
+  ga4 등 자동 제외). ⚠️ 캠페인 수가 매체당 두세 자릿수를 넘는 브랜드가 생기면 응답 크기를
+  재보고 매체별 호출로 재분리한다.
+- ⚠️ `campaign-type` 금지 — airbridge 행이 조용히 누락된다. `group_by`는 문자열 `"campaign"`.
 
-## 계산·조인·정렬·HTML 생성: `assets/dxd_table_rows.py` 호출
+## 계산·행 생성: `assets/dxd_table_rows.py` (필수 절차 — 손계산·새 스크립트 금지)
 
-⚠️ **아래 "필요 데이터" 절은 계산 로직의 명세(spec)이며, 실제 실행 시 이 계산을 손으로 하거나
-새 스크립트를 짜지 않는다.** `SKILL.md`의 § 실행 방식 절대 지침에 따라, 위 1회 호출의 응답을
-**원본 그대로**(파싱·JSON 변환·행 선별 없이) `markdown` 배열에 담아 **단 한 번의 Bash 호출**
-안에서 heredoc으로 `assets/dxd_table_rows.py`에 파이프한다 — media별로 나누는 것도, 마크다운을
-파싱하는 것도 전부 스크립트가 한다:
+응답이 `[laighthouse-capture-hook] ... 저장됨: <경로>` 스텁으로 오면(캡처 훅 동작 호스트)
+그 경로를 `markdown_files`로, 원본 마크다운이 그대로 오면 `markdown`에 원본 문자열 통째로
+(손 전사·행 선별 절대 금지 — ₩10,000 초과 행이 조용히 누락될 위험). 출력은 빌더가 읽을
+파일로 저장한다:
 
 ```bash
-python3 assets/dxd_table_rows.py <<'PYEOF'
-{"level":"campaign","d1_date":"2026-07-14","d0_date":"2026-07-15","markdown":["<위 1회 호출 응답 문자열 원본 그대로, \n 이스케이프 그대로 유지>"]}
+python3 assets/dxd_table_rows.py <<'PYEOF' > /tmp/s4_rows.json
+{"level":"campaign","d1_date":"2026-08-09","d0_date":"2026-08-10","markdown_files":["<스텁에 적힌 경로>"]}
 PYEOF
 ```
 
-⚠️ **응답을 먼저 파일로 저장했다가 별도 호출로 다시 읽어서 스크립트를 실행하지 않는다** —
-`echo '...'`는 마크다운처럼 줄바꿈·따옴표가 많은 큰 텍스트에서 셸 이스케이프가 깨지기 쉬운데,
-그렇다고 "원본을 파일에 저장 → 별도 호출로 그 파일을 다시 읽어 스크립트 실행"이라는 2단계로
-가지 않는다(실제로 이렇게 하다가 툴 호출이 불필요하게 늘어난 사례가 있었다) — 위처럼
-따옴표 있는 heredoc(`<<'PYEOF'`)을 쓰면 셸이 내용을 전혀 해석하지 않으므로 `echo`보다
-안전하며, 응답을 받은 바로 그 Bash 호출 안에서 한 번에 끝낸다.
+스크립트가 D-1/D-0 조인(campaign_name 정확 일치, airbridge 매출/예약 귀속), 6개 지표(광고비/
+CTR/예약 완료/예약 완료 CPA/매출/ROAS)와 변화율·화살표·색상, D-0 광고비 ₩10,000 이하 필터,
+D-0 광고비 내림차순 정렬, `<tr>` HTML 생성까지 전부 처리한다. 출력 파일 경로를 빌더 입력
+JSON의 `s4.rows_file`에 넣으면 끝.
 
-⚠️ **`get_ad_performance_daily_table`은 JSON 행 배열이 아니라 마크다운 표(파이프 `|` 텍스트)를
-반환한다.** 그 원본 문자열을 손으로 JSON 행 객체로 옮겨 적지 않는다 — 응답이 커서 "주요 행만"
-손으로 골라 옮기고 싶어지더라도, 그렇게 하면 ₩10,000 초과인데 우연히 "안 중요해 보인" 행이
-조용히 누락될 위험이 있다(§ 데이터 처리 원칙이 금지하는 부분 처리와 동일한 문제). 원본 문자열을
-**통째로** `markdown` 배열에 넣으면 스크립트가 전체 행을 빠짐없이 파싱한다 — 이게 유일하게
-올바른 방법이다. 마크다운을 파싱하는 별도 스크립트를 새로 만들지도 않는다(`dxd_table_rows.py`가
-이미 그 역할을 한다).
-
-> 🚫 **어떤 매체든 실제 응답 대신 근사치·재사용·추정 수치로 대체하는 것을 절대 금지한다 —
-> 이건 옵션이 아니라 § 데이터 처리 원칙(절대 지침) 위반이다.** 자매 섹션 section-5의 실제
-> 프로덕션 실행에서, 응답이 크다는 이유로 실제 데이터를 가져오는 대신 다른 섹션에서 받은
-> 값과도 일치하지 않는 출처 불명의 숫자를 만들어 채운 사고가 있었다(`daily-detailed-section-
-> 5-ad-performance.md`의 동일 경고 참고). "응답이 커서 처리하기 부담스럽다"는 판단이 드는
-> 순간, 선택지는 (1) 원본 마크다운을 가공 없이 전부 `markdown` 배열에 넣어 스크립트에
-> 맡기거나, (2) 정말 불가능하면 그 섹션을 "데이터 준비 중"으로 표시하는 것, 이 둘뿐이다 —
-> 다른 섹션 값을 재사용하거나 비슷해 보이는 숫자를 만들어 채우는 것은 선택지가 아니다.
-> **"대체할 숫자가 실제 쿼리에서 나온 진짜 값이니 괜찮다"는 판단도 마찬가지로 금지된다** —
-> 이미 정상적으로 받은 응답을 다른 세분화 단위의 값으로 바꿔치기하는 순간, 그 대체 숫자의
-> 출처가 진짜든 상상이든 이 규칙 위반이다(자세한 재발 사례는 section-5 파일의 동일 경고
-> 참고). 응답을 이미 받았다면 그대로 쓴다 — "받았지만 크다"는 이유로 다른 것으로 바꾸는
-> 경우는 없다.
-
-출력된 `[{"search":..., "html":...}, ...]` 배열(이미 D0 광고비 내림차순 정렬, ₩10,000 이하
-필터, `<tr>` HTML까지 완성됨)을 그대로 `{DAILY_CAMPAIGN_ROWS}` 자리에 넣는다. 아래 "필요
-데이터"에 적힌 조인·파생지표·변화율·색상 규칙은 전부 이 스크립트가 이미 구현하고 있다 —
-스크립트를 수정하지 않는 한(이 파일은 `daily-summary` 등 다른 스킬과 공유하는 asset이 아니라
-이 스킬 전용이므로, 스크립트를 고칠 필요가 생기면 이 문서도 함께 갱신한다) 아래 명세를 다시
-구현할 필요는 없다.
-
-## 필요 데이터 (캠페인별, D-1/D-0 각각 별도로) — 위 스크립트의 계산 명세
-
-각 날짜(D-1, D-0) 각각에 대해, 캠페인별로:
-
-**매체 지표** (google/meta/naver 각 호출 응답의 해당 날짜 행):
-- `광고비` = `cost` / `노출` = `impression` / `클릭` = `click`
-- `CTR` = 클릭 ÷ 노출 × 100 (노출 0이면 N/A)
-
-**airbridge 지표** (airbridge 호출 응답의 해당 날짜 행):
-- `매출` = `airbridge_revenue` / `예약 완료` = `reservation`
-
-**조인**: 캠페인 이름 **정확 일치(exact match)**로 매체 행과 airbridge 행을 잇는다 — **D-1과
-D-0을 각각 독립적으로 조인**한다 (어떤 캠페인이 D-0에는 airbridge 매출이 잡히지만 D-1에는
-아직 없는 경우처럼, 날짜마다 조인 성공 여부가 다를 수 있다).
-- 매체 쪽에만 있는 캠페인 → 그 날짜의 매출/예약 완료 칸은 `-`
-- airbridge 쪽에만 있는(매칭 실패) 캠페인 → 표에 포함하지 않는다 (개별 캠페인명·매출을 각주에
-  나열하지 않는다 — 고정 안내 문구로 갈음한다).
-
-**파생 지표** (날짜별로 각각 계산):
-- `예약 완료 CPA` = 광고비 ÷ 예약 완료 (예약 완료 0이면 N/A)
-- `ROAS` = 매출 ÷ 광고비 × 100 (광고비 0이면 N/A)
-
-**표시 지표 순서(고정)**: 광고비 → CTR → 예약 완료 → 예약 완료 CPA → 매출 → ROAS, 총 6개 지표.
-
-**변화량** (D-0 값 아래에 표시, D-1 대비):
-- `광고비 변화율` = (D-0 광고비 − D-1 광고비) ÷ D-1 광고비 × 100, **%**로 표기 (D-1 광고비 0/N/A면 표시 안 함)
-- `CTR 변화` = D-0 CTR − D-1 CTR, **%p**로 표기, **소수점 첫째 자리까지 반올림**한다
-  (예: +0.27%p → +0.3%p) (D-1 CTR N/A면 표시 안 함)
-- `예약 완료 변화율` = (D-0 예약 완료 − D-1 예약 완료) ÷ D-1 예약 완료 × 100, **%**로 표기 (D-1 예약 완료
-  0/N/A면 표시 안 함)
-- `예약 완료 CPA 변화율` = (D-0 CPA − D-1 CPA) ÷ D-1 CPA × 100, **%**로 표기 (D-1 CPA 0/N/A면 표시 안 함)
-- `매출 변화율` = (D-0 매출 − D-1 매출) ÷ D-1 매출 × 100, **%**로 표기 (D-1 매출 0/N/A면
-  표시 안 함)
-- `ROAS 변화` = D-0 ROAS − D-1 ROAS, **%p**로 표기, **소수점 첫째 자리까지 반올림**한다
-  (D-1 ROAS N/A면 표시 안 함)
-
-**표기 형식**: 위 6개 변화량은 **괄호로 감싸고, 앞에 화살표(▲/▼)를 붙인다** — 예:
-`(▲ +5.4%)`, `(▼ -0.4%p)`. 화살표는 **원본 수치의 증가(▲)/감소(▼)만** 가리키며, 색상
-(긍정/부정 신호)과는 독립적으로 판단한다 — 예약 완료 CPA가 증가했다면 그 자체가 나쁜
-신호(파란색)라도 화살표는 증가를 뜻하는 `▲`를 쓴다. **화면에 표시되는(반올림된) 값이
-정확히 `0.0%`/`0.0%p`이면 화살표를 붙이지 않는다.**
-
-**필터**: D-0 `광고비`가 **₩10,000 이하인 행은 표에서 제외**한다 (렌더링하지 않는다).
-
-⚠️ 어떤 호출에도 `campaign-type`을 넣지 않는다.
-
-## HTML
-
-```html
-<!-- BREEZM DAILY SECTION 4: 캠페인 성과 비교 및 전일 대비 증감율 (D-1 VS D-0) -->
-<div class="card" style="margin-bottom:16px;">
-  <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
-    <div class="section-title">캠페인 성과 비교 ({D1_MM}월 {D1_DD}일 vs {D0_MM}월 {D0_DD}일) 및 전일 대비 증감율</div>
-    <input id="dailyCampaignSearch" style="border:1px solid #e2e8f0; border-radius:8px; padding:6px 12px; font-size:12px; color:#374151; width:180px;" placeholder="검색" oninput="window.__dailyCampaignSearch && window.__dailyCampaignSearch(this.value)">
-  </div>
-  <div style="overflow-x:auto;">
-    <table style="table-layout:fixed; width:auto; border-collapse:collapse;">
-      <thead>
-        <tr>
-          <th rowspan="2" style="white-space:nowrap; text-align:center; vertical-align:middle;">매체</th>
-          <th rowspan="2" style="white-space:nowrap; text-align:center; vertical-align:middle; border-right:1px solid #e2e8f0;">캠페인</th>
-          <th colspan="2" style="white-space:nowrap; text-align:center; border-bottom:none; padding-top:8px; padding-bottom:8px; vertical-align:middle; border-right:1px solid #e2e8f0;">광고비</th>
-          <th colspan="2" style="white-space:nowrap; text-align:center; border-bottom:none; padding-top:8px; padding-bottom:8px; vertical-align:middle; border-right:1px solid #e2e8f0;">CTR</th>
-          <th colspan="2" style="white-space:nowrap; text-align:center; border-bottom:none; padding-top:8px; padding-bottom:8px; vertical-align:middle; border-right:1px solid #e2e8f0;">예약 완료</th>
-          <th colspan="2" style="white-space:nowrap; text-align:center; border-bottom:none; padding-top:8px; padding-bottom:8px; vertical-align:middle; border-right:1px solid #e2e8f0;">예약 완료 CPA</th>
-          <th colspan="2" style="white-space:nowrap; text-align:center; border-bottom:none; padding-top:8px; padding-bottom:8px; vertical-align:middle; border-right:1px solid #e2e8f0;">매출</th>
-          <th colspan="2" style="white-space:nowrap; text-align:center; border-bottom:none; padding-top:8px; padding-bottom:8px; vertical-align:middle;">ROAS</th>
-        </tr>
-        <tr>
-          <th style="white-space:nowrap; text-align:center; font-size:11px; font-weight:500; padding-top:8px; padding-bottom:8px; vertical-align:middle; width:150px;">{D1_M}/{D1_D}</th>
-          <th style="white-space:nowrap; text-align:center; font-size:11px; font-weight:500; padding-top:8px; padding-bottom:8px; vertical-align:middle; width:150px; border-right:1px solid #e2e8f0;">{D0_M}/{D0_D}</th>
-          <th style="white-space:nowrap; text-align:center; font-size:11px; font-weight:500; padding-top:8px; padding-bottom:8px; vertical-align:middle; width:150px;">{D1_M}/{D1_D}</th>
-          <th style="white-space:nowrap; text-align:center; font-size:11px; font-weight:500; padding-top:8px; padding-bottom:8px; vertical-align:middle; width:150px; border-right:1px solid #e2e8f0;">{D0_M}/{D0_D}</th>
-          <th style="white-space:nowrap; text-align:center; font-size:11px; font-weight:500; padding-top:8px; padding-bottom:8px; vertical-align:middle; width:150px;">{D1_M}/{D1_D}</th>
-          <th style="white-space:nowrap; text-align:center; font-size:11px; font-weight:500; padding-top:8px; padding-bottom:8px; vertical-align:middle; width:150px; border-right:1px solid #e2e8f0;">{D0_M}/{D0_D}</th>
-          <th style="white-space:nowrap; text-align:center; font-size:11px; font-weight:500; padding-top:8px; padding-bottom:8px; vertical-align:middle; width:150px;">{D1_M}/{D1_D}</th>
-          <th style="white-space:nowrap; text-align:center; font-size:11px; font-weight:500; padding-top:8px; padding-bottom:8px; vertical-align:middle; width:150px; border-right:1px solid #e2e8f0;">{D0_M}/{D0_D}</th>
-          <th style="white-space:nowrap; text-align:center; font-size:11px; font-weight:500; padding-top:8px; padding-bottom:8px; vertical-align:middle; width:150px;">{D1_M}/{D1_D}</th>
-          <th style="white-space:nowrap; text-align:center; font-size:11px; font-weight:500; padding-top:8px; padding-bottom:8px; vertical-align:middle; width:150px; border-right:1px solid #e2e8f0;">{D0_M}/{D0_D}</th>
-          <th style="white-space:nowrap; text-align:center; font-size:11px; font-weight:500; padding-top:8px; padding-bottom:8px; vertical-align:middle; width:150px;">{D1_M}/{D1_D}</th>
-          <th style="white-space:nowrap; text-align:center; font-size:11px; font-weight:500; padding-top:8px; padding-bottom:8px; vertical-align:middle; width:150px;">{D0_M}/{D0_D}</th>
-        </tr>
-      </thead>
-      <tbody id="dailyCampaignTableBody">
-        <!-- 실제 행은 JS가 {DAILY_CAMPAIGN_ROWS} 배열(검색어로 거른 뒤 10개씩)에서 채운다.
-             정적 예시 행을 직접 넣지 않는다 — 아래 "필요 데이터"에서 각 행을 이미 완성된
-             <tr>...</tr> HTML 문자열 + 검색용 텍스트(매체명+캠페인명, 소문자)로 미리 만들어
-             배열에 담아야 한다 (D-0 광고비 내림차순, D-0 광고비 ≤ ₩10,000인 행은 배열에서
-             제외). 각 행의 html 형식은 아래와 같다: -->
-        <!--
-        <tr>
-          <td style="white-space:nowrap; text-align:left; border-right:1px solid #e2e8f0;">{channel}</td>
-          <td style="white-space:nowrap; text-align:left; border-right:1px solid #e2e8f0;">{campaign}</td>
-          <td style="white-space:nowrap; text-align:center;">{d1_광고비}</td>
-          <td style="white-space:nowrap; text-align:center; border-right:1px solid #e2e8f0;">
-            {d0_광고비}
-            <div style="font-size:10.5px; text-align:center; color:{광고비_변화_색상};">({광고비_화살표} {광고비_변화율})</div>
-          </td>
-          <td style="white-space:nowrap; text-align:center;">{d1_CTR}</td>
-          <td style="white-space:nowrap; text-align:center; border-right:1px solid #e2e8f0;">
-            {d0_CTR}
-            <div style="font-size:10.5px; text-align:center; color:{CTR_변화_색상};">({CTR_화살표} {CTR_변화})</div>
-          </td>
-          <td style="white-space:nowrap; text-align:center;">{d1_예약_완료}</td>
-          <td style="white-space:nowrap; text-align:center; border-right:1px solid #e2e8f0;">
-            {d0_예약_완료}
-            <div style="font-size:10.5px; text-align:center; color:{예약_완료_변화_색상};">({예약_완료_화살표} {예약_완료_변화율})</div>
-          </td>
-          <td style="white-space:nowrap; text-align:center;">{d1_예약_CPA}</td>
-          <td style="white-space:nowrap; text-align:center; border-right:1px solid #e2e8f0;">
-            {d0_예약_CPA}
-            <div style="font-size:10.5px; text-align:center; color:{예약_CPA_변화_색상};">({예약_CPA_화살표} {예약_CPA_변화율})</div>
-          </td>
-          <td style="white-space:nowrap; text-align:center;">{d1_매출}</td>
-          <td style="white-space:nowrap; text-align:center; border-right:1px solid #e2e8f0;">
-            {d0_매출}
-            <div style="font-size:10.5px; text-align:center; color:{매출_변화_색상};">({매출_화살표} {매출_변화율})</div>
-          </td>
-          <td style="white-space:nowrap; text-align:center;">{d1_ROAS}</td>
-          <td style="white-space:nowrap; text-align:center;">
-            {d0_ROAS}
-            <div style="font-size:10.5px; text-align:center; color:{ROAS_변화_색상};">({ROAS_화살표} {ROAS_변화})</div>
-          </td>
-        </tr>
-        -->
-      </tbody>
-    </table>
-  </div>
-  <!-- 페이지네이션: 10개씩, 페이지 크기 변경 드롭다운 없음. 버튼은 JS가 동적으로 그린다 —
-       고정된 "1 2 ‹ ›" 마크업을 직접 넣지 않는다. -->
-  <div id="dailyCampaignPager" style="display:flex; justify-content:center; align-items:center; gap:8px; margin-top:16px;"></div>
-  <p style="font-size:11px; color:#94a3b8; margin-top:8px;">
-    * {D0_MM}월 {D0_DD}일에 표시된 %는 전날 대비 변화율을 의미합니다.<br>
-    * {D0_MM}월 {D0_DD}일 광고비가 ₩10,000 이하인 캠페인은 표에서 제외됩니다.<br>
-    * 데이터 수집 체계에 따라, 일부 캠페인이 표시되지 않을 수 있습니다.
-  </p>
-</div>
-```
-
-## Script
-
-```javascript
-// Breezm Daily Section 4: 캠페인 성과 표 — 검색 + 페이지네이션
-// 정적 HTML 한 번에 생성되는 보고서라 "검색창 입력/페이지 버튼 클릭 → 서버에 다시 물어본다"
-// 방식은 동작하지 않는다. 전체 행을 미리 <tr>...</tr> HTML 문자열 + 검색용 텍스트로 만들어
-// 심어두고, 검색·페이지 전환 모두 이 스크립트가 클라이언트에서 직접 처리한다.
-(function(){
-  const rows = {DAILY_CAMPAIGN_ROWS};
-  // rows: [{ search: "매체명 캠페인명" (소문자), html: "<tr>...</tr>" }, ...]
-  // D-0 광고비 내림차순으로 이미 정렬, D-0 광고비 ≤ ₩10,000 제외가 이미 적용된 상태여야 한다.
-
-  const pageSize = 10;
-  const tbody = document.getElementById('dailyCampaignTableBody');
-  const pager = document.getElementById('dailyCampaignPager');
-  if (!tbody || !pager) return;
-
-  let currentTerm = '';
-  let currentPage = 1;
-
-  function filteredRows() {
-    if (!currentTerm) return rows;
-    return rows.filter(r => r.search.includes(currentTerm));
-  }
-
-  function pagerButton(label, page, opts) {
-    opts = opts || {};
-    const disabled = opts.disabled ? 'disabled' : '';
-    const active = opts.active
-      ? 'background:#3b82f6; border-color:#3b82f6; color:white;'
-      : 'background:white; border-color:#e2e8f0; color:#64748b;';
-    return `<button ${disabled} style="border:1px solid #e2e8f0; border-radius:6px; width:28px; height:28px; font-size:12px; cursor:${opts.disabled?'default':'pointer'}; ${active}" onclick="window.__dailyCampaignGoto && window.__dailyCampaignGoto(${page})">${label}</button>`;
-  }
-
-  function render() {
-    const list = filteredRows();
-    const totalPages = Math.max(1, Math.ceil(list.length / pageSize));
-    currentPage = Math.min(Math.max(1, currentPage), totalPages);
-    const start = (currentPage - 1) * pageSize;
-    const pageRows = list.slice(start, start + pageSize);
-
-    tbody.innerHTML = pageRows.length
-      ? pageRows.map(r => r.html).join('')
-      : `<tr><td colspan="14" style="white-space:nowrap; text-align:center; color:#94a3b8; padding:20px;">검색 결과가 없습니다.</td></tr>`;
-
-    let html = pagerButton('‹', currentPage - 1, { disabled: currentPage === 1 });
-    for (let i = 1; i <= totalPages; i++) {
-      html += pagerButton(String(i), i, { active: i === currentPage });
-    }
-    html += pagerButton('›', currentPage + 1, { disabled: currentPage === totalPages });
-    pager.innerHTML = html;
-  }
-
-  window.__dailyCampaignGoto = function(page){ currentPage = page; render(); };
-  window.__dailyCampaignSearch = function(value){
-    currentTerm = (value || '').trim().toLowerCase();
-    currentPage = 1;
-    render();
-  };
-
-  render();
-})();
-```
-
-
-## 렌더링 규칙
-- **모든 `<th>`/`<td>`에 `white-space:nowrap`을 반드시 적용한다** — "예약 완료"처럼 짧은 한글 헤더도 열이 좁아지면 한 글자씩 세로로 줄바꿈되는 문제가 발생할 수 있다. 표가 카드 폭을 넘어가면 감싸는 `overflow-x:auto` 컨테이너가 가로 스크롤을 대신 처리하므로, 텍스트를 줄바꿈해서 억지로 좁히지 않는다.
-- **`<table>`에 `table-layout:fixed`를 반드시 준다.** 지표 열(D-1/D-0 날짜 헤더) 12개
-  전부에도 **`width:150px`**를 명시적으로 준다 — `table-layout:auto`(기본값)에서는 열
-  너비가 브라우저 임의 계산에 맡겨져 예측 불가능하게 좁아질 수 있고, 폭이 너무 좁으면
-  `white-space:nowrap`인 값("₩8,984,291" + "(▲ +5.4%)" 등)이 옆 셀로 흘러넘쳐서 표가
-  겹쳐 보이는(글자가 서로 포개져 읽을 수 없는) 문제가 생길 수 있다.
-- ⚠️ **`<table>`에 `width:auto`도 반드시 같이 명시한다** — 이게 진짜 근본 원인이었다.
-  SKILL.md 공통 스타일시트의 `table { width: 100%; ... }`가 전역으로 적용되는데, 개별
-  `<table>`에서 `width`를 따로 지정하지 않으면 이 100%가 그대로 상속된다. **`table-layout:
-  fixed`와 `width:100%`를 함께 쓰면, 지정한 각 열의 픽셀 값이 절대값이 아니라 "100%를
-  나눠 갖는 비율"로 취급된다** — 그래서 지표 열 폭을 90px→115px→150px로 계속 올려도
-  카드 폭(100%)에 맞춰 다시 비율로 쪼그라들어서 실제로는 하나도 안 넓어지고, 표가 계속
-  겹쳐 보이는 문제가 반복될 수 있다. `width:auto`를 명시하면 테이블이 선언한 열 폭들의 **합만큼
-  실제로 넓어지고**, 카드보다 넓어진 부분은 `overflow-x:auto` 컨테이너가 가로 스크롤로
-  처리한다 — 이게 원래 의도한 동작이다.
-- **모든 헤더 `<th>`에 `vertical-align:middle`과 상하 대칭 패딩(`padding-top:8px;
-  padding-bottom:8px;`)을 명시적으로 적용한다** — 지표명 헤더가 살짝 아래로 치우쳐 보일 수 있다. 위쪽 행에 `padding-bottom:2px`만 주는 식으로 상하 패딩을 비대칭으로 두면, 셀 높이에 남는 여유가 없을 때 `vertical-align:middle`만으로는 비대칭 패딩을 상쇄하지 못한다. 지표명 행과 그 아래
-  날짜/월 표기 행 모두 상하 패딩을 동일하게 준다(시각적으로 더 가깝게 붙이려고 일부러
-  비대칭을 주지 않는다 — 정확한 상하 중앙 정렬이 항상 더 우선한다).
-- 카드 제목·각주의 `{D1_MM}/{D1_DD}` = target_date의 하루 전날, `{D0_MM}/{D0_DD}` = target_date
-  그 자체다. 표 헤더의 `{D1_M}/{D1_D}`, `{D0_M}/{D0_D}`는 같은 날짜를 `M/D`(0 없이) 형식으로
-  줄여서 쓴다 (예: `7/14`, `7/15`).
-- **헤더 구조**: 지표명(광고비/CTR/예약 완료 CPA/ROAS)을 위쪽 행에 `colspan="2"`로 한 번만 합쳐
-  표시하고, 날짜(D-1/D-0)를 아래쪽 행에 표시한다 — 지표명을 D-1/D-0 두 칸에 각각 반복하지
-  않는다. **헤더 텍스트는 전부 기본 검정 색상**(`#1e293b`)이다 — 날짜 줄도 회색으로 옅게
-  처리하지 않는다.
-- **매체/캠페인 열은 좌측 정렬**하고, **그 외 모든 지표 값(광고비/CTR/예약 완료 CPA/ROAS의
-  D-1·D-0 값과 변화량)은 전부 중앙 정렬**한다.
-- **정렬 순서**: 매체별로 묶지 않고, **D-0 광고비 내림차순**으로 전체 캠페인을 한 줄로 정렬한다.
-- **필터**: D-0 광고비가 ₩10,000 이하인 캠페인은 렌더링하지 않는다 (조용히 제외 — 각주로만
-  안내한다).
-- **검색과 페이지네이션은 실제로 작동해야 한다.** 이 보고서는 서버 없이 한 번에 생성되는 정적
-  HTML이므로, "필터링된 전체 캠페인 중 첫 10개만 HTML에 적어넣고 검색창·나머지 페이지는
-  장식만 달아둔다" 같은 방식은 **금지**한다 — 그렇게 하면 검색이나 2페이지 버튼을 눌러도
-  아무 것도 나오지 않는다. 대신 **필터·정렬을 마친 전체 행**을 각각
-  완성된 `<tr>...</tr>` HTML 문자열 + 검색용 텍스트(매체명+캠페인명, 소문자)로 만들어
-  `{DAILY_CAMPAIGN_ROWS}` 배열에 전부 담고, 위 Script가 검색어로 거른 뒤 10개씩 잘라 보여주게
-  한다. 검색은 매체/캠페인 이름 **부분일치**(대소문자 무관)로 동작하며, 검색어가 바뀌면
-  1페이지로 되돌아간다. 페이지당 10개, 하단에 페이지 번호/이동 버튼만 표시한다. **페이지
-  크기를 바꾸는 드롭다운("10개" 등)은 만들지 않는다.**
-- **D-0 셀 값 자체는 색을 입히지 않는다** (기본 텍스트 색상 `#374151`). 대신 그 값 아래에
-  D-1 대비 변화량을 작은 글씨로, **화살표(▲/▼)와 함께 괄호를 씌워서** 표시한다 (예:
-  `(▲ +3.1%)`, `(▼ -0.1%p)`):
-  - 광고비/예약 완료 CPA/매출(금액 지표)과 예약 완료(카운트 지표)는 **상대 변화율(%)**로, CTR/ROAS
-    (비율 지표)는 **포인트 변화(%p)**로 표기한다. **CTR·ROAS 변화는 소수점 첫째 자리까지
-    반올림**한다(예: `+0.27%p` → `+0.3%p`). 부호(`+`/`-`)를 항상 붙이고, 전체를 괄호로
-    감싼다.
-  - 변화량 텍스트는 **중앙 정렬**한다.
-  - 색상: 광고비 증가·CTR 증가·예약 완료 증가·매출 증가·ROAS 증가는 긍정 신호로 보고 **빨간색**
-    (`#dc2626`)으로, **예약 완료 CPA는 감소**가 긍정 신호이므로 반대로 적용한다 — 그 외에는
-    반대 방향을 **파란색**(`#2563eb`)으로, 변화가 없으면(0) **검정**(`#1e293b`)으로
-    표시한다. **"변화가 없다"는 화면에 표시되는(반올림된) 값을 기준으로 판단한다** — 원본
-    수치가 미세하게 양수/음수라도 반올림한 표시값이 `0.0%`/`0.0%p`라면 무조건 검정으로
-    표시한다(빨간색·파란색으로 표시되는 "0.0%"는 모순으로 읽히므로 만들지 않는다).
-  - **화살표(▲/▼)**: 위 "표기 형식" 규칙대로 값 앞에 붙인다 — 증가는 `▲`, 감소는 `▼`,
-    표시값이 정확히 `0.0%`/`0.0%p`이면 화살표를 붙이지 않는다. 화살표는 색상과 무관하게
-    오로지 수치의 증가·감소만 가리킨다.
-  - D-1 값이 없어(N/A) 변화량을 계산할 수 없으면 변화량 자체를 표시하지 않는다 (빈 줄로 두지
-    않고 아예 렌더링하지 않는다).
-- 각주는 위 HTML에 적힌 고정 문구 세 줄을 그대로 쓴다 — 매칭 실패한 캠페인명이나 매출액을
-  개별 나열하지 않는다.
-- 비율/ROAS/CTR은 % 소수점 1자리, 금액(광고비/예약 완료 CPA/매출)은 천 단위 콤마 원화, 예약 완료는
-  정수, N/A는 문자 그대로.
-- 데이터가 비어있으면 "데이터 준비 중" 카드로 대체하고 임의로 채우지 않는다.
-- 캠페인명을 정규화/부분일치로 "맞춰서" 조인하지 않는다 — 정확 일치만 쓰고, 나머지는 위 조인
-  규칙을 따른다. D-1과 D-0의 조인은 서로 독립적으로 판단한다.
+> 🚫 **응답이 크다고 느껴져도 선택지는 둘뿐이다**: (1) 원본을 가공 없이 전부 스크립트에 넘기거나
+> (2) 정말 불가능하면 `s4`를 빌더 입력에서 빼서 "데이터 준비 중"으로 표시한다. 다른 섹션 값
+> 재사용·근사치·추정 수치 대체는 그 숫자가 진짜 쿼리 결과라도 **전부 금지**다 — 실제로 이
+> 규칙 위반(출처 불명 수치 삽입, 타 섹션 값 바꿔치기) 사고가 두 차례 있었다. 이미 정상적으로
+> 받은 응답은 그 세분화 단위 그대로 쓴다.

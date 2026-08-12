@@ -1,142 +1,43 @@
 # Breezm Executive Creative Section 4: 최근 7일 일별 CTR (광고비 상위 5개 소재)
 
-**report_type:** `creative-summary` — **브리즘(airbridge 기반) 전용** (항상
-포함). `creative`의 section-3과 **완전히 동일한 내용**이다. **메타(Meta Ads)만 대상**이다.
-기준일(target_date)을 포함한 **최근 7일** 동안 **광고비(7일 합산)가 가장 큰 소재 5개**를
-뽑아, 그 5개의 일별 CTR을 라인 차트로 보여준다.
+**report_type:** `creative-summary` — **브리즘(airbridge 기반) 전용** (항상 포함).
+**메타(Meta Ads)만 대상.** 최근 7일 동안 **광고비(7일 합산)가 가장 큰 소재 5개**의 일별 CTR
+라인 차트 (`creative-detailed` section-3과 동일 내용, 번호만 3→4). 라인 색상 팔레트·하단
+범례·`M/D` 라벨·`spanGaps:false`(결측 미연결)는 템플릿에 고정돼 있다.
 
-## MCP 도구 호출: 신규 호출 없음 — section-1과 section-3/4/5 공유 daily_table 응답을 재사용
+## MCP 도구 호출: 신규 호출 없음 — 두 응답 재사용
 
-⚠️ 2026-08-09 (4)부터 이 섹션이 참조하는 응답이 **두 갈래**로 나뉘었다:
+1. **소재 선정용**: section-1이 호출한 `get_ad_performance_range_table` 응답
+   (`media="meta"`, `group_by:"ad"`, 최근 7일 — 소재당 1행, 7일 합산 `cost` 포함).
+2. **일별 시리즈용**: SKILL.md 2-b의 `get_ad_performance_daily_table` 응답
+   (`media="meta"`/`media="airbridge"`, `group_by:"ad"`, 같은 7일 — section-3/5와 공유).
 
-1. **소재 선정(광고비 상위 5개)용**: section-1이 이미 호출한 `get_ad_performance_range_table`
-   응답(`media="meta"`, `group_by:"ad"`, 최근 7일 — 구간 전체가 소재당 1행으로 이미 합산되어
-   있음)을 그대로 재사용한다. 이 응답에는 소재별 7일 합산 `cost`가 이미 들어있으므로,
-   재집계 없이 그 값으로 바로 내림차순 정렬해 상위 5개를 뽑는다(아래 "필요 데이터" 참고).
-2. **일별 CTR 시리즈용**: SKILL.md 실행 순서 2단계(2-b)에서 section-3/4/5용으로 별도 호출하는
-   `get_ad_performance_daily_table` 응답(`media="meta"`, `group_by:"ad"`, 같은 7일 — 날짜별
-   행) 중 `media === "meta"`인 행만 걸러서 쓴다. 이 응답은 section-3도 공유한다.
+## 소재 선정 (단순 정렬 — 스크립트 불필요)
+
+1. section-1의 range_table meta 응답에서 소재별 7일 합산 `cost`를 그대로 읽는다 — daily
+   응답에서 다시 합산하지 않는다.
+2. `cost` 내림차순 상위 5개를 뽑는다. **이 5개 목록·순서는 section-5도 동일하게 재사용한다**
+   (두 차트의 라인 색상·범례 순서 일치).
+3. **표시 이름**: 5개 중 `ad_name`이 중복되면 그 소재들만 `{ad_name} ({asset_group})`으로
+   구분하고, 유일하면 `ad_name`만 쓴다(불필요하게 전부 괄호를 붙이지 않는다).
+
+## 계산: `assets/creative_daily_series.py` (필수) — section-3 파일의 호출 절 참고
+
+section-3 파일에 적힌 **한 번의 heredoc 호출**에 위 5개 키를 `top5_keys`로(위 선정 순서
+그대로) 넣으면, 출력 `top5.ctr_series`(이 섹션용)와 `top5.roas_series`(section-5용)가 함께
+나온다 — 이 섹션에서 스크립트를 다시 호출하지 않는다. CTR은 스크립트가 항상
+click÷impression×100으로 직접 계산한다(응답 `ctr` 필드의 비율/% 판단 불필요). 노출 0이거나
+그 날짜 행이 없으면 이미 `null`로 채워져 있다 — 추가 가공 불필요.
+
+> 🚫 응답이 커도 선택지는 (1) 원본 전부를 스크립트에 넘기거나 (2) `s4`를 빼서 "데이터 준비
+> 중"으로 표시하는 것 둘뿐 — 부분 전사·근사치·타 섹션 값 재사용 금지.
+
+## 빌더 `s4` 필드
 
 ```json
-{ "brand_name": "breezm", "media": "meta", "start_date": "기준일 6일 전 YYYY-MM-DD", "end_date": "target_date", "group_by": "ad" }
-```
-```json
-{ "brand_name": "breezm", "media": "meta", "start_date": "기준일 6일 전 YYYY-MM-DD", "end_date": "target_date", "group_by": "ad" }
+"s4": { "names": ["표시이름1", "표시이름2", "표시이름3", "표시이름4", "표시이름5"] }
 ```
 
-(위 두 JSON은 파라미터가 같아 보이지만 **서로 다른 도구**를 가리킨다 — 1번은
-`get_ad_performance_range_table`, 2번은 `get_ad_performance_daily_table`이다. 이미 다른
-섹션이 호출해서 얻은 응답을 재사용하는 것뿐이지, 이 섹션이 새로 2회 호출하는 게 아니다.)
-
-- 이 섹션이 걸러낸 daily meta 행은 **section-5(일별 ROAS)도 그대로 재사용한다** — section-5는
-  별도로 다시 걸러내지 않는다.
-- daily meta 행에는 날짜별·소재(`campaign_name`+`asset_group`+`ad_name`)별 `cost`/`impression`/
-  `click`/`ctr`이 들어있다. `ctr` 필드가 이미 계산되어 있으므로 그대로 쓴다(직접 계산하지
-  않아도 된다 — 단, 값이 비율(0.021 등)로 오는지 %(2.1 등)로 오는지 실제 응답을 확인해서
-  일관되게 ×100 처리 여부를 판단한다).
-- ⚠️ `campaign-type` 금지(section-1과 SKILL.md 2단계에서 이미 호출했으므로 여기서는 해당
-  사항 없음 — 재사용만 확인). ⚠️ `group_by`는 문자열 `"ad"` 그대로다.
-
-## 소재 선정 (7일 전체 합산 기준 — 단순 정렬, 스크립트 불필요)
-
-1. section-1의 range_table 응답(소재당 1행, 이미 7일 합산된 `cost` 포함)에서 소재
-   (`campaign_name`+`asset_group`+`ad_name`)별 `cost` 값을 그대로 읽는다 — **daily 응답에서
-   다시 합산하지 않는다**(2026-08-09 (4) 이전에는 daily 응답의 날짜별 행을 직접 더해야 했지만,
-   이제 같은 값이 range_table 응답에 이미 합산되어 있다).
-2. 그 `cost` 내림차순으로 상위 5개 소재를 뽑는다. **이 5개 목록은 section-5에서도 동일하게
-   재사용한다** — section-4와 section-5의 라인 색상·범례 순서가 일치해야 한다.
-3. **표시 이름 결정**: 선정된 5개 소재 중 `ad_name`이 서로 같은 소재가 있으면(광고그룹이 달라
-   같은 소재명을 재사용한 경우), 그 소재들의 표시 이름만 `{ad_name} ({asset_group})` 형식으로
-   바꿔 괄호 안에 광고그룹 이름을 추가해 구분한다. `ad_name`이 5개 중 유일하면 그대로 `ad_name`만
-   표시한다(불필요하게 모든 이름에 괄호를 붙이지 않는다). 이 표시 이름을 범례·tooltip에 그대로
-   쓴다.
-
-이 소재 선정은 최대 몇십 행을 한 필드로 내림차순 정렬하는 것뿐이라 스크립트 없이 직접
-처리한다 — 아래 일별 시리즈 계산과는 별개다.
-
-## 계산: `assets/creative_daily_series.py` 호출 (필수) — 일별 CTR 시리즈
-
-위 1~3에서 뽑은 상위 5개 소재의 정확한 키(`campaign_name`+`asset_group`+`ad_name`)를
-daily meta 응답에서 exact-match로 걸러내 날짜별 CTR을 계산하는 작업은 section-3과 같은
-asset 스크립트 `assets/creative_daily_series.py`로 처리한다 — CTR은 항상
-`click`÷`impression`×100으로 스크립트가 직접 계산한다(응답의 `ctr` 필드가 비율/%
-어느 쪽으로 오는지 매번 판단할 필요가 없어진다). ⚠️ `get_ad_performance_daily_table` 응답은
-JSON이 아니라 마크다운 표 문자열이므로, section-3과 동일하게 원본 문자열을 그대로
-`meta_markdown`/`airbridge_markdown`에 넣는다 — 손으로 옮겨 적거나 파서 스크립트를 새로
-만들지 않는다.
-
-```bash
-python3 <스킬 폴더>/assets/creative_daily_series.py <<'EOF'
-{"meta_markdown": "<media=\"meta\" 응답 원본 문자열>", "airbridge_markdown": "<media=\"airbridge\" 응답 원본 문자열>",
- "dates": ["기준일 6일 전", ..., "target_date"],
- "top5_keys": [ {"campaign_name": "...", "asset_group": "...", "ad_name": "..."}, ... ]}
-EOF
-```
-
-- `top5_keys`는 위 1~3에서 뽑은 5개 소재를 **그 순서대로**(색상·범례 순서와 일치) 넣는다.
-- 출력의 `top5.ctr_series`가 곧 `{CREATIVE_CTR_SERIES}`다(순서 그대로, 노출 0이거나 그 날짜
-  행 자체가 없으면 이미 `null`로 채워져 있다 — 추가 가공 불필요).
-- 이 호출은 section-5의 `top5.roas_series`도 같은 응답에 함께 담고 있다(section-5 파일 참고)
-  — section-5가 이 계산을 다시 호출할 필요 없이 같은 출력을 재사용한다.
-
-⚠️ 어떤 호출에도 `campaign-type`을 넣지 않는다.
-
-## HTML
-
-```html
-<!-- BREEZM EXECUTIVE CREATIVE SECTION 4: 최근 7일 일별 CTR (광고비 상위 5개 소재) -->
-<div class="card" style="margin-bottom:16px;">
-  <div class="section-title" style="text-align:left;">최근 7일 일별 CTR (광고비 상위 5개 소재)</div>
-  <div style="position:relative; height:300px;">
-    <canvas id="creativeCtrLineChart"></canvas>
-  </div>
-</div>
-```
-
-## Script
-
-```javascript
-// Breezm Executive Creative Section 4: 일별 CTR 라인차트
-(function(){
-  const ctx = document.getElementById('creativeCtrLineChart');
-  if(!ctx) return;
-  const labels = {CREATIVE_7DAY_LABELS}; // 예: ["7/9","7/10",...,"7/15"] — [날짜,요일] 배열이 아니라 단순 M/D 문자열
-  const names = {CREATIVE_TOP5_NAMES}; // 상위 5개 소재의 표시 이름 배열 (광고비 내림차순) — ad_name 중복 시 "ad_name (asset_group)", 유일하면 ad_name만
-  const series = {CREATIVE_CTR_SERIES}; // names와 같은 순서의 2차원 배열, 각 행이 7개 값(또는 null)
-
-  const palette = ['#3b82f6','#16a34a','#ef4444','#f59e0b','#8b5cf6'];
-
-  new Chart(ctx, {
-    type:'line',
-    data:{
-      labels: labels,
-      datasets: series.map((d,i)=>({
-        label: names[i], data:d,
-        borderColor: palette[i], backgroundColor:'transparent',
-        pointBackgroundColor: palette[i], tension:0.3, spanGaps:false
-      }))
-    },
-    options:{
-      responsive:true, maintainAspectRatio:false,
-      plugins:{
-        legend:{ display:true, position:'bottom', labels:{ boxWidth:10, font:{size:11} } },
-        tooltip:{ callbacks:{ label: c => `${c.dataset.label}: ${c.parsed.y}%` } }
-      },
-      scales:{
-        y:{ ticks:{ callback: v => v+'%' } },
-        x:{ title:{ display:true, text:'day' } }
-      }
-    }
-  });
-})();
-```
-
-## 렌더링 규칙
-- 라인 5개, 색상은 `palette` 순서 고정(`#3b82f6`/`#16a34a`/`#ef4444`/`#f59e0b`/`#8b5cf6`).
-  범례는 차트 하단, Chart.js 기본 legend를 그대로 쓴다(다른 섹션들의 커스텀 legend와 달리
-  이 섹션은 라인이 5개라 기본 legend로 충분하다).
-- Y축은 `%` 접미사, X축 제목은 `day`.
-- 특정 날짜에 데이터가 없는 소재는 그 지점을 이어붙이지 않는다(`spanGaps:false`) — 값을
-  추정해서 이어 그리지 않는다.
-- 데이터가 비어있으면(7일 내 유효한 소재가 하나도 없음) "데이터 준비 중" 카드로 대체하고
-  임의로 채우지 않는다.
+- `names`는 위 3에서 정한 표시 이름을 광고비 내림차순 그대로. 시리즈는 최상위 `series_file`
+  (section-3 파일 참고)의 `top5.ctr_series`에서 빌더가 읽는다. 데이터가 비어있으면 `s4` 키를
+  뺀다.

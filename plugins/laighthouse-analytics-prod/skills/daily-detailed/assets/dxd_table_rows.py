@@ -42,6 +42,18 @@ MCP 응답 JSON을 받아 stdout으로 완성된 행 배열만 낸다. 중간 �
   "markdown": [ "<google 호출의 result 원본 문자열>", "<meta 호출의 result 원본 문자열>", ... ]
 }
 
+(D) **플러그인 캡처 훅이 동작하는 호스트(Claude Code)에서 최우선** — MCP 응답이
+    "[laighthouse-capture-hook] ... 저장됨: <경로>" 스텁으로 도착한 경우, 그 저장 경로들을
+    그대로 넘긴다. 원본을 컨텍스트에 다시 타이핑할 필요가 전혀 없다(스크립트가 파일을 직접
+    읽는다) — 이 형태가 가능한 상황에서 (C)처럼 원본 전문을 heredoc에 담는 것은 금지된
+    낭비다:
+{
+  "level": "campaign" | "ad", "d1_date": "...", "d0_date": "...",
+  "markdown_files": [ "<스텁에 적힌 저장 경로1>", "<경로2>", ... ]
+}
+`markdown`과 `markdown_files`를 섞어 써도 된다(예: 일부 응답만 훅에 캡처된 경우) — 두 배열의
+내용을 합쳐서 처리한다.
+
 출력 (stdout, JSON): [{"search": "매체 캠페인 [광고그룹 광고] (소문자)", "html": "<tr>...</tr>"}, ...]
 D0 광고비 내림차순, threshold 이하 제외, HTML까지 완성된 상태 — 그대로
 {DAILY_CAMPAIGN_ROWS}/{DAILY_AD_ROWS} 자리에 넣으면 된다.
@@ -74,6 +86,25 @@ def _coerce_cell(key, value):
     except ValueError:
         return value  # 예상 못 한 비숫자 값은 문자열 그대로 보존(방어적)
     return int(f) if f.is_integer() else f
+
+
+def unwrap_json_result(text):
+    """Cowork(Claude Desktop) 캡처 훅이 저장한 파일은 `{"result": "<본문>"}` JSON 래퍼일 수
+    있다(줄바꿈이 리터럴 \\n) — 래퍼면 벗기고, 아니면 그대로 돌려준다."""
+    for _ in range(3):
+        if not isinstance(text, str) or not text.lstrip().startswith("{"):
+            return text
+        try:
+            obj = json.loads(text)
+        except (json.JSONDecodeError, ValueError):
+            return text
+        if isinstance(obj, dict) and isinstance(obj.get("result"), str):
+            text = obj["result"]
+        elif isinstance(obj, str):
+            text = obj
+        else:
+            return text
+    return text
 
 
 def parse_markdown_table(text):
@@ -288,11 +319,18 @@ def main():
     d1_date = payload["d1_date"]
     d0_date = payload["d0_date"]
     threshold = payload.get("threshold", 10000)
-    if "markdown" in payload:
-        md = payload["markdown"]
+    if "markdown" in payload or "markdown_files" in payload:
+        md = payload.get("markdown", [])
         if isinstance(md, str):
             md = [md]
-        rows = [r for text in md for r in parse_markdown_table(text)]
+        md = list(md)
+        files = payload.get("markdown_files", [])
+        if isinstance(files, str):
+            files = [files]
+        for path in files:
+            with open(path, encoding="utf-8") as f:
+                md.append(f.read())
+        rows = [r for text in md for r in parse_markdown_table(unwrap_json_result(text))]
         media_rows = [r for r in rows if r.get("media") in MEDIA_LABEL]
         airbridge_rows = [r for r in rows if r.get("media") == "airbridge"]
     elif "rows" in payload:

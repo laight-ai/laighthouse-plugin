@@ -41,6 +41,16 @@
   ...
 }
 
+(C) **플러그인 캡처 훅이 동작하는 호스트(Claude Code)에서 최우선** — MCP 응답이
+    "[laighthouse-capture-hook] ... 저장됨: <경로>" 스텁으로 도착한 경우, 그 저장 경로를
+    그대로 넘긴다(스크립트가 파일을 직접 읽으므로 원본을 다시 타이핑하지 않는다):
+{
+  "meta_markdown_files": ["<meta 호출 스텁에 적힌 저장 경로>"],
+  "airbridge_markdown_files": ["<airbridge 호출 스텁에 적힌 저장 경로>"],
+  ...
+}
+(A)/(B)/(C)는 섞어 써도 된다 — 같은 쪽(meta/airbridge)에 여러 형태가 오면 합쳐서 처리한다.
+
 공통 나머지 필드:
 {
   "top5_keys": [              # section-4/5용. 생략하면 top5 시리즈는 계산하지 않는다(section-3만 필요할 때).
@@ -118,10 +128,41 @@ def parse_markdown_table(text):
     return rows
 
 
+def unwrap_json_result(text):
+    """Cowork(Claude Desktop) 캡처 훅이 저장한 파일은 `{"result": "<본문>"}` JSON 래퍼일 수
+    있다(줄바꿈이 리터럴 \\n) — 래퍼면 벗기고, 아니면 그대로 돌려준다."""
+    for _ in range(3):
+        if not isinstance(text, str) or not text.lstrip().startswith("{"):
+            return text
+        try:
+            obj = json.loads(text)
+        except (json.JSONDecodeError, ValueError):
+            return text
+        if isinstance(obj, dict) and isinstance(obj.get("result"), str):
+            text = obj["result"]
+        elif isinstance(obj, str):
+            text = obj
+        else:
+            return text
+    return text
+
+
 def parse_markdown_input(value):
     """문자열 또는 문자열 리스트를 받아 파싱된 행을 전부 이어붙인다."""
     texts = [value] if isinstance(value, str) else list(value)
-    return [r for text in texts for r in parse_markdown_table(text)]
+    return [r for text in texts for r in parse_markdown_table(unwrap_json_result(text))]
+
+
+def parse_markdown_files(value):
+    """파일 경로(문자열 또는 리스트)를 받아 각 파일의 마크다운을 파싱해 이어붙인다 —
+    플러그인 캡처 훅이 응답을 파일로 저장한 경우("[laighthouse-capture-hook] ... 저장됨:
+    <경로>" 스텁) 그 경로를 그대로 넘기면 된다(원본을 컨텍스트에 다시 타이핑하지 않는다)."""
+    paths = [value] if isinstance(value, str) else list(value)
+    rows = []
+    for path in paths:
+        with open(path, encoding="utf-8") as f:
+            rows.extend(parse_markdown_table(unwrap_json_result(f.read())))
+    return rows
 
 
 def row_date(row):
@@ -224,14 +265,16 @@ def compute_top5(meta_rows, airbridge_rows, dates, top5_keys):
 
 def main():
     payload = json.load(sys.stdin)
+    meta_rows = payload.get("meta_rows", [])
     if "meta_markdown" in payload:
-        meta_rows = parse_markdown_input(payload["meta_markdown"])
-    else:
-        meta_rows = payload.get("meta_rows", [])
+        meta_rows = meta_rows + parse_markdown_input(payload["meta_markdown"])
+    if "meta_markdown_files" in payload:
+        meta_rows = meta_rows + parse_markdown_files(payload["meta_markdown_files"])
+    airbridge_rows = payload.get("airbridge_rows", [])
     if "airbridge_markdown" in payload:
-        airbridge_rows = parse_markdown_input(payload["airbridge_markdown"])
-    else:
-        airbridge_rows = payload.get("airbridge_rows", [])
+        airbridge_rows = airbridge_rows + parse_markdown_input(payload["airbridge_markdown"])
+    if "airbridge_markdown_files" in payload:
+        airbridge_rows = airbridge_rows + parse_markdown_files(payload["airbridge_markdown_files"])
     top5_keys = payload.get("top5_keys")
 
     dates = payload.get("dates")

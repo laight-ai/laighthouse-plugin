@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": ".*get_ad_performance_daily_table$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/capture_daily_table.py\"",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
+}

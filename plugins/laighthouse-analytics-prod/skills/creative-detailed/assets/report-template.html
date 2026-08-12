@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<script>
+__CHART_JS_INLINE__
+</script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans KR', sans-serif;
+         background: #f8fafc; color: #1e293b; padding: 24px; }
+  .report-wrap { max-width: 960px; margin: 0 auto; }
+  .card { background: white; border: 1px solid #e2e8f0; border-radius: 12px;
+          padding: 20px; margin-bottom: 16px; }
+  .section-title { font-size: 15px; font-weight: 700; color: #1e293b; margin-bottom: 16px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { background: #f1f5f9; color: #475569; font-weight: 600; padding: 8px 12px;
+       text-align: left; border-bottom: 1px solid #e2e8f0; }
+  td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; color: #374151; }
+  @media print {
+    body { background: white; padding: 0; }
+    button { display: none !important; }
+    .card { box-shadow: none; border: 1px solid #e2e8f0; break-inside: avoid; }
+    canvas { max-width: 100%; }
+    @page { margin: 15mm; size: A4; }
+  }
+</style>
+</head>
+<body>
+<div class="report-wrap" id="report-content">
+
+  <!-- 헤더: 항상 포함 -->
+  <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:20px;">
+    <div>
+      <h1 style="font-size:20px; font-weight:700;">__REPORT_TITLE__</h1>
+      <span style="font-size:13px; color:#64748b; margin-top:4px; display:block;">보고서 기간: __REPORT_DATE_LABEL__</span>
+    </div>
+    <div style="display:flex; gap:8px;">
+      <!-- PDF 저장 -->
+      <button onclick="downloadReport()"
+        style="padding:8px 14px; background:#3b82f6; border:none; border-radius:8px; font-size:13px; color:white; cursor:pointer; display:flex; align-items:center; gap:6px;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+        PDF 저장
+      </button>
+    </div>
+  </div>
+
+<!--SECTION:s1:BEGIN-->
+  <!-- BREEZM CREATIVE SECTION 1: 최우수 소재 (ROAS / CTR, 최근 7일 기준) -->
+  <div style="display:flex; gap:16px; align-items:stretch;">
+    <div class="card" style="flex:1; display:flex; flex-direction:column;">
+      <div class="section-title" style="text-align:center;">ROAS 최우수 소재 (최근 7일 기준)</div>
+      <table style="width:100%; border-collapse:collapse; font-size:13px;">
+        <tr>
+          <td style="border:1px solid #e2e8f0; padding:10px 12px; text-align:center; vertical-align:middle;"><strong>__S1_ROAS_1_NAME__</strong></td>
+          <td style="border:1px solid #e2e8f0; padding:10px 12px; text-align:center; vertical-align:middle;"><strong>__S1_ROAS_2_NAME__</strong></td>
+        </tr>
+        <tr>
+          <td style="border:1px solid #e2e8f0; padding:10px 12px; text-align:center; vertical-align:middle;">__S1_ROAS_1_METRIC__</td>
+          <td style="border:1px solid #e2e8f0; padding:10px 12px; text-align:center; vertical-align:middle;">__S1_ROAS_2_METRIC__</td>
+        </tr>
+        <tr>
+          <td style="border:1px solid #e2e8f0; padding:12px; text-align:center;">__S1_ROAS_1_IMG_HTML__</td>
+          <td style="border:1px solid #e2e8f0; padding:12px; text-align:center;">__S1_ROAS_2_IMG_HTML__</td>
+        </tr>
+      </table>
+      <p style="font-size:11px; color:#64748b; margin-top:12px; line-height:1.5;">*'매출/광고비'로 계산되며, 높을수록 소재에서 매출이 효율적으로 발생하고 있음을 의미합니다.</p>
+    </div>
+
+    <div class="card" style="flex:1; display:flex; flex-direction:column;">
+      <div class="section-title" style="text-align:center;">CTR 최우수 소재 (최근 7일 기준)</div>
+      <table style="width:100%; border-collapse:collapse; font-size:13px;">
+        <tr>
+          <td style="border:1px solid #e2e8f0; padding:10px 12px; text-align:center; vertical-align:middle;"><strong>__S1_CTR_1_NAME__</strong></td>
+          <td style="border:1px solid #e2e8f0; padding:10px 12px; text-align:center; vertical-align:middle;"><strong>__S1_CTR_2_NAME__</strong></td>
+        </tr>
+        <tr>
+          <td style="border:1px solid #e2e8f0; padding:10px 12px; text-align:center; vertical-align:middle;">__S1_CTR_1_METRIC__</td>
+          <td style="border:1px solid #e2e8f0; padding:10px 12px; text-align:center; vertical-align:middle;">__S1_CTR_2_METRIC__</td>
+        </tr>
+        <tr>
+          <td style="border:1px solid #e2e8f0; padding:12px; text-align:center;">__S1_CTR_1_IMG_HTML__</td>
+          <td style="border:1px solid #e2e8f0; padding:12px; text-align:center;">__S1_CTR_2_IMG_HTML__</td>
+        </tr>
+      </table>
+      <p style="font-size:11px; color:#64748b; margin-top:12px; line-height:1.5;">*'클릭/노출수'로 계산되며, 높을수록 고객이 광고에 매력을 느껴 클릭하는 경우가 많았음을 의미합니다. 단, CTR이 높아도 구매 전환율은 낮을 수 있으므로 주의가 필요합니다.</p>
+    </div>
+  </div>
+<!--SECTION:s1:END-->
+
+<!--SECTION:s2:BEGIN-->
+  <!-- BREEZM CREATIVE SECTION 2: EXECUTIVE SUMMARY -->
+  <div class="card" style="margin-bottom:16px;">
+    <div class="section-title" style="text-align:left;">Executive Summary</div>
+    <ul style="padding-left:20px; line-height:1.9; font-size:13px; color:#374151;">
+      __S2_ITEMS_HTML__
+    </ul>
+  </div>
+<!--SECTION:s2:END-->
+
+<!--SECTION:s3:BEGIN-->
+  <!-- BREEZM CREATIVE SECTION 3: 최근 7일 일별 CTR (광고비 상위 5개 소재) -->
+  <div class="card" style="margin-bottom:16px;">
+    <div class="section-title" style="text-align:left;">최근 7일 일별 CTR (광고비 상위 5개 소재)</div>
+    <div style="position:relative; height:300px;">
+      <canvas id="creativeCtrLineChart"></canvas>
+    </div>
+  </div>
+<!--SECTION:s3:END-->
+
+<!--SECTION:s4:BEGIN-->
+  <!-- BREEZM CREATIVE SECTION 4: 최근 7일 일별 ROAS (광고비 상위 5개 소재) -->
+  <div class="card" style="margin-bottom:16px;">
+    <div class="section-title" style="text-align:left;">최근 7일 일별 ROAS (광고비 상위 5개 소재)</div>
+    <div style="position:relative; height:300px;">
+      <canvas id="creativeRoasLineChart"></canvas>
+    </div>
+  </div>
+<!--SECTION:s4:END-->
+
+<!--SECTION:s5:BEGIN-->
+  <!-- BREEZM CREATIVE SECTION 5: 최근 7일 소재 단위 누적 성과 -->
+  <div class="card" style="margin-bottom:16px;">
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
+      <div class="section-title">최근 7일 소재 단위 누적 성과</div>
+      <input id="assetPerfSearch" style="border:1px solid #e2e8f0; border-radius:8px; padding:6px 12px; font-size:12px; color:#374151; width:180px;" placeholder="검색" oninput="window.__assetPerfSearch && window.__assetPerfSearch(this.value)">
+    </div>
+    <div style="overflow-x:auto;">
+      <table style="border-collapse:collapse; font-size:12.5px; table-layout:fixed; width:auto;">
+        <thead>
+          <tr>
+            <th style="border:1px solid #e2e8f0; padding:12px 14px; text-align:center; background:#f8fafc; white-space:nowrap; width:90px;">매체</th>
+            <th style="border:1px solid #e2e8f0; padding:12px 14px; text-align:center; background:#f8fafc; width:260px;">캠페인</th>
+            <th style="border:1px solid #e2e8f0; padding:12px 14px; text-align:center; background:#f8fafc; width:200px;">광고그룹</th>
+            <th style="border:1px solid #e2e8f0; padding:12px 14px; text-align:center; background:#f8fafc; width:200px;">광고</th>
+            <th style="border:1px solid #e2e8f0; padding:12px 14px; text-align:center; background:#f8fafc; white-space:nowrap; width:150px;">노출</th>
+            <th style="border:1px solid #e2e8f0; padding:12px 14px; text-align:center; background:#f8fafc; white-space:nowrap; width:150px;">클릭</th>
+            <th style="border:1px solid #e2e8f0; padding:12px 14px; text-align:center; background:#f8fafc; white-space:nowrap; width:150px;">CTR</th>
+            <th style="border:1px solid #e2e8f0; padding:12px 14px; text-align:center; background:#f8fafc; white-space:nowrap; width:150px;">광고비</th>
+            <th style="border:1px solid #e2e8f0; padding:12px 14px; text-align:center; background:#f8fafc; white-space:nowrap; width:150px;">매출</th>
+            <th style="border:1px solid #e2e8f0; padding:12px 14px; text-align:center; background:#f8fafc; white-space:nowrap; width:150px;">예약 완료</th>
+            <th style="border:1px solid #e2e8f0; padding:12px 14px; text-align:center; background:#f8fafc; white-space:nowrap; width:150px;">예약 완료 CPA</th>
+            <th style="border:1px solid #e2e8f0; padding:12px 14px; text-align:center; background:#f8fafc; white-space:nowrap; width:150px;">ROAS</th>
+          </tr>
+        </thead>
+        <tbody id="assetPerfTableBody"></tbody>
+      </table>
+    </div>
+    <div id="assetPerfPager" style="display:flex; justify-content:center; align-items:center; gap:8px; margin-top:16px;"></div>
+  </div>
+<!--SECTION:s5:END-->
+
+  <!-- 푸터: 항상 포함 -->
+  <div style="text-align:center; font-size:12px; color:#94a3b8; padding:16px 0;">
+    Engineered by Laighthouse AI
+  </div>
+
+</div>
+
+<script>
+/* ── 공통 유틸 ── */
+function changeColor(v){ return v>0?'#16a34a':v<0?'#dc2626':'#6b7280'; }
+function changeLabel(v,s='%'){ return v>0?`▲ +${v.toFixed(1)}${s}`:v<0?`▼ ${v.toFixed(1)}${s}`:'-'; }
+function fmtUSD(v){ return '$'+Number(v).toLocaleString(); }
+
+/* ── PDF 저장 (차트 렌더링 완료 후 인쇄) ── */
+function downloadReport(){
+  // Chart.js 캔버스를 정적 이미지로 교체 후 인쇄 → 원복
+  const canvases = document.querySelectorAll('canvas');
+  const replacements = [];
+
+  canvases.forEach(canvas => {
+    const img = document.createElement('img');
+    img.src = canvas.toDataURL('image/png');
+    img.style.width = canvas.style.width || canvas.offsetWidth + 'px';
+    img.style.height = canvas.style.height || canvas.offsetHeight + 'px';
+    img.style.maxWidth = '100%';
+    canvas.parentNode.insertBefore(img, canvas);
+    canvas.style.display = 'none';
+    replacements.push({ canvas, img });
+  });
+
+  setTimeout(() => {
+    window.print();
+    // 인쇄 대화상자 닫힌 후 원복
+    setTimeout(() => {
+      replacements.forEach(({ canvas, img }) => {
+        canvas.style.display = '';
+        img.remove();
+      });
+    }, 1000);
+  }, 300);
+}
+
+/* ── Section 3: 일별 CTR 라인차트 ── */
+(function(){
+  const ctx = document.getElementById('creativeCtrLineChart');
+  if(!ctx) return;
+  const labels = __S34_LABELS_JSON__; // 예: ["7/9","7/10",...,"7/15"] — [날짜,요일] 배열이 아니라 단순 M/D 문자열
+  const names = __S34_NAMES_JSON__; // 상위 5개 소재의 표시 이름 배열 (광고비 내림차순) — ad_name 중복 시 "ad_name (asset_group)", 유일하면 ad_name만
+  const series = __S3_CTR_SERIES_JSON__; // names와 같은 순서의 2차원 배열, 각 행이 7개 값(또는 null)
+
+  const palette = ['#3b82f6','#16a34a','#ef4444','#f59e0b','#8b5cf6'];
+
+  new Chart(ctx, {
+    type:'line',
+    data:{
+      labels: labels,
+      datasets: series.map((d,i)=>({
+        label: names[i], data:d,
+        borderColor: palette[i], backgroundColor:'transparent',
+        pointBackgroundColor: palette[i], tension:0.3, spanGaps:false
+      }))
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{
+        legend:{ display:true, position:'bottom', labels:{ boxWidth:10, font:{size:11} } },
+        tooltip:{ callbacks:{ label: c => `${c.dataset.label}: ${c.parsed.y}%` } }
+      },
+      scales:{
+        y:{ ticks:{ callback: v => v+'%' } },
+        x:{ title:{ display:true, text:'day' } }
+      }
+    }
+  });
+})();
+
+/* ── Section 4: 일별 ROAS 라인차트 ── */
+(function(){
+  const ctx = document.getElementById('creativeRoasLineChart');
+  if(!ctx) return;
+  const labels = __S34_LABELS_JSON__; // section-3과 동일한 배열, 예: ["7/9",...,"7/15"]
+  const names = __S34_NAMES_JSON__; // section-3과 동일한 5개 소재의 표시 이름(같은 순서, ad_name 중복 시 "ad_name (asset_group)" 포함)
+  const series = __S4_ROAS_SERIES_JSON__; // names와 같은 순서의 2차원 배열, 각 행이 7개 값(매출 매칭 실패/광고비 0인 날짜는 0으로 채움)
+
+  const palette = ['#3b82f6','#16a34a','#ef4444','#f59e0b','#8b5cf6'];
+
+  new Chart(ctx, {
+    type:'line',
+    data:{
+      labels: labels,
+      datasets: series.map((d,i)=>({
+        label: names[i], data:d,
+        borderColor: palette[i], backgroundColor:'transparent',
+        pointBackgroundColor: palette[i], tension:0.3
+      }))
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{
+        legend:{ display:true, position:'bottom', labels:{ boxWidth:10, font:{size:11} } },
+        tooltip:{ callbacks:{ label: c => `${c.dataset.label}: ${c.parsed.y}%` } }
+      },
+      scales:{
+        y:{ min:0, ticks:{ callback: v => v+'%' } },
+        x:{ title:{ display:true, text:'day' } }
+      }
+    }
+  });
+})();
+
+/* ── Section 5: 소재 단위 누적 성과 표 — 검색 + 페이지네이션 ── */
+// 정적 HTML 한 번에 생성되는 보고서라 "검색창 입력/페이지 버튼 클릭 → 서버에 다시 물어본다"
+// 방식은 동작하지 않는다. 전체 행을 미리 <tr>...</tr> HTML 문자열 + 검색용 텍스트로 만들어
+// 심어두고, 검색·페이지 전환 모두 이 스크립트가 클라이언트에서 직접 처리한다.
+(function(){
+  const rows = __S5_ROWS_JSON__;
+  // rows: [{ search: "매체명 캠페인명 광고그룹명 광고명" (소문자), html: "<tr>...</tr>" }, ...]
+  // 7일 합산 광고비 내림차순으로 이미 정렬되어 있어야 한다.
+
+  const pageSize = 10;
+  const tbody = document.getElementById('assetPerfTableBody');
+  const pager = document.getElementById('assetPerfPager');
+  if (!tbody || !pager) return;
+
+  let currentTerm = '';
+  let currentPage = 1;
+
+  function filteredRows() {
+    if (!currentTerm) return rows;
+    return rows.filter(r => r.search.includes(currentTerm));
+  }
+
+  function pagerButton(label, page, opts) {
+    opts = opts || {};
+    const disabled = opts.disabled ? 'disabled' : '';
+    const active = opts.active
+      ? 'background:#3b82f6; border-color:#3b82f6; color:white;'
+      : 'background:white; border-color:#e2e8f0; color:#64748b;';
+    return `<button ${disabled} style="border:1px solid #e2e8f0; border-radius:6px; width:28px; height:28px; font-size:12px; cursor:${opts.disabled?'default':'pointer'}; ${active}" onclick="window.__assetPerfGoto && window.__assetPerfGoto(${page})">${label}</button>`;
+  }
+
+  function render() {
+    const list = filteredRows();
+    const totalPages = Math.max(1, Math.ceil(list.length / pageSize));
+    currentPage = Math.min(Math.max(1, currentPage), totalPages);
+    const start = (currentPage - 1) * pageSize;
+    const pageRows = list.slice(start, start + pageSize);
+
+    tbody.innerHTML = pageRows.length
+      ? pageRows.map(r => r.html).join('')
+      : `<tr><td colspan="12" style="text-align:center; color:#94a3b8; padding:20px;">검색 결과가 없습니다.</td></tr>`;
+
+    let html = pagerButton('‹', currentPage - 1, { disabled: currentPage === 1 });
+    for (let i = 1; i <= totalPages; i++) {
+      html += pagerButton(String(i), i, { active: i === currentPage });
+    }
+    html += pagerButton('›', currentPage + 1, { disabled: currentPage === totalPages });
+    pager.innerHTML = html;
+  }
+
+  window.__assetPerfGoto = function(page){ currentPage = page; render(); };
+  window.__assetPerfSearch = function(value){
+    currentTerm = (value || '').trim().toLowerCase();
+    currentPage = 1;
+    render();
+  };
+
+  render();
+})();
+</script>
+</body></html>
