@@ -6,7 +6,7 @@ description: >
   `creative-detailed`를 임원이 딥다이브 없이 훑어보도록 재구성한 소재 분석 보고서. 대상 브랜드는 브리즘 하나뿐이다. `creative-detailed`/`creative-summary`는 다른 스킬들과 **레이아웃이 상당히
   다르다** — 톤앤매너(색상·카드 스타일·폰트)는 동일하게 유지한다.
 metadata:
-  version: "2.0.0"
+  version: "2.0.1"
 ---
 
 
