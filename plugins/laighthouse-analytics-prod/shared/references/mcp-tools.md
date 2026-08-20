@@ -70,7 +70,7 @@ naver 전용 계열, v1 target_progress, 리포트 공유 계열)은 **서버에
 ## 3. `get_target_progress_v2` — 월 목표 대비 진행 (계약 불변)
 
 ```json
-{ "brand_name": "breezm", "month": "YYYY-MM", "media": "google"|"meta"|"naver", "as_of_date": "YYYY-MM-DD" }
+{ "brand_name": "breezm", "month": "YYYY-MM", "media": "naver"|"google"|"meta"|"tiktok", "as_of_date": "YYYY-MM-DD" }
 ```
 
 - **이 도구만 여전히 markdown 표를 반환한다** — 행(cost/revenue/roas) × 열(target|actual|
