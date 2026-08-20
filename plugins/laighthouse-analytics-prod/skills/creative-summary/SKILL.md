@@ -27,18 +27,26 @@ MCP 데이터를 받아 **라이트하우스 스타일 Executive 소재 보고�
 파라미터에는 **반드시 정확히 `"breezm"`**(영문 소문자)을 넣는다 (`"브리즘"`을 넣으면
 `Unknown brand` 에러). 사람이 읽는 텍스트(제목·완료 메시지)에는 계속 "브리즘"을 쓴다.
 
-이 스킬이 쓰는 도구는 `get_ad_performance_range_table`/`get_ad_performance_daily_table`/
-`get_ad_creative_info`뿐이다 — naver 전용 도구, `get_target_progress_v2`, `day_offset`은 쓰지
-않는다. 보고서의 모든 "매출"은 **Airbridge 매출**(`media="airbridge"` 응답의
-`airbridge_revenue`)이다.
+이 스킬이 쓰는 도구는 `get_ad_performance`/`get_ad_creative_info`뿐이다 —
+`get_target_progress_v2`, `day_offset`은 쓰지 않는다. 보고서의 모든 "매출"은 **Airbridge 귀속
+매출**로, `get_ad_performance` 응답 행의 지표 `매출_AB`다(예약은 `예약완료_AB`) — 소재(ad)
+단위 행에도 매출/예약이 지표로 함께 들어온다(별도 조인 불필요).
 
-공통 호출 규칙:
-- ⚠️ **어떤 호출에도 `campaign-type` 파라미터를 넣지 않는다** — airbridge 행이 조용히 누락된다.
-- ⚠️ `group_by`는 **문자열 enum**(`total`/`media`/`campaign`/`ad-set`/`ad`)이다 — boolean 금지.
-  이 스킬은 전부 `"ad"`만 쓴다.
-- ⚠️ `group_by:"ad"` 호출에서 **`media`를 절대 생략하지 않는다** — 생략 시 응답이 실측 76만+자로
-  폭증해(단일 `media="meta"`도 13만자대) 정확도 사고로 이어진 실제 사례가 있다(`CLAUDE.md` 참고).
-  `media="meta"`/`media="airbridge"` 각각 명시해서 호출한다.
+공통 호출 규칙 (`get_ad_performance`):
+- ℹ️ 응답은 **JSON 봉투**다: `{"source": "elt", "tenant": "breezm", "time_grain": "day"|"month"|
+  "total", "dimensions": [...], "metrics": [...], "row_count": N, "rows": [...]}`. 행의 차원
+  키는 영문(`date`/`media`/`campaign_name`/`ad_group_name`/`ad_id`/`ad_name` 등), **지표 키는
+  테넌트별**이다 — 브리즘은 한국어 지표명 `광고비`/`노출`/`클릭`/`매출_AB`/`예약완료_AB`와
+  서버 계산 비율 지표 `ROAS_AB`/`CPM`/`CTR`/`CVR`/`CPA`/`CPA_AB`를 쓴다. **응답의 `metrics`
+  목록이 유효한 지표 키의 유일한 진실이다** — 키를 추측하지 않는다.
+- ⚠️ 비율 지표(`ROAS_AB`/`CTR`)는 요청한 grain 기준으로 서버가 이미 % 값으로 계산해 준다 —
+  ×100 불필요. **행별 비율 값을 합산해 상위 기간 비율을 만들지 않는다**(날짜별 합산은
+  `creative_daily_series.py`가 원자 지표 합으로 계산한다).
+- ⚠️ `group_by`는 **차원명 문자열 리스트**다 — 이 스킬은 전부
+  `["campaign_name","ad_group_name","ad_name"]`(소재 단위)만 쓴다.
+- ⚠️ 소재 단위 호출에서 **`media`를 절대 생략하지 않는다** — 생략 시 응답이 폭증해(마크다운
+  시절 실측 76만+자, 단일 meta도 13만자대) 정확도 사고로 이어진 실제 사례가 있다. 항상
+  `media="Meta"`를 명시해서 호출한다.
 
 ---
 
@@ -63,11 +71,10 @@ MCP 데이터를 받아 **라이트하우스 스타일 Executive 소재 보고�
 > 프로즈로 손계산하는 것은 전부 금지다.
 >
 > - **`assets/creative_daily_series.py`** — section-3(전체 소재 날짜별 합산 CTR/ROAS)과
->   section-4/5(상위 5개 소재 exact-match 일별 시리즈)의 파싱·조인·계산 전부. 응답이
+>   section-4/5(상위 5개 소재 exact-match 일별 시리즈)의 파싱·계산 전부. 응답이
 >   `[laighthouse-capture-hook] ... 저장됨: <경로>` 스텁으로 오면(캡처 훅 동작 호스트 — 이
->   플러그인의 PostToolUse 훅이 대용량 응답을 파일로 저장한 것) `meta_markdown_files`/
->   `airbridge_markdown_files`에 경로만, 원본 마크다운이 그대로 오면 `meta_markdown`/
->   `airbridge_markdown`에 문자열 통째로 넘긴다(혼용 가능). 따옴표 있는 heredoc(`<<'PYEOF'`)으로
+>   플러그인의 PostToolUse 훅이 대용량 응답을 파일로 저장한 것) `json_files`에 경로만,
+>   원본 JSON 봉투가 그대로 오면 `json`에 문자열 통째로 넘긴다(혼용 가능). 따옴표 있는 heredoc(`<<'PYEOF'`)으로
 >   stdin에 파이프하고, 출력은 `> /tmp/creative_series.json`처럼 빌더가 읽을 파일로 바로
 >   저장한다. 스텁이 가리키는 캡처 파일을 Read로 열어 내용을 컨텍스트로 가져오지 않는다(경로만
 >   넘긴다). 응답을 먼저 파일로 저장했다가 별도 호출로 다시 읽는 2단계도 금지다.
@@ -80,7 +87,7 @@ MCP 데이터를 받아 **라이트하우스 스타일 Executive 소재 보고�
 >   (`creative_daily_series > f && build_report`) — 왕복을 늘리지 않는다.
 > - MCP 응답을 스크래치 파일에 옮겨 적었다가 다시 읽는 왕복, 별도 파서/생성 스크립트 작성,
 >   응답 원본의 재타이핑은 전부 금지다.
-> - section-1의 랭킹(ROAS/CTR 1·2위)과 section-4의 상위 5개 선정은 range_table 응답(소재당
+> - section-1의 랭킹(ROAS/CTR 1·2위)과 section-4의 상위 5개 선정은 total 응답(소재당
 >   1행, 이미 합산됨)의 단순 정렬이라 스크립트가 필요 없다 — 모델이 직접 정렬한다.
 > - (최후 폴백) Bash/python3가 전혀 없는 호스트에서만, `assets/report-template.html`을 Read해서
 >   placeholder를 직접 치환한다 — 그 외 호스트에서는 절대 이 경로를 쓰지 않는다.
@@ -100,23 +107,26 @@ MCP 데이터를 받아 **라이트하우스 스타일 Executive 소재 보고�
 ## 실행 순서
 
 1. 파라미터를 파싱한다. report_type은 `creative-summary` 고정.
-2. **1차 배치 (한 메시지에 동시 발사, 총 4회)** — 소재 데이터는 두 갈래다:
-   - **2-a. section-1용 (7일 합산, 랭킹)**: `get_ad_performance_range_table` ×2
-     (`media="meta"`/`media="airbridge"`, `group_by:"ad"`, 기준일 6일 전 ~ target_date).
-     구간 전체가 소재당 1행으로 이미 합산돼 있어 정렬만 하면 랭킹이 나온다.
-   - **2-b. section-3/4/5용 (일별 추이)**: `get_ad_performance_daily_table` ×2
-     (`media="meta"`/`media="airbridge"`, `group_by:"ad"`, 같은 7일). 날짜별 행이 필요해서
-     range_table로 대체할 수 없다. **이 2회 응답을 section-3/4/5가 전부 공유한다** — 섹션별로
+2. **1차 배치 (한 메시지에 동시 발사, 총 2회)** — 소재 데이터는 두 갈래다:
+   - **2-a. section-1용 (7일 합산, 랭킹)**: `get_ad_performance` ×1
+     (`time_grain:"total"`, `media:"Meta"`, `group_by:["campaign_name","ad_group_name",
+     "ad_name"]`, 기준일 6일 전 ~ target_date). 구간 전체가 소재당 1행으로 이미 합산돼 있고
+     매출/예약도 같은 행에 있어 정렬만 하면 랭킹이 나온다.
+   - **2-b. section-3/4/5용 (일별 추이)**: `get_ad_performance` ×1
+     (`time_grain:"day"`, `media:"Meta"`, 같은 `group_by`, 같은 7일). 날짜별 행(`date` 키)이
+     필요해서 total로 대체할 수 없다. **이 응답을 section-3/4/5가 전부 공유한다** — 섹션별로
      다시 호출하지 않는다. 대용량 응답이라 캡처 훅 스텁으로 도착하는 것이 정상이다.
 3. ⏱ **필수 체크포인트 — 스켈레톤 선(先) 게시.** 2단계 응답 수신 즉시, 다음 단계 전에
    `python3 assets/build_report.py`를 `{"skeleton": true, ...}`로 1회 호출해 전 섹션 "데이터
    준비 중" 골격을 만들고 게시한다(아래 8단계와 같은 출력 경로/Artifact — 이후 재게시로 교체).
    이 단계를 건너뛰고 끝에서 한꺼번에 내놓으려다 툴호출 예산이 바닥나면 사용자는 아무것도 못
    본다 — 자매 스킬의 실제 사고 사례가 있는 필수 단계다.
-4. **section-1 랭킹 + 상위 5개 선정**: 2-a 응답에서 ROAS/CTR 1·2위와 광고비 상위 5개 소재
-   (표시 이름 포함)를 정한다(각 섹션 파일의 조인·선정 규칙). 선정된 최대 4개 소재의
-   `platform_account_id`/`creative_id`로 `get_ad_creative_info` ×1을 호출해 썸네일 URL을
-   받는다. **이 스킬의 MCP 데이터 호출은 2단계 4회 + 이 1회, 총 5회로 끝난다.**
+4. **section-1 랭킹 + 상위 5개 선정**: 2-a 응답에서 ROAS/CTR 1·2위와 광고비(`광고비`) 상위
+   5개 소재(표시 이름 포함)를 정한다(각 섹션 파일의 선정 규칙). 선정된 유니크 최대 4개 소재
+   각각에 대해 `get_ad_creative_info`(`source:"meta_ads"`, `name_query:"<ad_name>"`)를 호출해
+   `image_url`을 받는다(⚠️ IP 화이트리스트 뒤라 허용되지 않은 네트워크에서는 이미지가 안 뜰
+   수 있다 — onerror 폴백은 템플릿이 처리). **이 스킬의 MCP 데이터 호출은 2단계 2회 + 이
+   최대 4회로 끝난다.**
 5. **시리즈 계산**: `assets/creative_daily_series.py`를 2-b 응답(스텁 경로 또는 원본)과
    `top5_keys`로 1회 실행해 `> /tmp/creative_series.json`으로 저장한다 — section-3(overall)과
    section-4/5(top5)가 이 한 파일을 공유한다 (section-3 파일의 호출 절 참고).
@@ -141,7 +151,7 @@ MCP 데이터를 받아 **라이트하우스 스타일 Executive 소재 보고�
 > ⚡ 서브에이전트 없이 오케스트레이터(본 대화)가 MCP를 직접 호출한다. **서로 의존성 없는 MCP
 > 호출은 한 메시지 안에서 동시에(병렬 tool call로) 발사한다.** 배치의 실제 효과는 "턴 오버헤드
 > 제거"다(네트워크 동시 실행 보장은 아님 — 실측 daily-summary 참고). 진짜 속도는 (a) 호출 총
-> 개수 고정(소재 데이터 4회 + creative_info 1회 = 5회, section-3/4/5의 daily 응답 공유), (b)
+> 개수 고정(소재 데이터 2회 + creative_info 최대 4회, section-3/4/5의 day 응답 공유), (b)
 > 캡처 훅(대용량 응답의 파일 우회), (c) asset 스크립트(재타이핑·손계산 제거)에서 나온다.
 
 ---
@@ -177,8 +187,8 @@ MCP 데이터를 받아 **라이트하우스 스타일 Executive 소재 보고�
 - section-1/4/5는 `creative-detailed`의 section-1/3/4와 동일 내용이다(4/5는 번호만 하나씩
   밀림). section-3은 이 스킬 고유의 신규 섹션, section-2는 임원용 불릿 카드 골격(점 색상
   구분)을 쓴다. `creative-detailed`의 소재 전체 나열 표에 대응하는 섹션은 없다.
-- **데이터 흐름 요약**: 2-a(range_table ×2) → section-1 랭킹 + section-4의 상위 5개 선정.
-  2-b(daily_table ×2) → `creative_daily_series.py` 1회 → section-3(overall)/4(top5 CTR)/
+- **데이터 흐름 요약**: 2-a(total ×1) → section-1 랭킹 + section-4의 상위 5개 선정.
+  2-b(day ×1) → `creative_daily_series.py` 1회 → section-3(overall)/4(top5 CTR)/
   5(top5 ROAS) 공유. section-2는 신규 호출 없이 재사용만.
 - 섹션 데이터가 준비 안 되면 해당 `s*` 키를 빌더 입력에서 뺀다 → "데이터 준비 중" 카드로
   렌더링된다. 섹션을 임의로 생략하는 개념은 없다 — 항상 5개 전부.

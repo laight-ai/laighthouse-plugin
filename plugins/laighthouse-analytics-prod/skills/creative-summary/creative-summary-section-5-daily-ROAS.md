@@ -7,9 +7,8 @@
 
 ## MCP 도구 호출: 신규 호출 없음
 
-SKILL.md 2-b의 daily_table 응답(`media="airbridge"` 포함, section-3/4와 공유)을 재사용한다 —
-다시 호출하지 않는다. airbridge 행에는 날짜별·소재별 `airbridge_revenue`가 들어있다(소재 단위
-매출 귀속 정상 확인, 2026-08-03).
+SKILL.md 2-b의 day grain 응답(section-3/4와 공유)을 재사용한다 — 다시 호출하지 않는다.
+각 행에 날짜별·소재별 `매출_AB`/`광고비`가 함께 들어있다(별도 매출 응답 없음).
 
 ## 소재 선정·계산: section-4의 것을 그대로 재사용
 
@@ -17,9 +16,9 @@ SKILL.md 2-b의 daily_table 응답(`media="airbridge"` 포함, section-3/4와 �
   않는다.
 - 일별 ROAS 시리즈는 section-4가 이미 호출한 `assets/creative_daily_series.py`의 **같은 출력
   파일**의 `top5.roas_series`다 — 이 섹션에서 스크립트를 다시 호출하지 않는다.
-- 스크립트가 구현한 계산(참고용 스펙): `campaign_name`+`asset_group`+`ad_name` 세 필드 정확
-  일치 조인으로 그 날짜 `airbridge_revenue`÷그 날짜 `cost`×100. 매체 쪽 cost가 0/없거나 조인
-  실패면 그 날짜는 **`0`으로 채운다**(끊긴 구간으로 남기지 않는다 — section-5 고유 스펙,
+- 스크립트가 구현한 계산(참고용 스펙): `campaign_name`+`ad_group_name`+`ad_name` 세 필드
+  정확 일치로 그 날짜 행을 찾아 `매출_AB`÷`광고비`×100. `광고비`가 0/없거나 행 자체가 없으면
+  그 날짜는 **`0`으로 채운다**(끊긴 구간으로 남기지 않는다 — section-5 고유 스펙,
   section-4의 CTR null 처리와 다르다).
 
 > 🚫 응답이 커도 선택지는 (1) 원본 전부를 스크립트에 넘기거나 (2) `s5`를 빼서 "데이터 준비

@@ -43,9 +43,11 @@ MCP 호출 없이 다른 섹션 응답만 재사용한다.
    - daily-summary-section-5(매체별 성과, D-1 vs D-0)가 이미 가공한 **매체별
      (Naver Ads/Google Ads/Meta Ads/Organic/Others) 광고비·매출·예약 완료·ROAS의 D-1 vs D-0
      변화량**. 이 섹션의 데이터가 이 Executive Summary의 핵심 근거다.
-   - daily-summary-section-4(일일 매출 현황, 최근 7일)의 일별 전체 매출/광고 매출
-     시리즈 — 이 중 **D-1, D-0 두 값**을 가져다 오거닉 매출(전체 매출 − 광고 매출) 비중 변화를
-     계산한다.
+   - daily-summary-section-3(최근 7일 성과)의 일별 광고비/광고 매출/ROAS 시리즈 중
+     **D-1, D-0 두 값** — section-5의 변화량과 교차 확인하거나 추세 서술에 보조로 쓴다.
+     (⚠️ 현재 데이터 소스(ELT 광고 성과)에는 오거닉/전체 매출이 없어 오거닉 매출 비중
+     변화는 계산하지 않는다 — daily-summary-section-4는 "데이터 준비 중"으로 남는다.
+     지어내기 금지.)
    - 위 「MCP 도구 호출」에서 새로 받은 `list_promotions` 응답 — D-0(기준일)과 겹치는
      프로모션/이벤트뿐 아니라, 그 직전 7일 이내에 종료되어 이월 효과를 남길 수 있는
      프로모션/이벤트명·기간도 포함한다.
