@@ -48,9 +48,10 @@ generic 도구(`get_ad_performance`)와 `get_target_progress_v2`, `list_promotio
 - `media` 필터 값은 `"Google"`/`"Meta"`/`"Naver"` (대소문자 변형·한국어 표기는 서버가 흡수).
 - ⚠️ `get_target_progress_v2`의 ROAS류 수치는 비율값(0.87)이므로 ×100 해서 %로 쓴다 —
   이 도구 응답만 여전히 markdown 표다.
-- ⚠️ **전체(오거닉 포함) 매출·채널(`Organic`/`Others`) 구분은 현재 데이터 소스(ELT 광고
-  성과)에서 제공되지 않는다** — 예전 airbridge `channel` 행이 주던 값이다. 해당 값이 필요한
-  자리는 지어내지 말고 섹션 규칙대로 `-`/"데이터 준비 중"으로 처리한다.
+- `media`를 생략하고 `group_by:["media"]`로 조회하면 `media`가 `null`인 행이 온다 — 이게
+  `Organic`이다(광고비 없이 매출만 귀속). 정상 응답이니 버리지 말고 섹션 규칙대로 매핑한다.
+  `Others`는 대응하는 `media` 값이 없어 `-`/"데이터 준비 중"으로 남긴다 — 다른 값으로 지어
+  채우지 않는다.
 
 ---
 
@@ -115,11 +116,11 @@ generic 도구(`get_ad_performance`)와 `get_target_progress_v2`, `list_promotio
    본다 — 자매 스킬의 실제 사고 사례가 있는 필수 단계다.
 4. **2차 배치 (한 메시지에 동시 발사)**: section-2 신규 호출(`time_grain:"month"`, 전월~당월,
    `group_by:["media"]`, `media` 생략, `day_offset`) 1회 + section-3(`time_grain:"month"`
-   6개월, `group_by:["media"]`, `media` 생략, `day_offset`) 1회 + section-4(`list_promotions`
-   1회) + section-7(`time_grain:"total"`, `group_by:["media","campaign_id","campaign_name"]`,
-   `media` 생략, 1회). 각 섹션 파일의 호출 명세를 그대로 따른다. (section-6은 신규 호출 없음 —
-   1차 배치 재사용. section-4의 매출 차트는 전체 매출 미제공으로 "데이터 준비 중"이다 —
-   섹션 파일 참고.)
+   6개월, `group_by:["media"]`, `media` 생략, `day_offset`) 1회 + section-4(`get_ad_performance`
+   `time_grain:"day"`, 월초~target_date, `group_by:["media"]`, `media` 생략, 1회 +
+   `list_promotions` 1회) + section-7(`time_grain:"total"`,
+   `group_by:["media","campaign_id","campaign_name"]`, `media` 생략, 1회). 각 섹션 파일의 호출
+   명세를 그대로 따른다. (section-6은 신규 호출 없음 — 1차 배치 재사용.)
 5. **계산**: section-1 값 판정과 section-6 매체별 행(각 섹션 파일의 계산 규칙), section-3
    배열 산출, section-7은 응답 원본을 `s7.json`에 담기만 한다.
 6. **section-2 Executive Summary + section-5 캠페인 분석 작성** — 추가 MCP 호출 없이 다른

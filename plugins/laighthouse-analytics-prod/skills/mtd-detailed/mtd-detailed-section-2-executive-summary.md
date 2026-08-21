@@ -23,8 +23,8 @@
 - 그 외에는 **신규 MCP 호출 없음** — 전부 다른 섹션 응답을 재사용한다:
   - section-1의 `get_target_progress_v2` 응답 — 목표 ROAS (브리즘은 revenue 목표 미등록이
     기본이라 목표 ROAS N/A가 보통. 실제 ROAS의 매출은 항상 Airbridge 기준).
-  - section-4의 `list_promotions` 응답 (일별 전체/광고 매출 차트는 전체 매출 미제공으로
-    "데이터 준비 중"이라 근거로 쓰지 않는다).
+  - section-4의 `list_promotions` 응답, 그리고 필요하면 `total_revenue`/`ad_revenue`
+    일별 값(전체 매출 대비 오거닉 매출 비중을 언급할 때 참고).
   - section-6의 매체별 소진액/광고 매출/ROAS.
 
 ⚠️ **`df_dify` MCP 서버는 호출하지 않는다** (naver 기반 브랜드 전용 도구 — 브리즘은 안 씀).

@@ -13,11 +13,14 @@
 { "brand_name": "breezm", "start_date": "기준일 6일 전 YYYY-MM-DD", "end_date": "target_date", "time_grain": "day", "group_by": ["media"] }
 ```
 
-- **`media` 파라미터를 생략한다** — 이 1회 호출로 날짜별·매체별(`Google`/`Meta`/`Naver`) 행을
-  전부 받는다. 각 행에 `광고비`/`매출_AB`/`예약완료_AB` 등 지표가 함께 들어있다(별도 매출
-  응답 없음).
-- **이 응답은 section-4/5가 그대로 재사용한다** — section-4는 날짜별 `매출_AB` 합을,
-  section-5는 마지막 이틀(D-1, D-0) 행만 쓴다. 세 섹션이 각자 호출하지 않는다.
+- **`media` 파라미터를 생략한다** — 이 1회 호출로 날짜별·매체별(`Google`/`Meta`/`Naver`) 행에
+  더해, `media`가 `null`인 행(Organic — 광고비 없이 매출만 귀속)도 함께 받는다. 각 행에
+  `광고비`/`매출_AB`/`예약완료_AB` 등 지표가 함께 들어있다(별도 매출 응답 없음).
+- **이 응답은 section-4/5가 그대로 재사용한다** — section-4는 날짜별 `매출_AB` 합(전체 매출은
+  `null` 행 포함, 광고 매출은 제외한 합)을, section-5는 마지막 이틀(D-1, D-0) 행만 쓴다. 세
+  섹션이 각자 호출하지 않는다.
+- 이 섹션(`s3`)의 `ad_cost`/`revenue`는 **세 매체 행만** 합산한다 — `null`(Organic) 행은
+  광고 성과 차트이므로 여기서는 제외한다(전체 매출이 필요한 곳은 section-4).
 
 ## `list_promotions` — 별도 호출 없음, section-2의 공유 응답(7일 룩백)을 재사용
 

@@ -3,8 +3,8 @@
 **report_type:** `monthly-detailed` — **브리즘(airbridge 기반) 전용** (항상 포함). 매체 단위로
 **전월(M-1)과 당월(M0)**을 비교한다 — Naver Ads / Google Ads / Meta Ads / Organic / Others
 5개 항목 고정. 지표는 6개(광고비/CTR/예약 완료/예약 완료 CPA/매출/ROAS, 순서 고정).
-⚠️ Organic/Others는 현재 데이터 소스(ELT 광고 성과)에서 제공되지 않아 `-` 행으로 남는다
-(아래 매핑 참고).
+⚠️ Others는 현재 데이터 소스(ELT 광고 성과)에 대응하는 값이 없어 `-` 행으로 남는다. Organic은
+`media`가 `null`인 행으로 정상 조회된다(아래 매핑 참고).
 
 > ℹ️ 표 HTML과 **파생지표(CTR/CPA/ROAS)·변화량·화살표·색상·M0 매출 내림차순 정렬·행 생성**은
 > 전부 템플릿+빌더가 한다 — 모델은 아래 규칙으로 5개 항목의 **월별 원본 수치만** 빌더 입력
@@ -20,9 +20,12 @@ section-3가 호출한 `get_ad_performance` 1회(`media` 생략, `time_grain:"mo
 ## 빌더 `s4.channels` 매핑 (5개 항목, M-1/M0 각각)
 
 `media` 차원 값 `Naver`/`Google`/`Meta` 행을 각각 `"Naver Ads"`/`"Google Ads"`/`"Meta Ads"`
-항목으로 매핑한다. **`Organic`/`Others`는 현재 데이터 소스에서 제공되지 않는다** — 예전
-airbridge `channel` 행이 주던 값이다. 두 항목은 `channels`에 넣지 않거나 두 달 다 `null`로
-넣는다(빌더가 `-` 행으로 렌더링) — 다른 값으로 지어 채우지 않는다.
+항목으로 매핑한다. `media`가 `null`인 행은 `"Organic"` 항목으로 매핑한다 — 광고비 없이
+매출만 귀속되는 행이며 정상적으로 조회된다(`cost`/`impression`/`click`은 이 행에서 항상
+비어 있으므로 넣지 않는다). **`Others`는 현재 데이터 소스에 대응하는 값이 없다**(관찰된
+`media` 값은 Google/Meta/Naver/`null` 4가지뿐, 2026-08-21 기준) — 이 항목만 `channels`에
+넣지 않거나 두 달 다 `null`로 넣는다(빌더가 `-` 행으로 렌더링) — 다른 값으로 지어 채우지
+않는다.
 
 ```json
 {"channels": [

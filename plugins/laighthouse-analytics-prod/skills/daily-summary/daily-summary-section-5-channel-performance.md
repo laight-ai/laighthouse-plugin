@@ -21,9 +21,12 @@ section-3의 공유 응답(`media` 생략, `time_grain:"day"`, `group_by:["media
 ## 5개 항목 매핑
 
 - **Naver Ads / Google Ads / Meta Ads**: `media` 차원 값 `Naver`/`Google`/`Meta` 행.
-- **Organic / Others**: ⚠️ **현재 데이터 소스(ELT 광고 성과)에서 제공되지 않는다** — 예전
-  airbridge `channel` 행이 주던 값이다. 이 두 항목은 `rows`에 넣지 않는다(빌더가 `-` 행으로
-  채워 항상 5행 유지). 다른 값으로 지어 채우지 않는다.
+- **Organic**: `media` 값이 `null`인 행 — 광고비 없이 매출만 귀속되는 행이며 정상적으로
+  조회된다(제공 안 되는 게 아니다). `cost`는 비워두고(광고비 개념 없음) `revenue`/
+  `reservation`만 그 행의 `매출_AB`/`예약완료_AB`로 채운다.
+- **Others**: ⚠️ 대응하는 `media` 값이 없다(관찰된 값은 Google/Meta/Naver/`null` 4가지뿐,
+  2026-08-21 기준) — 이 항목은 `rows`에 넣지 않는다(빌더가 `-` 행으로 채움). 다른 값으로
+  지어 채우지 않는다.
 
 ## 빌더 `s5.rows` (매체당 하나, D-1/D-0 각각 원본 수치)
 

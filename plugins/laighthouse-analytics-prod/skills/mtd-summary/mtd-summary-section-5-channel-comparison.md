@@ -4,8 +4,8 @@
 당월(M0)을 **Naver Ads / Google Ads / Meta Ads / Organic / Others 5개 항목 × 광고비/매출/
 예약 완료/ROAS 4개 지표**로 비교. **전월은 전체 월이 아니라 당월과 같은 일자까지 자른 동일
 기간(1일~target_date.day일) 비교다** — `day_offset`으로 구현되며, 관련 각주는 빌더가 넣는다.
-⚠️ Organic/Others는 현재 데이터 소스(ELT 광고 성과)에서 제공되지 않아 `-` 행으로 남는다
-(아래 매핑 참고).
+⚠️ Others는 현재 데이터 소스(ELT 광고 성과)에 대응하는 값이 없어 `-` 행으로 남는다.
+Organic은 `media`가 `null`인 행으로 정상 조회된다(아래 매핑 참고).
 
 > ℹ️ 표 HTML/헤더 월 표기/ROAS 계산/변화량(%·%p)·화살표·색상/정렬/각주는 전부 빌더가 한다 —
 > 모델은 아래 규칙으로 항목별 **M-1/M0 원본 수치**만 빌더 입력 JSON의 `s5.channels`에 넣는다.
@@ -21,9 +21,12 @@
 ## 항목 매핑 (각 월 M-1/M0 각각, 행의 `media` 차원 값 기준)
 
 - **Naver Ads / Google Ads / Meta Ads**: `media`가 `Naver`/`Google`/`Meta`인 행.
-- **Organic / Others**: ⚠️ **현재 데이터 소스(ELT 광고 성과)에서 제공되지 않는다** — 예전
-  airbridge `channel` 행이 주던 값이다. 두 항목은 `channels`에 넣지 않는다(빌더가 5행
-  고정으로 `-` 행을 채운다) — 다른 값으로 지어 채우지 않는다.
+- **Organic**: `media`가 `null`인 행 — 광고비 없이 매출만 귀속되는 행이며 정상적으로
+  조회된다. `cost`는 비우고(광고비 개념 없음) `revenue`/`reservation`만 그 행의
+  `매출_AB`/`예약완료_AB`로 채운다.
+- **Others**: ⚠️ 대응하는 `media` 값이 없다(관찰된 값은 Google/Meta/Naver/`null` 4가지뿐,
+  2026-08-21 기준) — 이 항목은 `channels`에 넣지 않는다(빌더가 5행 고정으로 `-` 행을
+  채운다). 다른 값으로 지어 채우지 않는다.
 
 ## 빌더 `s5.channels` 필드 (M-1/M0 각각, 원본 수치 그대로)
 

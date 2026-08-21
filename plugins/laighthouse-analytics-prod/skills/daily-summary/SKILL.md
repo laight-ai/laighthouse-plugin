@@ -49,9 +49,10 @@ generic 도구(`get_ad_performance`)와 `get_target_progress_v2`, `list_promotio
 - `media` 필터 값은 `"Google"`/`"Meta"`/`"Naver"` (대소문자 변형·한국어 표기는 서버가 흡수).
 - ⚠️ `get_target_progress_v2`의 ROAS류 수치는 비율값(0.87)이므로 ×100 해서 %로 쓴다 —
   이 도구 응답만 여전히 markdown 표다.
-- ⚠️ **전체(오거닉 포함) 매출·채널(`Organic`/`Others`) 구분은 현재 데이터 소스(ELT 광고
-  성과)에서 제공되지 않는다** — 예전 airbridge `channel` 행이 주던 값이다. 해당 값이 필요한
-  자리는 지어내지 말고 섹션 규칙대로 `-`/"데이터 준비 중"으로 처리한다.
+- `media`를 생략하고 `group_by:["media"]`로 조회하면 `media`가 `null`인 행이 온다 — 이게
+  `Organic`이다(광고비 없이 매출만 귀속). 정상 응답이니 버리지 말고 섹션 규칙대로 매핑한다.
+  `Others`는 대응하는 `media` 값이 없어 `-`/"데이터 준비 중"으로 남긴다 — 다른 값으로 지어
+  채우지 않는다.
 
 ---
 

@@ -3,10 +3,10 @@
 **report_type:** `mtd-summary` — **브리즘(airbridge 기반) 전용** (항상 포함). 최근 6개월
 (당월 포함) 라인 차트. 매출은 Airbridge 귀속 매출(`매출_AB`).
 
-> ⚠️ **ELT 이관 후 알려진 제약**: 이 차트의 `total_revenue`(오거닉 포함 전체 매출)는 현재
-> 데이터 소스(ELT 광고 성과 — 광고 귀속 지표만 제공)에서 얻을 수 없다. 광고 매출을 전체
-> 매출로 지어 넣지 말고, **`s4` 키를 빌더 입력에서 빼서 "데이터 준비 중" 카드로 렌더링한다.**
-> 서버가 전체 매출 지표를 다시 제공하면 아래 규칙을 복원한다.
+> ℹ️ **`total_revenue` 계산법**: `media`가 `null`인 행(Organic — 광고비 없이 매출만 귀속)도
+> 응답에 정상적으로 포함되어 있다. 월별로 **모든 `media` 값(Google/Meta/Naver/`null`)의
+> `매출_AB`를 합산**하면 `total_revenue`, **`media`가 `null`이 아닌 행만 합산**하면
+> `ad_revenue`다 — 둘 다 이미 받은 응답에서 바로 계산되며 별도 호출이 필요 없다.
 
 > ℹ️ 차트 HTML/Script/월 라벨/각주(MTD 기준·전체 매출 정의·zero-fill)는 전부 빌더가 한다 —
 > 모델은 아래 규칙으로 **6개월치 배열 2개**만 빌더 입력 JSON의 `s4`에 넣는다.
@@ -17,9 +17,14 @@
   (`media` 생략, `time_grain:"month"`, `group_by:["media"]`, 5개월 전~당월,
   `day_offset`=target_date.day)에서 월별 `매출_AB` 합(= 광고 매출)을 얻을 수 있다.
 
-## 빌더 `s4` 필드 — 현재는 사용하지 않는다 (위 제약 참고)
+## 빌더 `s4` 필드 (각 배열 6개, 5개월 전 → 당월 순)
 
-빌더 스키마는 `ad_revenue`/`total_revenue`(각 6개)/`labels`/`zero_fill`이지만,
-`total_revenue` 소스가 없는 동안은 **`s4` 키 자체를 넣지 않는다** → "데이터 준비 중" 카드.
-`ad_revenue`만으로 차트를 채우거나 `total_revenue`에 광고 매출을 복사해 넣는 것은 금지다
-(전체 매출 정의 왜곡).
+| 필드 | 값 |
+|---|---|
+| `ad_revenue` | 월별: `media`가 `null`이 아닌 행(`Google`/`Meta`/`Naver`)의 `매출_AB` 합 |
+| `total_revenue` | 월별: **모든** 행(`null` 포함)의 `매출_AB` 합 |
+| `labels` | 생략 (빌더가 자동 생성) |
+| `zero_fill` | 빌더 스키마대로(데이터 없는 월 0 채움 여부) |
+
+`ad_revenue`를 `total_revenue`에 복사하거나 둘을 같은 값으로 채우지 않는다 — `null` 행의
+매출이 빠지면 `total_revenue`가 아니라 `ad_revenue`가 된다.

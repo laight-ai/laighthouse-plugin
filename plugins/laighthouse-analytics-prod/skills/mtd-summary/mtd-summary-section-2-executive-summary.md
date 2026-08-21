@@ -42,9 +42,9 @@ MCP 호출 없이 다른 섹션 응답만 재사용한다.
      기간 매출/실제 ROAS) 중심으로만 쓴다.
    - mtd-summary-section-3(월별 광고 성과 차트)의 공유 응답(`get_ad_performance`,
      `time_grain:"month"`, `group_by:["media"]`, 최근 6개월) — 월별 광고비/매출/ROAS 추이.
-   - (⚠️ mtd-summary-section-4는 "데이터 준비 중"으로 남는다 — 현재 데이터 소스(ELT 광고
-     성과)에는 오거닉/전체 매출이 없어 오거닉 매출 비중 변화는 계산하지 않는다.
-     지어내기 금지.)
+   - mtd-summary-section-4(월별 매출 추이)의 `total_revenue`/`ad_revenue` 값 —
+     `total_revenue - ad_revenue` = 오거닉 매출이므로, 전체 매출 대비 오거닉 매출 비중 변화를
+     서술할 때 쓴다. 지어내기 금지, section-4가 이미 계산한 값만 쓴다.
    - mtd-summary-section-5(Channel별 성과 비교)가 이미 가공한 **채널별(Google Ads/
      Meta Ads/Naver Ads) 매출·ROAS 변화율(전월 대비)** 비교 데이터.
    - 위 「MCP 도구 호출」에서 새로 받은 `list_promotions` 응답 — 당월 MTD 기간과 겹치는

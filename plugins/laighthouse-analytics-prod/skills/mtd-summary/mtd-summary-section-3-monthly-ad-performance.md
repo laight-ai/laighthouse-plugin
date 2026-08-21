@@ -12,11 +12,14 @@
 { "brand_name": "breezm", "start_date": "5개월 전 YYYY-MM-01", "end_date": "target_date", "time_grain": "month", "group_by": ["media"], "day_offset": "target_date.day" }
 ```
 
-- **`media` 파라미터를 생략한다** — 이 1회 호출로 월별·매체별(`Google`/`Meta`/`Naver`) 행을
-  전부 받는다. 각 행에 `month`("YYYY-MM") 키와 `광고비`/`매출_AB`/`예약완료_AB` 등 지표가
-  함께 들어있다(별도 매출 응답 없음).
+- **`media` 파라미터를 생략한다** — 이 1회 호출로 월별·매체별(`Google`/`Meta`/`Naver`) 행에
+  더해, `media`가 `null`인 행(Organic — 광고비 없이 매출만 귀속)도 함께 받는다. 각 행에
+  `month`("YYYY-MM") 키와 `광고비`/`매출_AB`/`예약완료_AB` 등 지표가 함께 들어있다(별도
+  매출 응답 없음).
 - **이 응답은 section-4와 section-5가 그대로 재사용한다** — 세 섹션이 각자 호출하지 않는다
   (section-5가 필요한 전월~당월 2개월은 이 6개월 범위에 완전히 포함되고 `day_offset`도 동일).
+  이 섹션(`s3`)의 `ad_cost`/`revenue`는 **세 매체 행만** 합산한다 — `null`(Organic) 행은
+  광고 성과 차트이므로 여기서는 제외한다(전체 매출이 필요한 곳은 section-4).
 - **`day_offset: target_date.day`를 반드시 넣는다** — 없으면 당월이 실제 오늘 날짜까지 누적돼
   section-1의 target_date 기준 수치와 어긋난다.
 

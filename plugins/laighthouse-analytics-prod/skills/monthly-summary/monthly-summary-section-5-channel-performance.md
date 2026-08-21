@@ -2,8 +2,9 @@
 
 **report_type:** `monthly-summary` — **브리즘(airbridge 기반) 전용** (항상 포함).
 전월(M-1)과 당월(M0)을 매체 단위로 비교한다 — Naver Ads / Google Ads / Meta Ads / Organic /
-Others **5개 항목 고정** × 광고비/매출/예약 완료/ROAS 4개 지표. ⚠️ Organic/Others는 현재
-데이터 소스(ELT 광고 성과)에서 제공되지 않아 `-` 행으로 남는다(아래 매핑 참고).
+Others **5개 항목 고정** × 광고비/매출/예약 완료/ROAS 4개 지표. ⚠️ Others는 현재 데이터
+소스(ELT 광고 성과)에 대응하는 값이 없어 `-` 행으로 남는다. Organic은 `media`가 `null`인
+행으로 정상 조회된다(아래 매핑 참고).
 
 > ℹ️ 표 HTML/헤더/정렬(M0 매출 내림차순)/ROAS 계산/변화량·화살표·색상(네 지표 전부
 > 증가=빨강·감소=파랑·표시값 0.0=검정, M-1이 `-`/0이면 변화량 미표시)/`-` 표기/각주는 전부
@@ -19,9 +20,12 @@ section-3이 1회 호출한 `get_ad_performance`(`media` 생략, `time_grain:"mo
 ## 항목 매핑 (각 월 M-1/M0 각각, 행의 `media` 차원 값 기준)
 
 - **Naver Ads / Google Ads / Meta Ads**: `media`가 `Naver`/`Google`/`Meta`인 행.
-- **Organic / Others**: ⚠️ **현재 데이터 소스(ELT 광고 성과)에서 제공되지 않는다** — 예전
-  airbridge `channel` 행이 주던 값이다. 두 항목은 `rows`에 넣지 않는다(빌더가 `-` 행으로
-  채워 항상 5행 유지) — 다른 값으로 지어 채우지 않는다.
+- **Organic**: `media`가 `null`인 행 — 광고비 없이 매출만 귀속되는 행이며 정상적으로
+  조회된다. `cost`는 `null`로 두고(광고비 개념 없음) `revenue`/`reservation`만 그 행의
+  `매출_AB`/`예약완료_AB`로 채운다.
+- **Others**: ⚠️ 대응하는 `media` 값이 없다(관찰된 값은 Google/Meta/Naver/`null` 4가지뿐,
+  2026-08-21 기준) — 이 항목은 `rows`에 넣지 않는다(빌더가 `-` 행으로 채움). 다른 값으로
+  지어 채우지 않는다.
 
 ## 빌더 `s5` 필드 — 5개 항목 전부, 순서 무관 (정렬은 빌더가 한다)
 
