@@ -1,7 +1,7 @@
 # laighthouse-analytics
 
-라이트하우스 MCP 연동 데이터를(airbridge 기반) 성과 보고서(HTML)와 Word(.docx) 보고서로
-렌더링하는 Cowork 플러그인입니다.
+라이트하우스 MCP 연동 데이터를(airbridge 기반) 성과 보고서(HTML)로 렌더링하는 Cowork
+플러그인입니다.
 
 ## 컴포넌트
 
@@ -17,7 +17,6 @@
 | 스킬 | monthly-summary |  Executive 월간 보고서(HTML, 5개 섹션, 임원용 핵심 요약) 렌더링 |
 | 스킬 | creative-detailed |  소재 보고서(HTML, 5개 섹션, 실무 상세) 렌더링 |
 | 스킬 | creative-summary |  Executive 소재 보고서(HTML, 5개 섹션, 임원용 핵심 요약) 렌더링 |
-| 스킬 | render-report-docx | MCP 결과를 편집 가능한 Word(.docx) 보고서로 렌더링 |
 
 ## 사용법
 
@@ -33,14 +32,6 @@
 
 각 보고서 종류는 별도 스킬로 나뉘어 있으며, report_type을 별도로 지정할 필요 없이 스킬 자체가
 보고서 종류를 고정한다.
-
-### Word 문서 렌더링 (.docx)
-> " MTD 보고서를 워드로 만들어줘"
-> "Monthly 보고서 docx로 저장해줘"
-
-대용량 표(키워드/캠페인 등)는 docx에서 매출 0원 행을 자동 제외하고 상위 50행까지 싣습니다.
-
-`render-report-docx`는 `python-docx`가 필요합니다 (`assets/docx_report/requirements.txt` 참고).
 
 ## MCP 서버
 

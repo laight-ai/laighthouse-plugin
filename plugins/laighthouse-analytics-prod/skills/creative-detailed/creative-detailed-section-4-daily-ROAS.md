@@ -9,19 +9,19 @@ ROAS를 라인 차트로 보여준다.
 
 ## MCP 도구 호출: 신규 호출 없음 — section-3의 공유 응답을 재사용
 
-**section-3이 이미 받아둔 `get_ad_performance_daily_table`(`media="airbridge"`,
-`group_by:"ad"`, 날짜별 행) 응답**을 쓴다. meta 쪽은 section-3이 이미 가공한 결과(5개 소재
-키·표시 이름·날짜별 `cost`)를 그대로 재사용한다 — 소재 선정·표시 이름을 다시 판단하지 않는다.
-airbridge 응답이 캡처 훅 스텁으로 왔으면 section-3과 같은 방식(저장 파일 대상 즉석 Bash
-exact-match)으로 5개 키 행만 추출한다.
+**section-3이 이미 받아둔 `get_ad_performance`(`time_grain:"day"`, `media:"Meta"`, 소재 단위)
+응답**을 쓴다 — 매출(`매출_AB`)이 같은 행에 지표로 들어있어 별도 응답이 없다. section-3이
+이미 가공한 결과(5개 소재 키·표시 이름)를 그대로 재사용한다 — 소재 선정·표시 이름을 다시
+판단하지 않는다. 응답이 캡처 훅 스텁으로 왔으면 section-3과 같은 방식(저장 파일 대상 즉석
+Bash(python) exact-match)으로 5개 키 행만 추출한다.
 
 ## 일별 시리즈 (5개 키 × 7일 exact-match — bounded 작업, 전부 정확하게)
 
-- **조인**: `campaign_name`+`asset_group`+`ad_name` 세 필드 정확 일치(정규화/부분일치 금지)로
-  그 날짜의 airbridge 행을 찾아 `airbridge_revenue`를 가져온다 — 소재(ad) 단위까지 매출이
-  정상 귀속됨은 확인됨(2026-08-03). 분모는 section-3에서 쓴 같은 소재·같은 날짜의 meta `cost`.
-- 날짜별 `ROAS` = `airbridge_revenue` ÷ `cost` × 100.
-- 그 날짜 `cost`가 0/없음이거나 airbridge 조인 실패면 그 날짜는 **`0`으로 채운다** — section-3의
+- **조인 없음**: `campaign_name`+`ad_group_name`+`ad_name` 세 필드 정확 일치(정규화/부분일치
+  금지)로 그 날짜 행을 찾으면 `매출_AB`/`광고비`가 그 행에 함께 있다.
+- 날짜별 `ROAS` = 그 행의 서버 계산 `ROAS_AB`(이미 % 값 — ×100 금지. 행 하나가 곧 소재×날짜
+  단위라 그대로 쓸 수 있다) 또는 `매출_AB` ÷ `광고비` × 100 — 같은 값이다.
+- 그 날짜 `광고비`가 0/없음이거나 행 자체가 없으면 그 날짜는 **`0`으로 채운다** — section-3의
   `null`과 달리 끊긴 구간으로 남기지 않는다(선이 0%까지 내려갔다 이어지는 형태 — Y축 `min:0`은
   템플릿에 있음). 빌더도 null이 오면 0으로 보정하지만, 모델이 처음부터 0으로 넣는다.
 

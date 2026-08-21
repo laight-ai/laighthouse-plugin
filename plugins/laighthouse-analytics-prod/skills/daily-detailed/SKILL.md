@@ -25,17 +25,30 @@ weekly나 다른 브랜드는 지원하지 않는다(요청받으면 알맞은 �
 파라미터에는 **반드시 정확히 `"breezm"`**(영문 소문자)을 넣는다 (`"브리즘"`을 넣으면
 `Unknown brand` 에러). 사람이 읽는 텍스트(제목·완료 메시지)에는 계속 "브리즘"을 쓴다.
 
-generic 도구(`get_ad_performance_daily_table`/`get_ad_performance_monthly_table`)와
-`get_target_progress_v2`, `list_promotions`만 쓴다 — naver 전용 도구는 일절 쓰지 않는다.
-보고서의 모든 "매출"은 **Airbridge 매출**(`media="airbridge"` 응답의 `airbridge_revenue`)이고,
-광고 채널은 airbridge 응답 `channel` ∈ {`Google Ads`, `Meta Ads`, `Naver Ads`} 행으로 고정이다
-— 첫 airbridge 응답에서 실제 `channel` 값을 확인하고, 다르면 조용히 0을 만들지 말고 보고서에
-불일치를 명시한다.
+generic 도구(`get_ad_performance`)와 `get_target_progress_v2`, `list_promotions`만 쓴다.
+보고서의 모든 "매출"은 **Airbridge 귀속 매출**로, `get_ad_performance` 응답 행의 지표
+`매출_AB`다(예약은 `예약완료_AB`). 매체 구분은 행의 `media` 차원 값(`Google`/`Meta`/`Naver`)
+으로 한다 — 예전의 airbridge/`channel` 행 개념은 ELT 이관으로 사라졌고, 매출/예약이 각 행에
+지표로 함께 들어온다(별도 조인 불필요).
 
-공통 호출 규칙:
-- ⚠️ **어떤 호출에도 `campaign-type` 파라미터를 넣지 않는다** — airbridge 행이 조용히 누락된다.
-- ⚠️ `group_by`는 **문자열 enum**(`total`/`media`/`campaign`/`ad-set`/`ad`)이다 — boolean 금지.
-- ⚠️ `get_target_progress_v2`의 ROAS류 수치는 비율값(0.87)이므로 ×100 해서 %로 쓴다.
+공통 호출 규칙 (`get_ad_performance`):
+- ℹ️ 응답은 **JSON 봉투**다: `{"source": "elt", "tenant": "breezm", "time_grain": "day"|"month"|
+  "total", "dimensions": [...], "metrics": [...], "row_count": N, "rows": [...]}`. 행의 차원
+  키는 영문(`date`(day grain)/`month`(month grain, "YYYY-MM")/`media`/`campaign_id`/
+  `campaign_name`/`ad_group_id`/`ad_group_name`/`ad_id`/`ad_name` 등), **지표 키는 테넌트별**
+  이다 — 브리즘은 한국어 지표명 `광고비`(비용)/`노출`/`클릭`/`매출_AB`/`예약완료_AB`와 서버
+  계산 비율 지표 `ROAS_AB`/`CPM`/`CTR`/`CVR`/`CPA`/`CPA_AB`를 쓴다. **응답의 `metrics` 목록이
+  유효한 지표 키의 유일한 진실이다** — 키를 추측하지 않는다.
+- ⚠️ 비율 지표(`ROAS_AB`/`CTR` 등)는 요청한 grain 기준으로 서버가 이미 % 값으로 계산해 준다 —
+  ×100 불필요. **행별 비율 값을 합산해 상위 기간/상위 그룹 비율을 만들지 않는다**(필요하면
+  원자 지표 합으로 다시 계산).
+- ⚠️ `group_by`는 **차원명 문자열 리스트**다 (예: `["media"]`,
+  `["media","campaign_id","campaign_name"]`) — 예전의 문자열 enum(`total`/`campaign` 등)이
+  아니다. 생략하면 총계만 온다(day/month grain이면 `date`/`month` 키 포함). `metrics` 생략 시
+  테넌트 전체 지표가 온다.
+- `media` 필터 값은 `"Google"`/`"Meta"`/`"Naver"` (대소문자 변형·한국어 표기는 서버가 흡수).
+- ⚠️ `get_target_progress_v2`의 ROAS류 수치는 비율값(0.87)이므로 ×100 해서 %로 쓴다 —
+  이 도구 응답만 여전히 markdown 표다.
 
 ---
 
@@ -60,8 +73,8 @@ generic 도구(`get_ad_performance_daily_table`/`get_ad_performance_monthly_tabl
 >
 > - **`assets/dxd_table_rows.py`** — section-4/5의 조인·파생지표·변화율·필터·정렬·`<tr>` 생성.
 >   응답이 `[laighthouse-capture-hook] ... 저장됨: <경로>` 스텁으로 오면(캡처 훅 동작 호스트 —
->   이 플러그인의 PostToolUse 훅이 대용량 응답을 파일로 저장한 것) `markdown_files`에 경로만,
->   원본 마크다운이 그대로 오면 `markdown`에 문자열 통째로 넘긴다(혼용 가능). 따옴표 있는
+>   이 플러그인의 PostToolUse 훅이 대용량 응답을 파일로 저장한 것) `json_files`에 경로만,
+>   원본 JSON 봉투가 그대로 오면 `json`에 문자열 통째로 넘긴다(혼용 가능). 따옴표 있는
 >   heredoc(`<<'PYEOF'`)으로 stdin에 파이프하고, 출력은 `> /tmp/s4_rows.json`처럼 빌더가 읽을
 >   파일로 바로 저장한다. 스텁이 가리키는 캡처 파일을 Read로 열어 내용을 컨텍스트로 가져오지
 >   않는다(경로만 넘긴다).
@@ -93,17 +106,18 @@ generic 도구(`get_ad_performance_daily_table`/`get_ad_performance_monthly_tabl
 
 1. 파라미터를 파싱한다. report_type은 `daily-detailed` 고정.
 2. **1차 배치 (한 메시지에 동시 발사)**: `get_target_progress_v2` ×3(google/meta/naver) +
-   `get_ad_performance_monthly_table` ×1(media 생략) — section-1용
-   (`daily-detailed-section-1-target-achievement.md` 참고).
+   `get_ad_performance` ×1(당월 1일~target_date, `time_grain:"month"`, `group_by:["media"]`,
+   media 생략) — section-1용 (`daily-detailed-section-1-target-achievement.md` 참고).
 3. ⏱ **필수 체크포인트 — 스켈레톤 선(先) 게시.** 2단계 응답 수신 즉시, 다음 단계 전에
    `python3 assets/build_report.py`를 `{"skeleton": true, ...}`로 1회 호출해 전 섹션 "데이터
    준비 중" 골격을 만들고 게시한다(아래 8단계와 같은 출력 경로/Artifact — 이후 재게시로 교체).
    이 단계를 건너뛰고 끝에서 한꺼번에 내놓으려다 툴호출 예산이 바닥나면 사용자는 아무것도 못
    본다 — 실제 사고 사례가 있는 필수 단계다.
-4. **2차 배치 (한 메시지에 동시 발사)**: section-3(`group_by:"media"`, 7일, media 생략 1회 +
-   `list_promotions` 1회), section-4(`group_by:"campaign"`, 이틀, media 생략 1회),
-   section-5(google/meta/naver `group_by:"ad"` + airbridge `group_by:"campaign"`, 이틀, 4회).
-   각 섹션 파일의 호출 명세를 그대로 따른다.
+4. **2차 배치 (한 메시지에 동시 발사)**: section-3(`time_grain:"day"`, 7일, `group_by` 생략
+   1회 + `list_promotions` 1회), section-4(`time_grain:"day"`, 이틀,
+   `group_by:["media","campaign_id","campaign_name"]`, media 생략 1회),
+   section-5(`time_grain:"day"`, 이틀, `group_by:["media","campaign_name","ad_group_name",
+   "ad_name"]`, media=Google/Meta/Naver 각각 3회). 각 섹션 파일의 호출 명세를 그대로 따른다.
 5. **계산**: section-1 값 판정(섹션 파일의 계산 규칙), section-3 배열 3개 산출,
    section-4/5는 `dxd_table_rows.py` 실행(`> /tmp/s4_rows.json`, `> /tmp/s5_rows.json`).
 6. **section-2 Executive Summary 작성** — 신규 MCP 호출 없이 다른 섹션 응답만 재사용해 AI가

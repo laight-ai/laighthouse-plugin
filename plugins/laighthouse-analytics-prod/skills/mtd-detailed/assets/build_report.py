@@ -60,8 +60,10 @@
     # (b) "rows": [...] — 이미 조인된 행(campaign별 {channel,campaign,impression,click,cost,revenue,reservation},
     #     미매칭이면 revenue/reservation을 null 대신 생략하지 말고 "unmatched": true)
     # (c) "rows_file": "/tmp/s7.json" — (a)/(b) 형태의 JSON 파일 경로
-    # (d) "markdown": ["<range_table 응답 원본 문자열>", ...] / "markdown_files": ["<경로>", ...]
-    #     — 4개 응답 원본을 가공 없이 그대로 담으면 빌더가 파싱·media 분리·조인까지 처리
+    # (d) "json": ["<get_ad_performance(time_grain=\"total\") 응답 봉투 원본 문자열>", ...] /
+    #     "json_files": ["<캡처 훅 스텁 경로>", ...] — 응답 원본을 가공 없이 그대로 담으면
+    #     빌더가 봉투 파싱·media 분리·행 변환까지 처리 (매출/예약이 행에 함께 있어 조인 불필요).
+    #     지표 키가 브리즘 기본값(광고비/노출/클릭/매출_AB/예약완료_AB)과 다르면 "metric_keys" 지정.
   }
 }
 
@@ -90,7 +92,6 @@ MONEY_FIELDS = {"목표_예산", "소진액", "목표_매출", "기간_매출", 
 PCT_FIELDS = {"소진율", "매출_달성률", "실제_ROAS", "목표_ROAS", "예산_소진율", "ROAS"}
 
 MEDIA_LABEL = {"google": "Google Ads", "meta": "Meta Ads", "naver": "Naver Ads"}
-STRING_FIELDS = {"logdate", "media", "campaign_name", "asset_group", "ad_name", "channel"}
 
 
 def fmt_won(v):
@@ -242,17 +243,13 @@ def build_s6_rows(rows):
 
 # ── section 7 ───────────────────────────────────────────────────────────────
 
-def _coerce_cell(key, value):
-    value = value.strip()
-    if key in STRING_FIELDS:
-        return value
-    if value == "":
-        return None
-    try:
-        f = float(value)
-    except ValueError:
-        return value  # 예상 못 한 비숫자 값은 문자열 그대로 보존(방어적)
-    return int(f) if f.is_integer() else f
+DEFAULT_METRIC_KEYS = {
+    "cost": "광고비",
+    "impression": "노출",
+    "click": "클릭",
+    "revenue": "매출_AB",
+    "reservation": "예약완료_AB",
+}
 
 
 def unwrap_json_result(text):
@@ -274,22 +271,14 @@ def unwrap_json_result(text):
     return text
 
 
-def parse_markdown_table(text):
-    """`get_ad_performance_range_table` 등이 반환하는 파이프(|) 마크다운 표 문자열을
-    행 dict 리스트로 파싱한다. 구분선(전부 `---`)은 건너뛴다."""
-    lines = [ln for ln in text.strip().splitlines() if ln.strip()]
-    if not lines:
-        return []
-    header = [c.strip() for c in lines[0].strip().strip("|").split("|")]
-    rows = []
-    for line in lines[1:]:
-        cells = [c.strip() for c in line.strip().strip("|").split("|")]
-        if all(c == "" or set(c) <= {"-"} for c in cells):
-            continue
-        if len(cells) != len(header):
-            continue
-        rows.append({h: _coerce_cell(h, v) for h, v in zip(header, cells)})
-    return rows
+def parse_envelope(text):
+    """`get_ad_performance`가 반환하는 JSON 봉투 문자열에서 (rows, metrics)를 꺼낸다."""
+    obj = json.loads(unwrap_json_result(text))
+    if isinstance(obj, list):
+        return obj, None  # rows 배열만 온 경우도 방어적으로 허용
+    if not isinstance(obj, dict) or not isinstance(obj.get("rows"), list):
+        raise SystemExit("s7 입력이 get_ad_performance JSON 봉투가 아님 — rows 배열이 없다")
+    return obj["rows"], obj.get("metrics")
 
 
 def load_s7_input(section):
@@ -301,27 +290,48 @@ def load_s7_input(section):
             data = json.load(f)
         if isinstance(data, list):
             data = {"rows": data}
-    if "markdown" in data or "markdown_files" in data:
-        md = data.get("markdown", [])
-        if isinstance(md, str):
-            md = [md]
-        md = list(md)
-        files = data.get("markdown_files", [])
+    if "json" in data or "json_files" in data:
+        texts = data.get("json", [])
+        if isinstance(texts, str):
+            texts = [texts]
+        texts = list(texts)
+        files = data.get("json_files", [])
         if isinstance(files, str):
             files = [files]
         for p in files:
             with open(os.path.expanduser(p), encoding="utf-8") as f:
-                md.append(f.read())
-        raw = [r for text in md for r in parse_markdown_table(unwrap_json_result(text))]
-        media_rows = [{"channel": MEDIA_LABEL[r["media"]], "campaign": r.get("campaign_name") or "",
-                       "impression": r.get("impression"), "click": r.get("click"), "cost": r.get("cost")}
-                      for r in raw if r.get("media") in MEDIA_LABEL]
-        ab_rows = [{"campaign": r.get("campaign_name") or "",
-                    "revenue": r.get("airbridge_revenue"), "reservation": r.get("reservation")}
-                   for r in raw if r.get("media") == "airbridge"]
-        if not media_rows:
-            raise SystemExit("s7 markdown 파싱 결과 매체 행이 0개 — 원본이 range_table 응답인지 확인")
-        return {"media_rows": media_rows, "airbridge_rows": ab_rows}
+                texts.append(f.read())
+        raw = []
+        envelope_metrics = None
+        for text in texts:
+            env_rows, env_metrics = parse_envelope(text)
+            raw.extend(env_rows)
+            envelope_metrics = envelope_metrics or env_metrics
+        mk = dict(DEFAULT_METRIC_KEYS)
+        mk.update(data.get("metric_keys") or {})
+        if envelope_metrics:
+            missing = [v for v in mk.values() if v not in envelope_metrics]
+            if missing:
+                raise SystemExit(
+                    f"지표 키 {missing}가 응답 metrics {envelope_metrics}에 없음 — "
+                    f"테넌트별 지표 키를 s7.metric_keys로 넘겨라"
+                )
+        # ELT 행에는 매출/예약이 함께 들어있다 — airbridge 조인 없이 바로 조인 완료 행으로 변환
+        rows = []
+        for r in raw:
+            channel = MEDIA_LABEL.get(str(r.get("media") or "").lower())
+            if channel is None:
+                continue  # 알 수 없는 매체는 방어적으로 제외
+            rows.append({
+                "channel": channel, "campaign": r.get("campaign_name") or "",
+                "impression": r.get(mk["impression"]), "click": r.get(mk["click"]),
+                "cost": r.get(mk["cost"]),
+                "revenue": r.get(mk["revenue"]), "reservation": r.get(mk["reservation"]),
+                "unmatched": False,
+            })
+        if not rows:
+            raise SystemExit("s7 봉투 파싱 결과 매체 행이 0개 — group_by에 media/campaign 차원이 있는지 확인")
+        return {"rows": rows}
     return data
 
 
@@ -490,7 +500,7 @@ def main():
 
     # ── section 7
     s7 = section_data("s7")
-    if s7 and any(k in s7 for k in ("rows", "rows_file", "media_rows", "markdown", "markdown_files")):
+    if s7 and any(k in s7 for k in ("rows", "rows_file", "media_rows", "json", "json_files")):
         status["s7"] = "ok"
         s7_rows = build_s7_rows(s7)
     else:

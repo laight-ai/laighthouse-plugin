@@ -29,28 +29,33 @@ weekly나 다른 브랜드는 지원하지 않는다(요청받으면 알맞은 �
 파라미터에는 **반드시 정확히 `"breezm"`**(영문 소문자)을 넣는다 (`"브리즘"`을 넣으면
 `Unknown brand` 에러). 사람이 읽는 텍스트(제목·완료 메시지)에는 계속 "브리즘"을 쓴다.
 
-generic 도구(`get_ad_performance_range_table`/`get_ad_performance_daily_table`)와
-`get_ad_creative_info`만 쓴다 — naver 전용 도구, `get_target_progress_v2`, `list_promotions`,
-`day_offset`은 쓰지 않는다. 보고서의 모든 "매출"은 **Airbridge 매출**(`media="airbridge"`
-응답의 `airbridge_revenue`)이고, Airbridge가 소재(ad) 단위까지 매출/예약을 정상 귀속한다
-(2026-08-03 실측). 첫 airbridge 응답에서 실제 `channel` 값을 확인하고, 상수(`Meta Ads` 등)와
-다르면 조용히 0을 만들지 말고 보고서(`s2`의 `⚠` 줄)에 불일치를 명시한다.
+generic 도구(`get_ad_performance`)와 `get_ad_creative_info`만 쓴다 —
+`get_target_progress_v2`, `list_promotions`, `day_offset`은 쓰지 않는다. 보고서의 모든
+"매출"은 **Airbridge 귀속 매출**로, `get_ad_performance` 응답 행의 지표 `매출_AB`다(예약은
+`예약완료_AB`) — 소재(ad) 단위 행에도 매출/예약이 지표로 함께 들어온다(별도 조인 불필요).
 
-공통 호출 규칙:
-- ⚠️ **어떤 호출에도 `campaign-type` 파라미터를 넣지 않는다** — airbridge 행이 조용히 누락된다.
-- ⚠️ `group_by`는 **문자열 enum**(`total`/`media`/`campaign`/`ad-set`/`ad`)이다 — boolean 금지.
-  이 스킬의 데이터 호출은 전부 `group_by:"ad"`다.
-- ⚠️ `group_by:"ad"` 호출에서 **`media`를 생략하지 않는다** — 생략 시 응답이 5~6배(실측 76만
-  자+)로 커져 근사치 사고의 직접 원인이 됐다. 항상 `media="meta"`/`media="airbridge"` 각각.
+공통 호출 규칙 (`get_ad_performance`):
+- ℹ️ 응답은 **JSON 봉투**다: `{"source": "elt", "tenant": "breezm", "time_grain": "day"|"month"|
+  "total", "dimensions": [...], "metrics": [...], "row_count": N, "rows": [...]}`. 행의 차원
+  키는 영문(`date`/`media`/`campaign_name`/`ad_group_name`/`ad_id`/`ad_name` 등), **지표 키는
+  테넌트별**이다 — 브리즘은 한국어 지표명 `광고비`/`노출`/`클릭`/`매출_AB`/`예약완료_AB`와
+  서버 계산 비율 지표 `ROAS_AB`/`CPM`/`CTR`/`CVR`/`CPA`/`CPA_AB`를 쓴다. **응답의 `metrics`
+  목록이 유효한 지표 키의 유일한 진실이다** — 키를 추측하지 않는다.
+- ⚠️ 비율 지표(`ROAS_AB`/`CTR`)는 요청한 grain 기준으로 서버가 이미 % 값으로 계산해 준다 —
+  ×100 불필요. **행별 비율 값을 합산해 상위 기간 비율을 만들지 않는다**(날짜별 합산이
+  필요하면 원자 지표 합으로 다시 계산 — `creative_daily_series.py`가 그렇게 한다).
+- ⚠️ `group_by`는 **차원명 문자열 리스트**다 — 이 스킬의 데이터 호출은 전부
+  `["campaign_name","ad_group_name","ad_name"]`(소재 단위)다.
+- ⚠️ 소재 단위 호출에서 **`media`를 생략하지 않는다** — 생략 시 응답이 수 배로 커져 근사치
+  사고의 직접 원인이 됐다(마크다운 시절 실측 76만 자+). 이 스킬은 항상 `media="Meta"`다.
 
-### range_table vs daily_table 사용 구분 (이 스킬의 핵심 배선)
+### time_grain 사용 구분 (이 스킬의 핵심 배선)
 
-- **`get_ad_performance_range_table`** — 소재당 **7일 전체를 이미 합산한 한 행**을 반환
-  (`is_active`는 항상 None). "7일 누적 값"만 필요한 **section-1/5**가 쓴다(2회: meta/airbridge).
-  응답이 소재 개수만큼으로 작다.
-- **`get_ad_performance_daily_table`** — 날짜별 원본 행. **일별 트렌드 차트**가 필요한
-  **section-3/4**만 쓴다(2회: meta/airbridge — section-4는 이 중 airbridge를 재사용).
-  range_table은 날짜 차원이 이미 합쳐져 있어 이 용도로 쓸 수 없다.
+- **`time_grain:"total"`** — 소재당 **7일 전체를 서버가 이미 합산한 한 행**을 반환. "7일 누적
+  값"만 필요한 **section-1/5**가 쓴다(1회). 응답이 소재 개수만큼으로 작고, 비율 지표
+  (`CTR`/`ROAS_AB`)도 7일 합산 기준으로 이미 계산돼 있다.
+- **`time_grain:"day"`** — 날짜별 원본 행(`date` 키). **일별 트렌드 차트**가 필요한
+  **section-3/4**만 쓴다(1회). total 응답은 날짜 차원이 이미 합쳐져 있어 이 용도로 쓸 수 없다.
 
 ---
 
@@ -78,12 +83,12 @@ generic 도구(`get_ad_performance_range_table`/`get_ad_performance_daily_table`
 >   호출로** 완성한다. section-5의 CTR/CPA/ROAS 계산·포맷·정렬·`<tr>` 생성과 section-1의
 >   썸네일 카드 HTML도 빌더가 만든다. 모델은 소량 값 JSON만 따옴표 있는 heredoc
 >   (`<<'PYEOF'`)으로 stdin에 넘긴다 — 입력 스키마는 스크립트 상단 docstring 참고.
-> - **range_table 응답(section-1/5)은 이미 작다(소재당 한 행) — 받은 그 자리에서 바로
->   조인·정렬 결과를 낸다.** Bash도 스크립트도 스크래치 파일(`meta.tsv`/`airbridge.tsv`)도
+> - **total 응답(section-1/5)은 이미 작다(소재당 한 행) — 받은 그 자리에서 바로
+>   정렬 결과를 낸다.** Bash도 스크립트도 스크래치 파일(`meta.tsv` 등)도
 >   쓰지 않고, 각 행을 자연어로 하나씩 서술하지도 않는다 — 실제 실행(2026-07-08)에서 이
 >   작은 응답을 3중 중복 처리(자연어 서술 → 파일 재입력 → heredoc 스크립트)해 수 분을
 >   소모한 사고가 있었다. "응답이 이미 작으면 바로 결과"가 규칙이다.
-> - **daily_table 응답(section-3/4)은 5개 키 × 7일 exact-match만 남는 bounded 작업**이다
+> - **day grain 응답(section-3/4)은 5개 키 × 7일 exact-match만 남는 bounded 작업**이다
 >   (소재 선정은 range 응답 정렬로 이미 끝남). 응답이
 >   `[laighthouse-capture-hook] ... 저장됨: <경로>` 스텁으로 오면(캡처 훅 동작 호스트 — 이
 >   플러그인의 PostToolUse 훅이 대용량 응답을 파일로 저장한 것) 그 파일을 입력으로 즉석 Bash
@@ -119,18 +124,22 @@ generic 도구(`get_ad_performance_range_table`/`get_ad_performance_daily_table`
    준비 중" 골격을 만들고 게시한다(아래 8단계와 같은 출력 경로/Artifact — 이후 재게시로 교체).
    이 단계를 건너뛰고 끝에서 한꺼번에 내놓으려다 예산이 바닥나면 사용자는 아무것도 못 본다 —
    실제 사고 사례가 있는 필수 단계다.
-3. **데이터 배치 (한 메시지에 동시 발사, 총 4회)**: `get_ad_performance_range_table` ×2
-   (meta/airbridge — section-1/5용) + `get_ad_performance_daily_table` ×2(meta/airbridge —
-   section-3/4용). 전부 `group_by:"ad"`, 기준일 6일 전 ~ target_date. 각 섹션 파일의 호출
-   명세를 그대로 따른다. (daily 호출은 range 응답에 의존하지 않는다 — "5개 키로 거른다"는
-   가공 시점에만 필요하다.)
-4. **계산**: range 응답 조인(meta+airbridge, 세 필드 정확 일치) → section-1 랭킹과 section-5
-   rows, meta range 정렬 → 상위 5개 소재 키·표시 이름, daily 응답에서 5개 키 exact-match →
-   section-3 CTR 시리즈(`null` 규칙)와 section-4 ROAS 시리즈(0-채움 규칙). 섹션 데이터가
-   준비되는 대로 골격의 placeholder를 교체·재게시해도 된다.
-5. **`get_ad_creative_info` × 1 (순차 의존)**: 4단계에서 확정된 ROAS/CTR 1·2위 소재의
-   `platform_account_id`/`creative_id`만(최대 4개, 유니크) 모아 1회 호출 →
-   `thumbnail_image_url` (section-1 참고. 3단계 배치와 함께 낼 수 없다 — 랭킹이 먼저 필요).
+3. **데이터 배치 (한 메시지에 동시 발사, 총 2회)**: `get_ad_performance` ×1
+   (`time_grain:"total"`, `media:"Meta"` — section-1/5용) + `get_ad_performance` ×1
+   (`time_grain:"day"`, `media:"Meta"` — section-3/4용). 둘 다
+   `group_by:["campaign_name","ad_group_name","ad_name"]`, 기준일 6일 전 ~ target_date.
+   각 섹션 파일의 호출 명세를 그대로 따른다. (day 호출은 total 응답에 의존하지 않는다 —
+   "5개 키로 거른다"는 가공 시점에만 필요하다.)
+4. **계산**: total 응답 정렬 → section-1 랭킹과 section-5 rows(매출/예약이 행에 이미 있어
+   조인 불필요), `광고비` 내림차순 → 상위 5개 소재 키·표시 이름, day 응답에서 5개 키
+   exact-match → section-3 CTR 시리즈(`null` 규칙)와 section-4 ROAS 시리즈(0-채움 규칙).
+   섹션 데이터가 준비되는 대로 골격의 placeholder를 교체·재게시해도 된다.
+5. **`get_ad_creative_info` (순차 의존, 최대 4회)**: 4단계에서 확정된 ROAS/CTR 1·2위 소재
+   (유니크 최대 4개) 각각에 대해 `{ "brand_name": "breezm", "source": "meta_ads",
+   "name_query": "<ad_name>" }`로 호출 → 응답 `items[]`에서 이름이 정확히 일치하는 항목의
+   `image_url` (section-1 참고. 3단계 배치와 함께 낼 수 없다 — 랭킹이 먼저 필요.
+   ⚠️ `image_url`은 IP 화이트리스트 뒤에 있어 허용되지 않은 네트워크에서는 이미지가 안 뜰 수
+   있다 — 렌더링 실패 시 onerror 폴백은 템플릿이 처리한다).
 6. **section-2 Executive Summary 작성** — 신규 MCP 호출 없이 다른 섹션 결과만 재사용해 AI가
    직접 작성 (`creative-detailed-section-2-executive-summary.md`의 규칙).
 7. **최종 빌드**: `assets/build_report.py`에 값 JSON을 heredoc으로 넘겨 최종 HTML을 생성한다.
@@ -151,10 +160,10 @@ generic 도구(`get_ad_performance_range_table`/`get_ad_performance_daily_table`
 
 > ⚡ 서브에이전트 없이 오케스트레이터(본 대화)가 MCP를 직접 호출한다. **서로 의존성 없는 MCP
 > 호출은 한 메시지 안에서 동시에(병렬 tool call로) 발사한다.** 이 스킬에서 배치 대상은 3단계의
-> 네 호출뿐이고, `get_ad_creative_info`는 랭킹 확정 후에만 가능한 순차 의존이다 — 없는
+> 두 호출뿐이고, `get_ad_creative_info`는 랭킹 확정 후에만 가능한 순차 의존이다 — 없는
 > 병렬성을 부풀리지 않는다. 배치의 실제 효과는 "턴 오버헤드 제거"다(네트워크 동시 실행 보장
-> 아님). 진짜 속도는 (a) 호출 공유(section-5가 range 응답을, section-4가 daily airbridge
-> 응답을 재사용 — 신규 호출 0), (b) 캡처 훅(대용량 daily 응답의 파일 우회), (c) asset
+> 아님). 진짜 속도는 (a) 호출 공유(section-5가 total 응답을, section-4가 day
+> 응답을 재사용 — 신규 호출 0), (b) 캡처 훅(대용량 day 응답의 파일 우회), (c) asset
 > 스크립트(재타이핑·손계산·HTML 타이핑 제거)에서 나온다.
 
 ---
@@ -190,7 +199,7 @@ generic 도구(`get_ad_performance_range_table`/`get_ad_performance_daily_table`
 - ⚠️ 파일명 표기 주의 — section-3/4/5의 "daily"는 "매일 갱신되는 보고서"라는 맥락일 뿐이고,
   section-5의 데이터는 날짜별이 아니라 7일 누적값이다(section-3/4만 실제 시계열).
   `CTR`/`ROAS` 대소문자도 정확히.
-- section-1/5는 같은 range 응답 공유(랭킹 카드 vs 전체 표), section-3/4는 같은 daily 응답과
+- section-1/5는 같은 total 응답 공유(랭킹 카드 vs 전체 표), section-3/4는 같은 day 응답과
   5개 소재 키·색상·범례 순서를 공유한다(빌더가 `s3`의 `names`/`labels`를 `s4`에도 주입).
   section-2만 신규 호출 없이 전부 재사용. **이 섹션은 프로모션을 언급하지 않는다**
   (`list_promotions` 호출 없음 — 다른 report_type의 section-2들과 다른 점).

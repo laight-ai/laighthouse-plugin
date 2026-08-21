@@ -27,18 +27,32 @@ MCP 데이터를 받아 **라이트하우스 스타일 Executive 데일리 보�
 `Unknown brand` 에러). 사용자가 "브리즘"/"breezm"/"브리즘(breezm)" 어떤 표현을 쓰든 같은
 브랜드다. 사람이 읽는 텍스트(제목·완료 메시지)에는 계속 "브리즘"을 쓴다.
 
-generic 도구(`get_ad_performance_daily_table`/`get_ad_performance_monthly_table`)와
-`get_target_progress_v2`, `list_promotions`만 쓴다 — naver 전용 도구는 일절 쓰지 않는다.
-보고서의 모든 "매출"은 **Airbridge 매출**(`media="airbridge"` 응답의 `airbridge_revenue`)이고,
-광고 채널은 airbridge 응답 `channel` ∈ {`Google Ads`, `Meta Ads`, `Naver Ads`} 행으로 고정이다
-— 첫 airbridge 응답에서 실제 `channel` 값을 확인하고, 다르면 조용히 0을 만들지 말고 보고서에
-불일치를 명시한다 (section-5는 미분류 값을 Others로 흡수한다 — 섹션 파일 참고).
+generic 도구(`get_ad_performance`)와 `get_target_progress_v2`, `list_promotions`만 쓴다.
+보고서의 모든 "매출"은 **Airbridge 귀속 매출**로, `get_ad_performance` 응답 행의 지표
+`매출_AB`다(예약은 `예약완료_AB`). 매체 구분은 행의 `media` 차원 값(`Google`/`Meta`/`Naver`)
+으로 한다 — 예전의 airbridge/`channel` 행 개념은 ELT 이관으로 사라졌고, 매출/예약이 각 행에
+지표로 함께 들어온다(별도 조인 불필요).
 
-공통 호출 규칙:
-- ⚠️ **어떤 호출에도 `campaign-type` 파라미터를 넣지 않는다** — airbridge 행이 조용히 누락된다.
-- ⚠️ `group_by`는 **문자열 enum**(`total`/`media`/`campaign`/`ad-set`/`ad`)이다 — boolean 금지.
-  이 스킬은 `"media"`만 쓴다.
-- ⚠️ `get_target_progress_v2`의 ROAS류 수치는 비율값(0.87)이므로 ×100 해서 %로 쓴다.
+공통 호출 규칙 (`get_ad_performance`):
+- ℹ️ 응답은 **JSON 봉투**다: `{"source": "elt", "tenant": "breezm", "time_grain": "day"|"month"|
+  "total", "dimensions": [...], "metrics": [...], "row_count": N, "rows": [...]}`. 행의 차원
+  키는 영문(`date`(day grain)/`month`(month grain, "YYYY-MM")/`media`/`campaign_id`/
+  `campaign_name`/`ad_group_id`/`ad_group_name`/`ad_id`/`ad_name` 등), **지표 키는 테넌트별**
+  이다 — 브리즘은 한국어 지표명 `광고비`(비용)/`노출`/`클릭`/`매출_AB`/`예약완료_AB`와 서버
+  계산 비율 지표 `ROAS_AB`/`CPM`/`CTR`/`CVR`/`CPA`/`CPA_AB`를 쓴다. **응답의 `metrics` 목록이
+  유효한 지표 키의 유일한 진실이다** — 키를 추측하지 않는다.
+- ⚠️ 비율 지표(`ROAS_AB`/`CTR` 등)는 요청한 grain 기준으로 서버가 이미 % 값으로 계산해 준다 —
+  ×100 불필요. **행별 비율 값을 합산해 상위 기간/상위 그룹 비율을 만들지 않는다**(필요하면
+  원자 지표 합으로 다시 계산).
+- ⚠️ `group_by`는 **차원명 문자열 리스트**다 (예: `["media"]`) — 예전의 문자열 enum이 아니다.
+  생략하면 총계만 온다(day/month grain이면 `date`/`month` 키 포함).
+- `media` 필터 값은 `"Google"`/`"Meta"`/`"Naver"` (대소문자 변형·한국어 표기는 서버가 흡수).
+- ⚠️ `get_target_progress_v2`의 ROAS류 수치는 비율값(0.87)이므로 ×100 해서 %로 쓴다 —
+  이 도구 응답만 여전히 markdown 표다.
+- `media`를 생략하고 `group_by:["media"]`로 조회하면 `media`가 `null`인 행이 온다 — 이게
+  `Organic`이다(광고비 없이 매출만 귀속). 정상 응답이니 버리지 말고 섹션 규칙대로 매핑한다.
+  `Others`는 대응하는 `media` 값이 없어 `-`/"데이터 준비 중"으로 남긴다 — 다른 값으로 지어
+  채우지 않는다.
 
 ---
 
@@ -65,7 +79,7 @@ generic 도구(`get_ad_performance_daily_table`/`get_ad_performance_monthly_tabl
 >   완성한다. 모델은 소량 값 JSON만 따옴표 있는 heredoc(`<<'PYEOF'`)으로 stdin에 넘긴다 —
 >   포맷팅(₩콤마/%/N/A)·날짜 파생값·7일 라벨·프로모션 인덱스 계산/클램프·section-5의 ROAS/
 >   변화율/화살표/색상/정렬까지 전부 빌더가 한다. 입력 스키마는 스크립트 상단 docstring 참고.
-> - 이 스킬의 호출은 전부 `group_by:"media"` 저카디널리티라 응답이 작다 — 캡처 훅이 있는
+> - 이 스킬의 호출은 전부 `group_by:["media"]` 저카디널리티라 응답이 작다 — 캡처 훅이 있는
 >   호스트에서도 스텁으로 바뀌지 않는 것이 정상이다. 만에 하나 응답이
 >   `[laighthouse-capture-hook] ... 저장됨: <경로>` 스텁으로 오면, 그 파일을 Read해 원본을
 >   컨텍스트로 가져오지 말고 Bash(python)로 그 경로에서 필요한 집계값만 뽑아 쓴다.
@@ -92,10 +106,10 @@ generic 도구(`get_ad_performance_daily_table`/`get_ad_performance_monthly_tabl
 1. 파라미터를 파싱한다. report_type은 `daily-summary` 고정.
 2. **데이터 호출 6개를 전부 한 메시지에 동시 발사한다** (조건부 2차 라운드 없음):
    - `get_target_progress_v2` ×3 (media=google/meta/naver) — section-1
-   - `get_ad_performance_monthly_table` ×1 (`media` 생략, `group_by:"media"`,
-     `day_offset`=target_date.day) — section-1의 매출 실적 + fallback 소진액
-   - `get_ad_performance_daily_table` ×1 (`media` 생략, `group_by:"media"`, 기준일 6일 전 ~
-     target_date) — section-3/4/5 공유
+   - `get_ad_performance` ×1 (당월 1일~target_date, `time_grain:"month"`, `group_by:["media"]`,
+     `media` 생략) — section-1의 매출 실적 + fallback 소진액
+   - `get_ad_performance` ×1 (기준일 6일 전~target_date, `time_grain:"day"`,
+     `group_by:["media"]`, `media` 생략) — section-3/4/5 공유
    - `list_promotions` ×1 (기준일 7일 전 ~ target_date) — section-2/3/4 공유
 3. ⏱ **필수 체크포인트 — 스켈레톤 선(先) 게시.** 응답 수신 즉시, 다음 단계 전에
    `python3 assets/build_report.py`를 `{"skeleton": true, ...}`로 1회 호출해 전 섹션 "데이터
@@ -128,7 +142,7 @@ generic 도구(`get_ad_performance_daily_table`/`get_ad_performance_monthly_tabl
 > 호출은 한 메시지 안에서 동시에(병렬 tool call로) 발사한다.** 배치의 실제 효과는 "턴 오버헤드
 > 제거"다(네트워크 동시 실행 보장은 아님 — 2026-08-09 실측: 배치 5회 8.65초 vs 순차 5회
 > 14.06초). 진짜 속도는 (a) 호출 총 개수 축소(`media` 생략 통합 + 공유 응답 재사용으로 총
-> **6회**, 전부 한 배치 — 예전 14~17회), (b) asset 스크립트(재타이핑·손계산 제거)에서 나온다.
+> **6회**, 전부 한 배치), (b) asset 스크립트(재타이핑·손계산 제거)에서 나온다.
 
 ---
 
@@ -160,9 +174,9 @@ generic 도구(`get_ad_performance_daily_table`/`get_ad_performance_monthly_tabl
 | 4 | 일일 매출 현황 (최근 7일, 라인 차트) | `daily-summary-section-4-daily-revenue-7days.md` | `s4` |
 | 5 | 매체별 성과 (D-1 vs D-0, 5행 고정) | `daily-summary-section-5-channel-performance.md` | `s5` |
 
-- 응답 공유 관계: `get_ad_performance_daily_table` 1회 응답을 section-3/4/5가,
+- 응답 공유 관계: `get_ad_performance`(day grain) 1회 응답을 section-3/4/5가,
   `list_promotions` 1회 응답을 section-2/3/4가 공유한다. section-2는 신규 데이터 호출 없이
-  section-4/5 데이터를 재사용해 텍스트만 쓴다.
+  section-3/5 데이터를 재사용해 텍스트만 쓴다.
 - section-3은 `daily-detailed`의 section-3과 동일한 차트, section-4는 그보다 간결한 매출 라인
   차트(둘 다 나란히 포함), section-5는 캠페인이 아니라 **매체 5행 고정** 비교표(네 지표 전부
   증가=긍정)다.

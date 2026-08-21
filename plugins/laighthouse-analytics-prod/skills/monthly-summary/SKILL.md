@@ -26,18 +26,32 @@ MCP 데이터를 받아 **라이트하우스 스타일 Executive 월간 보고�
 파라미터에는 **반드시 정확히 `"breezm"`**(영문 소문자)을 넣는다 (`"브리즘"`을 넣으면
 `Unknown brand` 에러). 사람이 읽는 텍스트(제목·완료 메시지)에는 계속 "브리즘"을 쓴다.
 
-generic 도구(`get_ad_performance_monthly_table`)와 `get_target_progress_v2`,
-`list_promotions`만 쓴다 — naver 전용 도구는 일절 쓰지 않는다. 보고서의 모든 "매출"은
-**Airbridge 매출**(`media="airbridge"` 응답의 `airbridge_revenue`)이고, 광고 채널은 airbridge
-응답 `channel` ∈ {`Google Ads`, `Meta Ads`, `Naver Ads`} 행으로 고정이다 — 첫 airbridge
-응답에서 실제 `channel` 값을 확인하고, 다르면 조용히 0을 만들지 말고 보고서에 불일치를
-명시한다.
+generic 도구(`get_ad_performance`)와 `get_target_progress_v2`, `list_promotions`만 쓴다.
+보고서의 모든 "매출"은 **Airbridge 귀속 매출**로, `get_ad_performance` 응답 행의 지표
+`매출_AB`다(예약은 `예약완료_AB`). 매체 구분은 행의 `media` 차원 값(`Google`/`Meta`/`Naver`)
+으로 한다 — 예전의 airbridge/`channel` 행 개념은 ELT 이관으로 사라졌고, 매출/예약이 각 행에
+지표로 함께 들어온다(별도 조인 불필요).
 
-공통 호출 규칙:
-- ⚠️ **어떤 호출에도 `campaign-type` 파라미터를 넣지 않는다** — airbridge 행이 조용히 누락된다.
-- ⚠️ `group_by`는 **문자열 enum**(`total`/`media`/`campaign`/`ad-set`/`ad`)이다 — boolean 금지.
-  이 스킬은 `"media"`만 쓴다.
-- ⚠️ `get_target_progress_v2`의 ROAS류 수치는 비율값(0.87)이므로 ×100 해서 %로 쓴다.
+공통 호출 규칙 (`get_ad_performance`):
+- ℹ️ 응답은 **JSON 봉투**다: `{"source": "elt", "tenant": "breezm", "time_grain": "day"|"month"|
+  "total", "dimensions": [...], "metrics": [...], "row_count": N, "rows": [...]}`. 행의 차원
+  키는 영문(`date`(day grain)/`month`(month grain, "YYYY-MM")/`media`/`campaign_id`/
+  `campaign_name` 등), **지표 키는 테넌트별**이다 — 브리즘은 한국어 지표명 `광고비`(비용)/
+  `노출`/`클릭`/`매출_AB`/`예약완료_AB`와 서버 계산 비율 지표 `ROAS_AB`/`CPM`/`CTR`/`CVR`/
+  `CPA`/`CPA_AB`를 쓴다. **응답의 `metrics` 목록이 유효한 지표 키의 유일한 진실이다** —
+  키를 추측하지 않는다.
+- ⚠️ 비율 지표(`ROAS_AB`/`CTR` 등)는 요청한 grain 기준으로 서버가 이미 % 값으로 계산해 준다 —
+  ×100 불필요. **행별 비율 값을 합산해 상위 기간/상위 그룹 비율을 만들지 않는다**(필요하면
+  원자 지표 합으로 다시 계산).
+- ⚠️ `group_by`는 **차원명 문자열 리스트**다 (예: `["media"]`) — 예전의 문자열 enum이 아니다.
+  생략하면 총계만 온다(day/month grain이면 `date`/`month` 키 포함).
+- `media` 필터 값은 `"Google"`/`"Meta"`/`"Naver"` (대소문자 변형·한국어 표기는 서버가 흡수).
+- ⚠️ `get_target_progress_v2`의 ROAS류 수치는 비율값(0.87)이므로 ×100 해서 %로 쓴다 —
+  이 도구 응답만 여전히 markdown 표다.
+- `media`를 생략하고 `group_by:["media"]`로 조회하면 `media`가 `null`인 행이 온다 — 이게
+  `Organic`이다(광고비 없이 매출만 귀속). 정상 응답이니 버리지 말고 섹션 규칙대로 매핑한다.
+  `Others`는 대응하는 `media` 값이 없어 `-`/"데이터 준비 중"으로 남긴다 — 다른 값으로 지어
+  채우지 않는다.
 
 ---
 
@@ -90,10 +104,10 @@ generic 도구(`get_ad_performance_monthly_table`)와 `get_target_progress_v2`,
 2. **데이터 호출 전체를 한 배치(한 메시지)로 동시 발사** — 조건부 2차 라운드 없이 총 6회로
    끝난다:
    - `get_target_progress_v2` ×3 (media=google/meta/naver) — section-1용.
-   - `get_ad_performance_monthly_table` ×1 (`media` 생략, `group_by:"media"`, 당월 1개월,
-     `day_offset`=target_date.day) — section-1의 매출 실적 + fallback 소진액.
-   - `get_ad_performance_monthly_table` ×1 (`media` 생략, `group_by:"media"`, 5개월 전~당월,
-     `day_offset`=target_date.day) — section-3/4/5 공유.
+   - `get_ad_performance` ×1 (당월 1일~target_date, `time_grain:"month"`, `group_by:["media"]`,
+     `media` 생략) — section-1의 매출 실적 + fallback 소진액.
+   - `get_ad_performance` ×1 (5개월 전 1일~target_date, `time_grain:"month"`,
+     `group_by:["media"]`, `media` 생략, `day_offset`=target_date.day) — section-3/4/5 공유.
    - `list_promotions` ×1 (당월 1일 30일 전 ~ target_date) — section-2 전용.
 3. ⏱ **필수 체크포인트 — 스켈레톤 선(先) 게시.** 2단계 응답 수신 즉시, 계산을 시작하기 전에
    `python3 assets/build_report.py`를 `{"skeleton": true, ...}`로 1회 호출해 전 섹션 "데이터
@@ -159,8 +173,9 @@ generic 도구(`get_ad_performance_monthly_table`)와 `get_target_progress_v2`,
 | 4 | 매출 추이 (차트, 6개월) | `monthly-summary-section-4-revenue-trend.md` | `s4` |
 | 5 | 매체 성과 비교 (M-1 vs M0) | `monthly-summary-section-5-channel-performance.md` | `s5` |
 
-- section-3의 6개월 공유 응답을 section-4(airbridge 행 전체)와 section-5(M-1/M0 두 달치)가
-  재사용한다 — 셋이 각자 호출하지 않는다. section-2는 `list_promotions` 외에 신규 호출 없이
+- section-3의 6개월 공유 응답을 section-4(광고 매출)와 section-5(M-1/M0 두 달치)가
+  재사용한다 — 셋이 각자 호출하지 않는다. (section-4의 전체 매출은 현재 데이터 소스에 없어
+  섹션이 "데이터 준비 중"으로 남는다 — 섹션 파일 참고.) section-2는 `list_promotions` 외에 신규 호출 없이
   전 섹션 데이터를 재사용해 작성한다.
 - 섹션 데이터가 준비 안 되면 해당 `s*` 키를 빌더 입력에서 뺀다 → "데이터 준비 중" 카드로
   렌더링된다. 섹션을 임의로 생략하는 개념은 없다 — 항상 5개 전부.

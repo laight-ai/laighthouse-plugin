@@ -10,20 +10,21 @@
 
 ---
 
-## MCP 도구 호출: `get_ad_performance_monthly_table` × 1 (전월 동기 비교용 — 이 섹션 유일의 신규 호출)
+## MCP 도구 호출: `get_ad_performance` × 1 (전월 동기 비교용 — 이 섹션 유일의 신규 호출)
 
 ```json
-{ "brand_name": "breezm", "start_month": "전월 YYYY-MM", "end_month": "당월 YYYY-MM", "group_by": "media", "day_offset": "target_date.day" }
+{ "brand_name": "breezm", "start_date": "전월 YYYY-MM-01", "end_date": "target_date", "time_grain": "month", "group_by": ["media"], "day_offset": "target_date.day" }
 ```
 
 - **`media` 생략 + `day_offset` 필수** — 이 1회 호출로 **당월 MTD 누적치**와 **전월 동기(같은
-  날짜까지) 누적치**를 google/meta/naver/airbridge 행 전부 함께 받는다. 일별 데이터는 필요
-  없다 — 두 기간 각각의 누적 합계만 쓴다. `ga4` 등 그 외 매체 행은 무시.
-  ⚠️ `campaign-type` 금지.
+  날짜까지) 누적치**를 월별·매체별 행(`month` 키, `광고비`/`매출_AB` 지표)으로 함께 받는다.
+  일별 데이터는 필요 없다 — 두 기간 각각의 누적 합계만 쓴다. 전월 동기 ROAS는 전월 행들의
+  `매출_AB` 합 ÷ `광고비` 합 × 100으로 계산한다(행별 `ROAS_AB` 평균 금지).
 - 그 외에는 **신규 MCP 호출 없음** — 전부 다른 섹션 응답을 재사용한다:
   - section-1의 `get_target_progress_v2` 응답 — 목표 ROAS (브리즘은 revenue 목표 미등록이
     기본이라 목표 ROAS N/A가 보통. 실제 ROAS의 매출은 항상 Airbridge 기준).
-  - section-4의 일별 전체 매출/광고 매출 + `list_promotions` 응답.
+  - section-4의 `list_promotions` 응답, 그리고 필요하면 `total_revenue`/`ad_revenue`
+    일별 값(전체 매출 대비 오거닉 매출 비중을 언급할 때 참고).
   - section-6의 매체별 소진액/광고 매출/ROAS.
 
 ⚠️ **`df_dify` MCP 서버는 호출하지 않는다** (naver 기반 브랜드 전용 도구 — 브리즘은 안 씀).
@@ -42,7 +43,8 @@
    예외적으로 당월 동기 vs 전월 동기 누적 광고비 비교로 대체한다. 추측성 원인 설명 금지 —
    속도 평가까지만.
 3. **매체별 특이사항**: section-6 데이터에서 매체별 소진액·매출·ROAS 중 가장 눈에 띄는 것 하나.
-4. **전체/광고 매출 특이사항**: section-4 데이터에서 전체/광고 매출 추이 중 눈에 띄는 것 하나.
+4. **광고 매출 특이사항**: 위 전월 동기 비교 응답과 section-6 데이터에서 광고 매출(`매출_AB`)
+   추이 중 눈에 띄는 것 하나 (전체/오거닉 매출은 현재 데이터 소스에 없어 다루지 않는다).
    MTD 기간과 겹치거나 직전에 끝난 프로모션이 있으면 **프로모션명과 기간을 함께 언급**하며
    연계 서술(효과가 뚜렷하지 않으면 그 사실 그대로). 없으면 프로모션 언급 없이.
 
