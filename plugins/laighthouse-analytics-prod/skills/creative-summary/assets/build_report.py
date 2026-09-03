@@ -12,8 +12,8 @@
 
 입력 (stdin, JSON):
 {
-  "out": "~/Downloads/laighthouse-reports/브리즘_creative-summary_2026-05-15.html",  # 필수
-  "title": "브리즘 Executive 소재 보고서",                                            # 필수
+  "out": "~/Downloads/laighthouse-reports/{브랜드명}_creative-summary_2026-05-15.html",  # 필수
+  "title": "{브랜드명} Executive 소재 보고서",                                            # 필수
   "target_date": "2026-05-15",                                                       # 필수
   "skeleton": true,          # 선택 — true면 모든 섹션을 "데이터 준비 중"으로 채운 스켈레톤 생성
                              #        (실행 순서의 필수 체크포인트용. s1~s5는 무시된다)

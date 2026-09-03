@@ -1,8 +1,8 @@
-# Breezm Creative Section 2: Executive Summary
+# Creative Section 2: Executive Summary
 
-**report_type:** `creative-detailed` — **브리즘(airbridge 기반) 전용** (항상 포함). **메타
-(Meta Ads)만 대상.** 실무자가 소재 운영 관점에서 무엇을 점검·조치해야 하는지 판단할 수 있도록,
-소재 단위 특이사항(지표 간 역상관 등)과 최근 7일 추이 중심으로 쓴다.
+**report_type:** `creative-detailed` (항상 포함). **`chosen_media` 하나만 대상**(SKILL.md 매체
+선택). 실무자가 소재 운영 관점에서 무엇을 점검·조치해야 하는지 판단할 수 있도록, 소재 단위
+특이사항(지표 간 역상관 등)과 최근 7일 추이 중심으로 쓴다.
 
 > ℹ️ HTML 렌더링(불릿 리스트 변환, `⚠` 시작 줄 주황색 처리)은 빌더가 한다 — 모델은 아래
 > 규칙으로 텍스트만 작성해 빌더 입력 JSON의 `s2.executive_summary`(줄바꿈 `\n` 구분 문자열)에
@@ -15,8 +15,8 @@
 ⚠️ **`df_dify` MCP 서버는 호출하지 않는다. 신규 MCP 호출이 전혀 없다** — 다른 섹션 응답만
 재사용한다:
 
-- section-5의 소재 단위 7일 누적 성과(노출/클릭/CTR/광고비/매출/예약 완료/CPA/ROAS) 전체 목록
-  — 항목 1의 주 데이터 소스.
+- section-5의 소재 단위 7일 누적 성과(노출/클릭/CTR/광고비/매출/ROAS + conversion 역할이
+  있을 때만 전환/CPA) 전체 목록 — 항목 1의 주 데이터 소스.
 - section-3/4의 광고비 상위 5개 소재 일별 CTR/ROAS 시리즈(7일치) — 항목 2의 주 데이터 소스.
   ⚠️ **항목 2에서 다룰 수 있는 소재는 이 5개로 제한된다** — section-5의 다른 소재는 일별
   시계열이 없어 추이 분석 대상이 될 수 없다.

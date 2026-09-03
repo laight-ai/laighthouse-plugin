@@ -15,14 +15,14 @@
     뽑은 top5_keys를 그대로 입력받는다 — 이 스크립트가 랭킹을 다시 매기지 않는다).
 
 ⚠️ CTR/ROAS는 항상 원자 지표(클릭/노출/매출/광고비)로 직접 계산한다 — 응답에 서버 계산
-비율 지표(`CTR`/`ROAS_AB`)가 있어도, 날짜별 합산(section-3)은 행 단위 비율을 합칠 수 없기
+비율 지표(CTR/ROAS류)가 있어도, 날짜별 합산(section-3)은 행 단위 비율을 합칠 수 없기
 때문에 원자 지표 합으로 계산해야 정확하다.
 
 ⚠️ **`get_ad_performance`는 마크다운 표가 아니라 JSON 봉투를 반환한다** — `{"source": "elt",
 "tenant": ..., "time_grain": "day", "dimensions": [...], "metrics": [...], "row_count": N,
 "rows": [...]}`. 각 행에는 차원 키(영문: `date`/`campaign_name`/`ad_group_name`/`ad_name` 등)와
-**테넌트별 지표 키**(브리즘: `광고비`/`노출`/`클릭`/`매출_AB`/`예약완료_AB` 등)가 들어있다 —
-매출이 행 안에 함께 오므로 예전 같은 meta/airbridge 2응답 조인이 없다. 원본을 손으로 옮겨
+**테넌트별 지표 키**(브랜드마다 다르다 — 봉투의 `metrics` 목록이 유일한 진실)가 들어있다 —
+매출이 행 안에 함께 오므로 별도 매출 응답과의 조인이 없다. 원본을 손으로 옮겨
 적거나(전사 실수·행 선별 위험) 파싱용 스크립트를 새로 만들지 않는다 — 아래 입력으로 원본
 문자열/파일 경로를 그대로 넘기면 이 스크립트가 직접 파싱한다.
 
@@ -39,7 +39,7 @@
 (B) 원본 JSON 봉투 문자열을 그대로 넘길 때 (응답이 크다고 "주요 소재만" 손으로 골라 옮기지
     않는다, 문자열 하나 또는 리스트 둘 다 허용):
 {
-  "json": "<get_ad_performance(time_grain=\"day\", media=\"Meta\") 응답 원본 문자열>",
+  "json": "<get_ad_performance(time_grain=\"day\", filters={\"media\": [\"<chosen_media>\"]}) 응답 원본 문자열>",
   ...
 }
 
@@ -62,10 +62,10 @@
                                                 # 만든다(행이 하나도 없는 날은 배열에서 통째로 빠질
                                                 # 수 있음 — 캘린더 7일을 항상 보장하려면 이 필드를
                                                 # 넘기는 것을 권장한다).
-  "metric_keys": {             # 선택. 지표 키는 테넌트별 — 생략하면 브리즘(breezm) 기본값을 쓰고,
-    "cost": "광고비",           # 봉투의 metrics 목록과 대조해 없는 키는 명확한 에러를 낸다.
-    "impression": "노출", "click": "클릭", "revenue": "매출_AB"
-  }
+  "metric_keys": {             # 선택. 역할 → 실제 지표 키 (generic-report-pattern.md 3절의 맵).
+    "cost": "광고비",           # 생략한 역할은 봉투의 metrics 목록(없으면 행의 키)에서 후보 순서로
+    "impression": "노출", "click": "클릭", "revenue": "매출_AB"   # 자동 해석하고, 못 정하면
+  }                            # 명확한 에러를 낸다. 넘긴 키가 metrics에 없어도 에러.
 }
 
 출력 (stdout, JSON):
@@ -93,12 +93,34 @@ import io
 sys.stdin = io.TextIOWrapper(sys.stdin.buffer, encoding="utf-8")
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 
-DEFAULT_METRIC_KEYS = {
-    "cost": "광고비",
-    "impression": "노출",
-    "click": "클릭",
-    "revenue": "매출_AB",
+# 역할별 후보 키 (generic-report-pattern.md 3절과 동일 순서) — 정확 일치로 첫 후보를 쓴다
+METRIC_KEY_CANDIDATES = {
+    "cost": ["광고비", "cost", "spend"],
+    "impression": ["노출", "impressions", "impression"],
+    "click": ["클릭", "clicks", "click"],
+    "revenue": ["매출_AB", "매출", "revenue"],
 }
+
+
+def resolve_metric_keys(available, override):
+    """역할 → 실제 지표 키. override(사용자가 넘긴 metric_keys)를 우선하고, 나머지 역할은
+    available(봉투 metrics 또는 행 키 집합)에서 후보 순서로 정확 일치시킨다."""
+    mk = {}
+    unresolved = []
+    for role, candidates in METRIC_KEY_CANDIDATES.items():
+        key = (override or {}).get(role)
+        if key is None:
+            key = next((c for c in candidates if c in available), None)
+        if key is None or (available and key not in available):
+            unresolved.append(role)
+        else:
+            mk[role] = key
+    if unresolved:
+        raise SystemExit(
+            f"지표 역할 {unresolved}의 키를 정하지 못함 — 응답 metrics {sorted(available)}에서 "
+            f"쓸 키를 metric_keys로 넘겨라"
+        )
+    return mk
 
 
 def unwrap_json_result(text):
@@ -228,15 +250,11 @@ def main():
         rows.extend(env_rows)
         envelope_metrics = envelope_metrics or env_metrics
 
-    mk = dict(DEFAULT_METRIC_KEYS)
-    mk.update(payload.get("metric_keys") or {})
-    if envelope_metrics:
-        missing = [v for v in mk.values() if v not in envelope_metrics]
-        if missing:
-            raise SystemExit(
-                f"지표 키 {missing}가 응답 metrics {envelope_metrics}에 없음 — "
-                f"테넌트별 지표 키를 metric_keys로 넘겨라"
-            )
+    available = set(envelope_metrics or ())
+    if not available:
+        for r in rows:
+            available.update(r.keys())
+    mk = resolve_metric_keys(available, payload.get("metric_keys"))
 
     top5_keys = payload.get("top5_keys")
 
