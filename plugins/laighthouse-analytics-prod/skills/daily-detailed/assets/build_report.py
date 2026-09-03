@@ -12,15 +12,21 @@
 
 입력 (stdin, JSON):
 {
-  "out": "~/Downloads/laighthouse-reports/브리즘_daily-detailed_2026-08-10.html",  # 필수
-  "title": "브리즘 데일리 보고서",                                                  # 필수
+  "out": "~/Downloads/laighthouse-reports/{브랜드명}_daily-detailed_2026-08-10.html",  # 필수
+  "title": "{브랜드명} 데일리 보고서",                                                  # 필수
   "target_date": "2026-08-10",                                                     # 필수 (D-0)
   "skeleton": true,          # 선택 — true면 모든 섹션을 "데이터 준비 중"으로 채운 스켈레톤 생성
                              #        (실행 순서의 필수 체크포인트용. s1~s5는 무시된다)
+  "metric_keys": {           # 역할 → 실제 지표 키 (shared/references/generic-report-pattern.md 3절)
+    "cost": "광고비", "impression": "노출", "click": "클릭", "revenue": "매출_AB",
+    "conversion": "예약완료_AB"   # 선택 — 없으면 section-4/5의 전환·CPA 컬럼을 숨긴다
+  },                         # <th> 라벨에 그대로 쓴다. dxd_table_rows.py에 넘긴 것과 같은 맵이어야 한다.
+  "currency": "₩",           # 선택 — 금액 접두 기호, 기본 "₩" (템플릿 JS 포맷터에도 주입)
+  "threshold": 10000,        # 선택 — section-4/5 각주의 제외 기준 금액, 기본 10000 (dxd와 동일 값)
 
   "s1": {                    # 목표 달성 현황 — 숫자(원본 수치) 또는 표시 문자열, 없으면 null
     "소진율": 33.13,          # 숫자면 % 소수점 1자리로 포맷, null이면 "N/A"
-    "목표_예산": 168110000,   # 숫자면 ₩+천단위 콤마로 포맷
+    "목표_예산": 168110000,   # 숫자면 currency+천단위 콤마로 포맷
     "소진액": 55700000,
     "매출_달성률": null,
     "목표_매출": null,
@@ -67,9 +73,31 @@ S1_FOOTNOTE = ('<p style="font-size:11px; color:#94a3b8; margin-top:8px;">'
 MONEY_FIELDS = {"목표_예산", "소진액", "목표_매출", "기간_매출"}
 PCT_FIELDS = {"소진율", "매출_달성률", "실제_ROAS", "목표_ROAS"}
 
+DEFAULT_METRIC_LABELS = {"cost": "광고비", "revenue": "매출"}
+CURRENCY = "₩"
+
+# section-4/5 <thead> — 식별 컬럼은 표별 고정, 지표 그룹은 metric_keys에서 생성
+TH_BORDER = " border-right:1px solid #e2e8f0;"
+S4_ID_THS = [
+    '<th rowspan="2" style="white-space:nowrap; text-align:center; vertical-align:middle;">매체</th>',
+    '<th rowspan="2" style="white-space:nowrap; text-align:center; vertical-align:middle;'
+    ' border-right:1px solid #e2e8f0;">캠페인</th>',
+]
+S5_ID_THS = [
+    '<th rowspan="2" style="white-space:nowrap; text-align:center; vertical-align:middle;'
+    ' border-right:1px solid #e2e8f0; width:90px;">매체</th>',
+    '<th rowspan="2" style="text-align:center; border-right:1px solid #e2e8f0; width:260px;">캠페인</th>',
+    '<th rowspan="2" style="text-align:center; border-right:1px solid #e2e8f0; width:200px;">광고그룹</th>',
+    '<th rowspan="2" style="text-align:center; border-right:1px solid #e2e8f0; width:200px;">광고</th>',
+]
+TH_GROUP = ('<th colspan="2" style="white-space:nowrap; text-align:center; border-bottom:none; '
+            'padding-top:8px; padding-bottom:8px; vertical-align:middle;{border}">{label}</th>')
+TH_DATE = ('<th style="white-space:nowrap; text-align:center; font-size:11px; font-weight:500; '
+           'padding-top:8px; padding-bottom:8px; vertical-align:middle; width:150px;{border}">{label}</th>')
+
 
 def fmt_won(v):
-    return f"₩{round(v):,}"
+    return f"{CURRENCY}{round(v):,}"
 
 
 def fmt_pct(v):
@@ -146,6 +174,33 @@ def build_summary_items(text):
     return "\n      ".join(items)
 
 
+def metric_groups(metric_keys):
+    """<thead> 지표 그룹 라벨 — cost/CTR/(conversion/CPA)/revenue/ROAS. conversion 없으면 생략."""
+    groups = [metric_keys.get("cost") or DEFAULT_METRIC_LABELS["cost"], "CTR"]
+    if metric_keys.get("conversion"):
+        groups += [metric_keys["conversion"], f'{metric_keys["conversion"]} CPA']
+    groups += [metric_keys.get("revenue") or DEFAULT_METRIC_LABELS["revenue"], "ROAS"]
+    return groups
+
+
+def build_thead(id_ths, metric_keys, d1_label, d0_label):
+    groups = metric_groups(metric_keys)
+    row1 = list(id_ths)
+    row2 = []
+    for i, label in enumerate(groups):
+        last = i == len(groups) - 1
+        row1.append(TH_GROUP.format(label=label, border="" if last else TH_BORDER))
+        row2.append(TH_DATE.format(label=d1_label, border=""))
+        row2.append(TH_DATE.format(label=d0_label, border="" if last else TH_BORDER))
+    sep = "\n            "
+    return ("<tr>" + sep + sep.join(row1) + "\n          </tr>\n          <tr>" + sep
+            + sep.join(row2) + "\n          </tr>")
+
+
+def colspan(id_ths, metric_keys):
+    return len(id_ths) + 2 * len(metric_groups(metric_keys))
+
+
 def load_rows(section):
     if not section:
         return None
@@ -159,10 +214,14 @@ def load_rows(section):
 
 
 def main():
+    global CURRENCY
     payload = json.load(sys.stdin)
     target = date.fromisoformat(payload["target_date"])
     d1 = target - timedelta(days=1)
     skeleton = bool(payload.get("skeleton"))
+    metric_keys = payload.get("metric_keys") or {}
+    CURRENCY = payload.get("currency") or CURRENCY
+    threshold = payload.get("threshold", 10000)
 
     with open(TEMPLATE, encoding="utf-8") as f:
         html = f.read()
@@ -213,19 +272,25 @@ def main():
     html = html.replace("__S3_CHART_DATA_JSON__", js_json(chart_data))
     html = html.replace("__S3_PROMOTIONS_JSON__", js_json(promotions))
 
-    # ── section 4 / 5
-    for key in ("s4", "s5"):
+    # ── section 4 / 5 (<thead>는 metric_keys에서 생성 — conversion 없으면 전환·CPA 컬럼 생략)
+    d1_label, d0_label = f"{d1.month}/{d1.day}", f"{target.month}/{target.day}"
+    for key, id_ths in (("s4", S4_ID_THS), ("s5", S5_ID_THS)):
         rows = load_rows(section_data(key))
         if rows is not None:
             status[key] = "ok"
+            html = html.replace(f"__{key.upper()}_THEAD_HTML__",
+                                build_thead(id_ths, metric_keys, d1_label, d0_label))
         else:
             status[key] = "placeholder"
             html = swap_section(html, key, PLACEHOLDER_CARD)
             rows = []
+        html = html.replace(f"__{key.upper()}_COLSPAN__", str(colspan(id_ths, metric_keys)))
         html = html.replace(f"__{key.upper()}_ROWS_JSON__", js_json(rows))
 
     # ── 공통 치환
     html = html.replace("__REPORT_TITLE__", payload["title"])
+    html = html.replace("__CURRENCY__", CURRENCY)
+    html = html.replace("__THRESHOLD_LABEL__", fmt_won(threshold))
     html = html.replace("__REPORT_DATE_LABEL__", f"{target.year}년 {target.month}월 {target.day}일 기준")
     html = (html.replace("__D1_MM__", str(d1.month)).replace("__D1_DD__", str(d1.day))
                 .replace("__D0_MM__", str(target.month)).replace("__D0_DD__", str(target.day))
@@ -235,8 +300,9 @@ def main():
     # ── 치환 누락 검증 (chart.js 인라인 전에 — 알려진 토큰이 남아있으면 실패)
     leftovers = [t for t in [
         "__REPORT_TITLE__", "__REPORT_DATE_LABEL__", "__S1_", "__S2_ITEMS_HTML__",
-        "__S3_CHART_DATA_JSON__", "__S3_PROMOTIONS_JSON__", "__S4_ROWS_JSON__",
-        "__S5_ROWS_JSON__", "__D1_", "__D0_",
+        "__S3_CHART_DATA_JSON__", "__S3_PROMOTIONS_JSON__", "__S4_ROWS_JSON__", "__S4_THEAD_HTML__",
+        "__S4_COLSPAN__", "__S5_ROWS_JSON__", "__S5_THEAD_HTML__", "__S5_COLSPAN__",
+        "__CURRENCY__", "__THRESHOLD_LABEL__", "__D1_", "__D0_",
     ] if t in html]
     if leftovers:
         raise SystemExit(f"치환 누락: {leftovers}")
