@@ -215,7 +215,11 @@ def main():
     os.makedirs(capture_dir, exist_ok=True)
     prune_stale()
 
-    media = str(tool_input.get("media") or "all")
+    filters = tool_input.get("filters") or {}
+    media_filter = filters.get("media") if isinstance(filters, dict) else None
+    if isinstance(media_filter, list):
+        media_filter = "+".join(str(m) for m in media_filter)
+    media = str(media_filter or "all")
     grain = str(tool_input.get("time_grain") or "day")
     dims = "-".join(str(d) for d in group_by)
     start = str(tool_input.get("start_date") or "")
