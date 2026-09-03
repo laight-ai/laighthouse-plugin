@@ -12,15 +12,21 @@
 
 입력 (stdin, JSON):
 {
-  "out": "~/Downloads/laighthouse-reports/브리즘_mtd-detailed_2026-05-15.html",  # 필수
-  "title": "브리즘 MTD 보고서",                                                  # 필수
+  "out": "~/Downloads/laighthouse-reports/{브랜드명}_mtd-detailed_2026-05-15.html",  # 필수
+  "title": "{브랜드명} MTD 보고서",                                                  # 필수
   "target_date": "2026-05-15",                                                   # 필수
   "skeleton": true,          # 선택 — true면 모든 섹션을 "데이터 준비 중"으로 채운 스켈레톤 생성
                              #        (실행 순서의 필수 체크포인트용. s1~s7은 무시된다)
+  "metric_keys": {           # 역할 → 실제 지표 키 (shared/references/generic-report-pattern.md 3절)
+    "cost": "광고비", "impression": "노출", "click": "클릭", "revenue": "매출_AB",
+    "conversion": "예약완료_AB"   # 선택 — 없으면 section-7의 전환·CPA 컬럼을 숨긴다
+  },                         # <th> 라벨에 그대로 쓴다. s7 봉투 입력이면 생략 가능(응답 metrics에서
+                             # 후보 순서로 자동 해석 — 지정한 키가 있으면 그 키를 우선)
+  "currency": "₩",           # 선택 — 금액 접두 기호, 기본 "₩" (템플릿 JS 포맷터에도 주입)
 
   "s1": {                    # 목표 달성 현황 — 숫자(원본 수치) 또는 표시 문자열, 없으면 null
     "소진율": 33.13,          # 숫자면 % 소수점 1자리로 포맷, null이면 "N/A"
-    "목표_예산": 168110000,   # 숫자면 ₩+천단위 콤마로 포맷
+    "목표_예산": 168110000,   # 숫자면 통화기호+천단위 콤마로 포맷
     "소진액": 55700000,
     "매출_달성률": null,
     "목표_매출": null,
@@ -44,26 +50,23 @@
     ]                                 # 빌더가 인덱스 계산·클램프·범위 밖 제외·range_label 생성까지 처리.
                                       # (이미 계산된 {title, start_idx, end_idx, range_label}도 허용)
   },
-  "s5": { "campaign_analysis": "인트로 문단\n\n캠페인명 (Meta Ads)\n분석 문장..." },
+  "s5": { "campaign_analysis": "인트로 문단\n\n캠페인명 (매체명)\n분석 문장..." },
                              # \n\n 블록 구분 — 첫 블록은 <p> 인트로, 이후 블록은 첫 줄 <h4> + 나머지 <p>
-  "s6": {                    # 광고 매체별 현황 — 세 매체 행(숫자 원본 그대로, 계산 불가면 null)
-    "rows": [
-      {"channel": "Google Ads", "월_예산": 50000000, "소진액": 21000000, "예산_소진율": 42.0,
+  "s6": {                    # 광고 매체별 현황 — 디스커버리된 매체마다 한 행, 디스커버리 순서
+    "rows": [                # (숫자 원본 그대로, 목표 없음/계산 불가면 null → "-")
+      {"name": "Kakao", "월_예산": 50000000, "소진액": 21000000, "예산_소진율": 42.0,
        "목표_매출": null, "광고_매출": 34000000, "매출_달성률": null, "목표_ROAS": null, "ROAS": 161.9},
-      ...  # Meta Ads / Naver Ads — no-budget 매체도 행을 빼지 않는다(N/A 규칙)
+      ...  # 목표 없는 매체도 행을 빼지 않는다. name은 media 응답 값 그대로
     ]
   },
-  "s7": {                    # 캠페인 성과 — 아래 형태 중 하나 (조인·파생지표·정렬·<tr>은 빌더가 처리)
-    # (a) 매체 행/airbridge 행을 그대로 전사 (전 행 — 선별·요약 금지):
-    "media_rows": [ {"channel":"Google Ads","campaign":"...","impression":1000,"click":50,"cost":54832}, ... ],
-    "airbridge_rows": [ {"campaign":"...","revenue":1200000,"reservation":3}, ... ]
-    # (b) "rows": [...] — 이미 조인된 행(campaign별 {channel,campaign,impression,click,cost,revenue,reservation},
-    #     미매칭이면 revenue/reservation을 null 대신 생략하지 말고 "unmatched": true)
-    # (c) "rows_file": "/tmp/s7.json" — (a)/(b) 형태의 JSON 파일 경로
-    # (d) "json": ["<get_ad_performance(time_grain=\"total\") 응답 봉투 원본 문자열>", ...] /
+  "s7": {                    # 캠페인 성과 — 아래 형태 중 하나 (파생지표·정렬·<tr>은 빌더가 처리)
+    # (a) "json": ["<get_ad_performance(time_grain=\"total\") 응답 봉투 원본 문자열>", ...] /
     #     "json_files": ["<캡처 훅 스텁 경로>", ...] — 응답 원본을 가공 없이 그대로 담으면
-    #     빌더가 봉투 파싱·media 분리·행 변환까지 처리 (매출/예약이 행에 함께 있어 조인 불필요).
-    #     지표 키가 브리즘 기본값(광고비/노출/클릭/매출_AB/예약완료_AB)과 다르면 "metric_keys" 지정.
+    #     빌더가 봉투 파싱·행 변환까지 처리 (매출/전환이 행에 함께 있어 조인 불필요).
+    #     media 값은 그대로 매체 라벨, media null 행은 "Organic".
+    # (b) "rows": [...] — 직접 전사한 행(campaign별 {name,campaign,impression,click,cost,revenue,conversion},
+    #     revenue/conversion이 없는 행은 "unmatched": true → 매출/전환/CPA/ROAS "-"). 전 행 — 선별·요약 금지.
+    # (c) "rows_file": "/tmp/s7.json" — (b) 형태의 JSON 파일 경로
   }
 }
 
@@ -91,11 +94,24 @@ S1_FOOTNOTE = ('<p style="font-size:11px; color:#94a3b8; margin-top:8px;">'
 MONEY_FIELDS = {"목표_예산", "소진액", "목표_매출", "기간_매출", "월_예산", "광고_매출"}
 PCT_FIELDS = {"소진율", "매출_달성률", "실제_ROAS", "목표_ROAS", "예산_소진율", "ROAS"}
 
-MEDIA_LABEL = {"google": "Google Ads", "meta": "Meta Ads", "naver": "Naver Ads"}
+# 역할 → 지표 키 후보 (shared/references/generic-report-pattern.md 3절, 순서대로 정확 일치)
+ROLE_CANDIDATES = {
+    "cost": ["광고비", "cost", "spend"],
+    "impression": ["노출", "impressions", "impression"],
+    "click": ["클릭", "clicks", "click"],
+    "revenue": ["매출_AB", "매출", "revenue"],
+    "conversion": ["예약완료_AB", "예약완료", "purchases", "conversions", "전환"],
+}
+REQUIRED_ROLES = ["cost", "impression", "click", "revenue"]
+DEFAULT_METRIC_LABELS = {"cost": "광고비", "impression": "노출", "click": "클릭", "revenue": "매출", "conversion": "전환"}
+CURRENCY = "₩"
+
+TH = '<th style="text-align:center;">{label}</th>'
+TH_BORDER = '<th style="text-align:center; border-right:1px solid #e2e8f0;">{label}</th>'
 
 
 def fmt_won(v):
-    return f"₩{round(v):,}"
+    return f"{CURRENCY}{round(v):,}"
 
 
 def fmt_pct(v):
@@ -106,10 +122,10 @@ def fmt_int(v):
     return f"{round(v):,}"
 
 
-def fmt_value(field, v):
-    """숫자면 필드 종류에 맞게 포맷, 문자열이면 그대로, None이면 N/A."""
+def fmt_value(field, v, none="N/A"):
+    """숫자면 필드 종류에 맞게 포맷, 문자열이면 그대로, None이면 `none`."""
     if v is None:
-        return "N/A"
+        return none
     if isinstance(v, str):
         return v
     if field in MONEY_FIELDS:
@@ -222,15 +238,22 @@ def build_analysis_blocks(text):
 # ── section 6 ───────────────────────────────────────────────────────────────
 
 S6_FIELDS = ["월_예산", "소진액", "예산_소진율", "목표_매출", "광고_매출", "매출_달성률", "목표_ROAS", "ROAS"]
+S6_THEAD = (
+    "<tr>\n        " + TH_BORDER.format(label="매체") + "\n        "
+    + TH.format(label="월 예산") + TH.format(label="소진액") + TH_BORDER.format(label="예산 소진율") + "\n        "
+    + TH.format(label="목표 매출") + TH.format(label="광고 매출") + TH_BORDER.format(label="매출 달성률") + "\n        "
+    + TH.format(label="목표 ROAS") + TH.format(label="ROAS") + "\n      </tr>"
+)
 
 
 def build_s6_rows(rows):
+    """행은 받은 순서 그대로(디스커버리 순서), name은 media 값 그대로. null(목표 없음 등)은 '-'."""
     trs = []
     for r in rows:
-        v = {f: fmt_value(f, r.get(f)) for f in S6_FIELDS}
+        v = {f: fmt_value(f, r.get(f), none="-") for f in S6_FIELDS}
         trs.append(
             "<tr>\n"
-            f'        <td style="border-right:1px solid #e2e8f0;">{r.get("channel", "")}</td>\n'
+            f'        <td style="border-right:1px solid #e2e8f0;">{r.get("name") or r.get("channel") or ""}</td>\n'
             f'        <td>{v["월_예산"]}</td><td>{v["소진액"]}</td>'
             f'<td style="border-right:1px solid #e2e8f0;">{v["예산_소진율"]}</td>\n'
             f'        <td>{v["목표_매출"]}</td><td>{v["광고_매출"]}</td>'
@@ -242,15 +265,6 @@ def build_s6_rows(rows):
 
 
 # ── section 7 ───────────────────────────────────────────────────────────────
-
-DEFAULT_METRIC_KEYS = {
-    "cost": "광고비",
-    "impression": "노출",
-    "click": "클릭",
-    "revenue": "매출_AB",
-    "reservation": "예약완료_AB",
-}
-
 
 def unwrap_json_result(text):
     """Cowork(Claude Desktop) 계층이 저장한 응답은 `{"result": "<본문>"}` JSON 래퍼일 수
@@ -281,8 +295,29 @@ def parse_envelope(text):
     return obj["rows"], obj.get("metrics")
 
 
-def load_s7_input(section):
-    """s7 입력을 정규화 — {'media_rows':[...], 'airbridge_rows':[...]} 또는 {'rows':[...]}."""
+def resolve_metric_keys(metric_keys, envelope_metrics):
+    """역할별 지표 키 확정 — 지정한 키 우선, 없으면 봉투 metrics에서 후보 순서로 정확 일치.
+    필수 역할(cost/impression/click/revenue)을 못 정하면 실패. conversion은 선택."""
+    resolved = {}
+    for role, candidates in ROLE_CANDIDATES.items():
+        key = (metric_keys or {}).get(role)
+        if not key and envelope_metrics:
+            key = next((c for c in candidates if c in envelope_metrics), None)
+        if key:
+            resolved[role] = key
+    if envelope_metrics:
+        bad = [k for r, k in resolved.items() if k not in envelope_metrics]
+        if bad:
+            raise SystemExit(f"지표 키 {bad}가 응답 metrics {envelope_metrics}에 없음 — metric_keys를 응답 metrics 값으로 넘겨라")
+    missing = [r for r in REQUIRED_ROLES if r not in resolved]
+    if missing:
+        raise SystemExit(f"역할 {missing}의 지표 키를 정할 수 없음 (응답 metrics: {envelope_metrics}) — "
+                         f"최상위 metric_keys로 지정해라")
+    return resolved
+
+
+def load_s7_input(section, metric_keys):
+    """s7 입력을 정규화 → ({'rows':[...]}, 확정 metric_keys)."""
     data = section
     path = section.get("rows_file")
     if path:
@@ -307,111 +342,88 @@ def load_s7_input(section):
             env_rows, env_metrics = parse_envelope(text)
             raw.extend(env_rows)
             envelope_metrics = envelope_metrics or env_metrics
-        mk = dict(DEFAULT_METRIC_KEYS)
-        mk.update(data.get("metric_keys") or {})
-        if envelope_metrics:
-            missing = [v for v in mk.values() if v not in envelope_metrics]
-            if missing:
-                raise SystemExit(
-                    f"지표 키 {missing}가 응답 metrics {envelope_metrics}에 없음 — "
-                    f"테넌트별 지표 키를 s7.metric_keys로 넘겨라"
-                )
-        # ELT 행에는 매출/예약이 함께 들어있다 — airbridge 조인 없이 바로 조인 완료 행으로 변환
+        mk = resolve_metric_keys(metric_keys, envelope_metrics)
+        # ELT 행에는 매출/전환이 함께 들어있다 — 조인 없이 바로 행으로 변환. media 값 그대로, null → Organic.
         rows = []
         for r in raw:
-            channel = MEDIA_LABEL.get(str(r.get("media") or "").lower())
-            if channel is None:
-                continue  # 알 수 없는 매체는 방어적으로 제외
-            rows.append({
-                "channel": channel, "campaign": r.get("campaign_name") or "",
+            row = {
+                "name": r.get("media") or "Organic", "campaign": r.get("campaign_name") or "",
                 "impression": r.get(mk["impression"]), "click": r.get(mk["click"]),
-                "cost": r.get(mk["cost"]),
-                "revenue": r.get(mk["revenue"]), "reservation": r.get(mk["reservation"]),
+                "cost": r.get(mk["cost"]), "revenue": r.get(mk["revenue"]),
                 "unmatched": False,
-            })
-        if not rows:
-            raise SystemExit("s7 봉투 파싱 결과 매체 행이 0개 — group_by에 media/campaign 차원이 있는지 확인")
-        return {"rows": rows}
-    return data
+            }
+            if "conversion" in mk:
+                row["conversion"] = r.get(mk["conversion"])
+            rows.append(row)
+        return {"rows": rows}, mk
+    rows = data.get("rows") or []
+    mk = dict(metric_keys or {})
+    if "conversion" not in mk and any("conversion" in r for r in rows):
+        mk["conversion"] = DEFAULT_METRIC_LABELS["conversion"]
+    return {"rows": rows}, mk
 
 
-def join_s7_rows(media_rows, airbridge_rows):
-    """캠페인 이름 정확 일치(exact match) 조인 — airbridge 쪽에만 있는 캠페인은 제외,
-    매체 쪽에만 있는 캠페인은 unmatched(매출/예약 '-')."""
-    ab = {}
-    for r in airbridge_rows or []:
-        k = r.get("campaign") or ""
-        cur = ab.setdefault(k, {"revenue": 0, "reservation": 0})
-        cur["revenue"] += r.get("revenue") or 0
-        cur["reservation"] += r.get("reservation") or 0
-    out = []
-    for r in media_rows:
-        m = ab.get(r.get("campaign") or "")
-        row = dict(r)
-        if m is None:
-            row["unmatched"] = True
-            row["revenue"] = None
-            row["reservation"] = None
-        else:
-            row["unmatched"] = False
-            row["revenue"] = m["revenue"]
-            row["reservation"] = m["reservation"]
-        out.append(row)
-    return out
+def build_s7_thead(mk):
+    """metric_keys의 역할 라벨로 section-7 <thead> 생성. conversion 역할이 없으면 전환·CPA 컬럼 생략."""
+    label = lambda role: mk.get(role) or DEFAULT_METRIC_LABELS[role]  # noqa: E731
+    ths = [TH_BORDER.format(label="매체"), TH_BORDER.format(label="캠페인"),
+           TH.format(label=label("impression")), TH.format(label=label("click")), TH.format(label="CTR"),
+           "\n          ", TH.format(label=label("cost")), TH.format(label=label("revenue"))]
+    if mk.get("conversion"):
+        ths += [TH.format(label=mk["conversion"]), TH.format(label=f"{mk['conversion']} CPA")]
+    ths.append(TH.format(label="ROAS"))
+    return "<tr>\n          " + "".join(ths) + "\n        </tr>"
 
 
-def build_s7_rows(section):
-    data = load_s7_input(section)
-    if "rows" in data:
-        rows = data["rows"]
-    else:
-        rows = join_s7_rows(data["media_rows"], data.get("airbridge_rows") or [])
-
+def build_s7_rows(rows, has_conversion):
     out = []
     for r in sorted(rows, key=lambda x: x.get("cost") or 0, reverse=True):
-        channel = r.get("channel") or ""
+        name = r.get("name") or r.get("channel") or ""
         campaign = r.get("campaign") or ""
         impression = r.get("impression")
         click = r.get("click")
         cost = r.get("cost") or 0
-        unmatched = bool(r.get("unmatched")) or ("revenue" not in r and "reservation" not in r)
+        unmatched = bool(r.get("unmatched")) or ("revenue" not in r and "conversion" not in r)
         revenue = r.get("revenue")
-        reservation = r.get("reservation")
+        conversion = r.get("conversion")
 
         ctr = (click / impression * 100) if impression else None
         d = {
-            "노출": fmt_int(impression) if impression is not None else "N/A",
-            "클릭": fmt_int(click) if click is not None else "N/A",
+            "impression": fmt_int(impression) if impression is not None else "N/A",
+            "click": fmt_int(click) if click is not None else "N/A",
             "CTR": fmt_pct(ctr) if ctr is not None else "N/A",
-            "광고비": fmt_won(cost),
+            "cost": fmt_won(cost),
         }
         if unmatched:
-            d["매출"] = d["예약_완료"] = d["CPA"] = d["ROAS"] = "-"
+            d["revenue"] = d["conversion"] = d["CPA"] = d["ROAS"] = "-"
         else:
-            d["매출"] = fmt_won(revenue) if revenue is not None else "N/A"
-            d["예약_완료"] = fmt_int(reservation) if reservation is not None else "N/A"
-            d["CPA"] = fmt_won(cost / reservation) if reservation else "N/A"
+            d["revenue"] = fmt_won(revenue) if revenue is not None else "N/A"
+            d["conversion"] = fmt_int(conversion) if conversion is not None else "N/A"
+            d["CPA"] = fmt_won(cost / conversion) if conversion else "N/A"
             d["ROAS"] = fmt_pct(revenue / cost * 100) if (revenue is not None and cost) else "N/A"
 
+        tail = f'<td>{d["conversion"]}</td><td>{d["CPA"]}</td>' if has_conversion else ""
         html = (
             "<tr>\n"
-            f'          <td style="border-right:1px solid #e2e8f0;">{channel}</td>'
+            f'          <td style="border-right:1px solid #e2e8f0;">{name}</td>'
             f'<td style="text-align:left; border-right:1px solid #e2e8f0;">{campaign}</td>'
-            f'<td>{d["노출"]}</td><td>{d["클릭"]}</td><td>{d["CTR"]}</td>\n'
-            f'          <td>{d["광고비"]}</td><td>{d["매출"]}</td><td>{d["예약_완료"]}</td>'
-            f'<td>{d["CPA"]}</td><td>{d["ROAS"]}</td>\n'
+            f'<td>{d["impression"]}</td><td>{d["click"]}</td><td>{d["CTR"]}</td>\n'
+            f'          <td>{d["cost"]}</td><td>{d["revenue"]}</td>{tail}<td>{d["ROAS"]}</td>\n'
             "        </tr>"
         )
-        out.append({"search": f"{channel} {campaign}".lower(), "html": html})
+        out.append({"search": f"{name} {campaign}".lower(), "html": html})
     return out
 
 
 # ── main ────────────────────────────────────────────────────────────────────
 
 def main():
+    global CURRENCY
     payload = json.load(sys.stdin)
     target = date.fromisoformat(payload["target_date"])
     skeleton = bool(payload.get("skeleton"))
+    metric_keys = payload.get("metric_keys") or {}
+    CURRENCY = payload.get("currency") or CURRENCY
 
     with open(TEMPLATE, encoding="utf-8") as f:
         html = f.read()
@@ -493,6 +505,7 @@ def main():
     s6 = section_data("s6")
     if s6 and s6.get("rows"):
         status["s6"] = "ok"
+        html = html.replace("__S6_THEAD_HTML__", S6_THEAD)
         html = html.replace("__S6_ROWS_HTML__", build_s6_rows(s6["rows"]))
     else:
         status["s6"] = "placeholder"
@@ -500,9 +513,11 @@ def main():
 
     # ── section 7
     s7 = section_data("s7")
-    if s7 and any(k in s7 for k in ("rows", "rows_file", "media_rows", "json", "json_files")):
+    if s7 and any(k in s7 for k in ("rows", "rows_file", "json", "json_files")):
         status["s7"] = "ok"
-        s7_rows = build_s7_rows(s7)
+        data, mk = load_s7_input(s7, metric_keys)
+        html = html.replace("__S7_THEAD_HTML__", build_s7_thead(mk))
+        s7_rows = build_s7_rows(data["rows"], bool(mk.get("conversion")))
     else:
         status["s7"] = "placeholder"
         html = swap_section(html, "s7", PLACEHOLDER_CARD)
@@ -511,15 +526,16 @@ def main():
 
     # ── 공통 치환
     html = html.replace("__REPORT_TITLE__", payload["title"])
+    html = html.replace("__CURRENCY__", CURRENCY)
     html = html.replace("__REPORT_DATE_LABEL__",
                         f"{target.year}년 {target.month}월 1일 ~ {target.month}월 {target.day}일")
     html = html.replace("__T_MM__", str(target.month)).replace("__T_DD__", str(target.day))
 
     # ── 치환 누락 검증 (chart.js 인라인 전에 — 알려진 토큰이 남아있으면 실패)
     leftovers = [t for t in [
-        "__REPORT_TITLE__", "__REPORT_DATE_LABEL__", "__T_MM__", "__T_DD__",
+        "__REPORT_TITLE__", "__REPORT_DATE_LABEL__", "__T_MM__", "__T_DD__", "__CURRENCY__",
         "__S1_", "__S2_ITEMS_HTML__", "__S3_", "__S4_", "__S5_BLOCKS_HTML__",
-        "__S6_ROWS_HTML__", "__S7_ROWS_JSON__",
+        "__S6_THEAD_HTML__", "__S6_ROWS_HTML__", "__S7_THEAD_HTML__", "__S7_ROWS_JSON__",
     ] if t in html]
     if leftovers:
         raise SystemExit(f"치환 누락: {leftovers}")
