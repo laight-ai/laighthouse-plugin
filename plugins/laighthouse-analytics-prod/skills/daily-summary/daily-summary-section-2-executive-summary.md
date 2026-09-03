@@ -1,10 +1,10 @@
-# Breezm Executive Daily Section 2: Executive Summary
+# Executive Daily Section 2: Executive Summary
 
-**report_type:** `executive-daily` (항상 포함) — **브리즘(airbridge 기반, type-b) 전용**.
+**report_type:** `daily-summary` (항상 포함).
 
-브리즘의 Executive Summary는 **임원이 딥다이브 없이도 "현재 하루 성과"를 파악하고, 그 주된
-원인이 무엇인지를 알 수 있도록** 쓴다. 단순 수치 나열(예: "~% 감소했습니다")이 아니라, 전체
-매출·매체(Naver/Google/Meta Ads, Organic, Others) 단위·매출 구조(오거닉 vs 광고) 단위로
+Executive Summary는 **임원이 딥다이브 없이도 "현재 하루 성과"를 파악하고, 그 주된 원인이
+무엇인지를 알 수 있도록** 쓴다. 단순 수치 나열(예: "~% 감소했습니다")이 아니라, 전체
+매출·매체(디스커버리된 매체 + Organic) 단위·매출 구조(오거닉 vs 광고) 단위로
 "성과가 좋은지/보통인지/나쁜지 + 왜 그런 성과가 발생했는지"를 담는다. `executive-mtd`의
 Executive Summary와 달리 **월 단위(전월 대비)가 아니라 하루 단위(전일 대비, D-1 vs D-0)**로
 비교한다는 점이 가장 큰 차이다. **색깔을 입힌 "승인 필요" 강조 박스(전체 배경색, 버튼, 배지
@@ -16,7 +16,7 @@ Executive Summary와 달리 **월 단위(전월 대비)가 아니라 하루 단�
 ## MCP 도구 호출: `list_promotions` × 1
 
 ```json
-{ "brand_name": "breezm", "start_date": "기준일 7일 전 YYYY-MM-DD", "end_date": "target_date" }
+{ "brand_name": "<brand>", "start_date": "기준일 7일 전 YYYY-MM-DD", "end_date": "target_date" }
 ```
 
 - 이 섹션에서 **유일하게 새로 호출하는 도구**다 (나머지 데이터는 아래처럼 다른 섹션 응답을
@@ -33,16 +33,14 @@ Executive Summary와 달리 **월 단위(전월 대비)가 아니라 하루 단�
 
 ## 텍스트 생성: 아래 사항을 모두 준수하여, AI가 직접 작성 (`df_dify` MCP 호출 안 함)
 
-⚠️ **`df_dify` MCP 서버는 호출하지 않는다** (브리즘은 애초에 이 서버를 쓰지 않는다 — naver 기반
-브랜드 전용 도구다). 아래 「MCP 도구 호출」의 `list_promotions` 1회를 제외하면 이 섹션은 새로운
+⚠️ **`df_dify` MCP 서버는 호출하지 않는다.** 아래 「MCP 도구 호출」의 `list_promotions` 1회를 제외하면 이 섹션은 새로운
 MCP 호출 없이 다른 섹션 응답만 재사용한다.
 
 ```
 작성 순서:
 1. 수치 데이터 수집 — 별도 재호출 없이 이미 다른 섹션에서 받은 응답을 재사용한다:
    - daily-summary-section-5(매체별 성과, D-1 vs D-0)가 이미 가공한 **매체별
-     (Naver Ads/Google Ads/Meta Ads/Organic/Others) 광고비·매출·예약 완료·ROAS의 D-1 vs D-0
-     변화량**. 이 섹션의 데이터가 이 Executive Summary의 핵심 근거다.
+     (디스커버리된 매체 + Organic) 광고비·매출·전환·ROAS의 D-1 vs D-0 변화량**. 이 섹션의 데이터가 이 Executive Summary의 핵심 근거다.
    - daily-summary-section-3(최근 7일 성과)의 일별 광고비/광고 매출/ROAS 시리즈 중
      **D-1, D-0 두 값** — section-5의 변화량과 교차 확인하거나 추세 서술에 보조로 쓴다.
    - daily-summary-section-4(일일 매출 현황)의 `total_revenue`/`ad_revenue` D-1·D-0 값 —
@@ -53,8 +51,8 @@ MCP 호출 없이 다른 섹션 응답만 재사용한다.
      프로모션/이벤트명·기간도 포함한다.
    - (daily-summary-section-1(목표 달성 현황)도 있지만, 이 섹션은 당월 MTD 목표
      대비 진행 상황이라 하루 단위 비교와 시점이 달라 이 Executive Summary의 "전일 대비" 분석
-     항목에는 직접 재사용하지 않는다 — 브리즘은 현재 매출 목표 자체가 N/A라 목표 대비 평가는
-     어차피 불가능하다.)
+     항목에는 직접 재사용하지 않는다 — 매출 목표가 N/A인 브랜드는 목표 대비 평가 자체가
+     불가능하다.)
 2. dify 호출 없이, 1의 수치 데이터를 근거로 AI가 executive_summary 텍스트를 직접 작성한다.
    아래 <작성 원칙>의 4단계 구조(판단→근거→원인가설→액션)를 그대로 따른다.
 
@@ -86,11 +84,10 @@ MCP 호출 없이 다른 섹션 응답만 재사용한다.
 5. 새로운 수치를 지어내지 않는다 — 근거가 없는 원인 추정(예: "경쟁사 프로모션 때문일 것")은
    쓰지 않는다. 대신 "확인이 필요하다", "점검이 필요하다"처럼 사실과 그에 대한 다음 행동
    제안까지만 쓴다.
-6. **Airbridge, GA4처럼 데이터를 수집·측정하는 특정 솔루션/도구의 이름을 본문에 언급하지
+6. **데이터를 수집·측정하는 특정 솔루션/도구(어트리뷰션 툴, GA4 등)의 이름을 본문에 언급하지
    않는다** — 임원에게는 지나치게 미시적인 정보다. 매출 귀속(어트리뷰션) 방식 변화 가능성을
-   원인 가설로 들어야 할 때도 솔루션명 없이 일반적인 표현으로 쓴다. (예: "Airbridge의
-   매출 귀속 방식이 바뀐 것인지 확인이 필요합니다" → "매출 산정 방식에 특이사항은 없었는지
-   검토가 필요합니다")
+   원인 가설로 들어야 할 때도 솔루션명 없이 일반적인 표현으로 쓴다. (예: "매출 산정 방식에
+   특이사항은 없었는지 검토가 필요합니다")
 ```
 
 ---
@@ -112,7 +109,7 @@ MCP 호출 없이 다른 섹션 응답만 재사용한다.
 ## HTML
 
 ```html
-<!-- BREEZM EXECUTIVE DAILY SECTION 2: EXECUTIVE SUMMARY -->
+<!-- EXECUTIVE DAILY SECTION 2: EXECUTIVE SUMMARY -->
 <div class="card" style="margin-bottom:16px;">
   <div class="section-title">Executive Summary</div>
   <div style="display:flex; flex-direction:column; gap:10px;">

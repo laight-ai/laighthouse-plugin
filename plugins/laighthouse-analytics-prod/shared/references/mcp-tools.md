@@ -12,16 +12,21 @@ naver 전용 계열, v1 target_progress, 리포트 공유 계열)은 **서버에
 
 ```json
 {
-  "brand_name": "breezm",
+  "brand_name": "<brand>",
   "start_date": "YYYY-MM-DD", "end_date": "YYYY-MM-DD",
   "time_grain": "day" | "month" | "total",        // 기본 "day"
   "group_by": ["media", "campaign_id", "campaign_name"],  // 차원명 리스트, 생략 시 총계
-  "metrics": ["광고비", "매출_AB"],                 // 생략 시 테넌트 전체 지표
-  "media": "Google" | "Meta" | "Naver",            // 생략 시 전 매체
+  "metrics": ["광고비", "매출_AB"],                 // 생략(null) 시 전체 지표, [] 이면 차원만(디스커버리)
+  "filters": {"media": ["<디스커버리로 받은 값>"]},   // 차원 → 허용값 리스트, 정확 일치. 생략 시 전체
   "day_offset": 15                                  // month grain 전용 — 각 월을 N일까지 자름
 }
 ```
 
+- 예전의 `media: str` 파라미터는 **제거됐다** — 매체 필터는 `filters={"media": [...]}`로 한다.
+  값은 디스커버리 응답에 나온 문자열 그대로(정확 일치)만 쓴다.
+- `metrics`: 생략(null) → 테넌트의 공개 지표 전부 / `[]` → 지표 없이 차원만(디스커버리 모드) /
+  리스트 → 그 지표만. 알 수 없는 지표명·차원명을 넣으면 서버가 유효한 이름 목록을 담은
+  ValueError를 돌려준다 — 그 목록으로 바로잡는다(추측 재시도 금지).
 - **time_grain 매핑(구 도구 대응)**: 일별 표(`daily_table`) → `"day"`, 구간 합산 표
   (`range_table`) → `"total"`, 월별 표(`monthly_table` + `day_offset`) → `"month"`(+
   `day_offset`).
@@ -32,7 +37,7 @@ naver 전용 계열, v1 target_progress, 리포트 공유 계열)은 **서버에
 - **응답은 markdown 표가 아니라 JSON 봉투다**:
 
 ```json
-{ "source": "elt", "tenant": "breezm", "time_grain": "day",
+{ "source": "elt", "tenant": "<brand>", "time_grain": "day",
   "dimensions": ["media"], "metrics": ["광고비", "..."], "row_count": 42,
   "rows": [ { "date": "2026-08-01", "media": "Google", "광고비": 12345, "매출_AB": 67890, "...": 0 } ] }
 ```
@@ -40,27 +45,25 @@ naver 전용 계열, v1 target_progress, 리포트 공유 계열)은 **서버에
   - 행의 **차원 키는 영문**: `date`(day grain) / `month`(month grain, "YYYY-MM") / `media` /
     `source` / `campaign_id`/`campaign_name` / `ad_group_id`/`ad_group_name` /
     `ad_id`/`ad_name` / `ad_type`.
-  - 행의 **지표 키는 테넌트별**이다 — 브리즘(breezm)은 한국어 지표명: `광고비`(비용) /
-    `노출`(impressions) / `클릭`(clicks) / `매출_AB`(Airbridge 매출) / `예약완료_AB`(Airbridge
-    예약)과 서버 계산 비율 지표 `ROAS_AB` / `CPM` / `CTR` / `CVR` / `CPA` / `CPA_AB`.
+  - 행의 **지표 키는 테넌트별**이다 — 브랜드마다 이름이 다르다(한국어/영문/접미사 등).
     **응답의 `metrics` 목록이 유효한 지표 키의 유일한 진실이다** — 키를 추측하지 않는다.
-  - ⚠️ 비율 지표는 **요청한 grain 기준으로 서버가 이미 계산한 % 값**이다(`ROAS_AB` 122.4 =
+    보고서의 고정 역할(cost/impression/click/revenue/conversion)에 어떤 키를 쓸지는
+    `generic-report-pattern.md`의 **지표 역할 해석 규칙**으로 실행마다 한 번 결정한다.
+  - ⚠️ 비율 지표는 **요청한 grain 기준으로 서버가 이미 계산한 % 값**이다(예: ROAS 122.4 =
     122.4%) — ×100 하지 않고, **행별 비율 값을 합산/평균해 상위 기간·상위 그룹 비율을 만들지
     않는다**(필요하면 원자 지표 합으로 다시 계산).
-  - `media` 필터 값은 `"Google"`/`"Meta"`/`"Naver"` — 대소문자 변형과 한국어 표기는 서버가
-    흡수한다. 예전의 `media="airbridge"` 행/`channel` 컬럼 개념은 사라졌다 — Airbridge 귀속
-    매출·예약은 각 행의 `매출_AB`/`예약완료_AB` 지표로 함께 온다(별도 조인 불필요).
-  - `media`를 생략하고 `group_by`에 `"media"`를 넣으면 **`media` 값이 `null`인 행이 `Organic`
-    이다** — 광고비 없이 매출만 귀속되는 행이며, 값이 존재하고 정상적으로 조회된다(누락도
-    필터 불가도 아니다). `cost`/`impression`/`click`은 이 행에서 항상 비어 있으므로 채우지
-    않고, `매출_AB`/`예약완료_AB`만 있는 그대로 쓴다. `Others`는(2026-08-21 기준 관찰된 `media`
-    값이 Google/Meta/Naver/`null` 4가지뿐이라) 대응하는 값이 없어 `-`/"데이터 준비 중"으로
-    남긴다 — 다른 값으로 지어 채우지 않는다.
+  - **매체 디스커버리**: `media`는 지표가 아니라 차원이며, 브랜드마다 값 집합이 다르다. 고정
+    매체 목록을 어디에도 가정하지 않고, 매 실행 시작에
+    `time_grain:"total", group_by:["media"], metrics:[]` 1회 호출로 실제 값을 받는다(절차는
+    `generic-report-pattern.md`). **`media`가 `null`인 행이 Organic**(광고비 없이 매출만
+    귀속)이다 — 정상 행이며 cost/impression/click은 항상 비어 있으므로 채우지 않는다.
+    브랜드에 `media` 차원이 없어 호출이 실패하면 `group_by:["source"]`로 폴백해 `source`
+    값을 매체 목록으로 쓴다. 표시명은 응답 값 그대로(접미사·번역 없음).
 
 ## 2. `get_ad_creative_info` — 소재 메타데이터/이미지
 
 ```json
-{ "brand_name": "breezm", "source": "meta_ads", "name_query": "AD_251212_old5059_02", "limit": 20 }
+{ "brand_name": "<brand>", "source": "meta_ads", "name_query": "AD_251212_old5059_02", "limit": 20 }
 ```
 
 - `source` ∈ `google_ads`|`meta_ads`|`naver_search_ads`|`tiktok_ads` (선택), `name_query`는
@@ -74,7 +77,7 @@ naver 전용 계열, v1 target_progress, 리포트 공유 계열)은 **서버에
 ## 3. `get_target_progress_v2` — 월 목표 대비 진행 (계약 불변)
 
 ```json
-{ "brand_name": "breezm", "month": "YYYY-MM", "media": "naver"|"google"|"meta"|"tiktok", "as_of_date": "YYYY-MM-DD" }
+{ "brand_name": "<brand>", "month": "YYYY-MM", "media": "naver"|"google"|"meta"|"tiktok", "as_of_date": "YYYY-MM-DD" }
 ```
 
 - **이 도구만 여전히 markdown 표를 반환한다** — 행(cost/revenue/roas) × 열(target|actual|
@@ -82,7 +85,11 @@ naver 전용 계열, v1 target_progress, 리포트 공유 계열)은 **서버에
   `"No {media} budget/target available for {month}."` 한 줄이 반환된다 — **오류가 아니다**.
 - ⚠️ ROAS류 수치는 비율값(예: 0.87, 5.06)이므로 반드시 ×100 후 표시한다 (0.87 → 87%).
 - `revenue` 행의 `actual`은 매출 실적으로 쓰지 않는다 — 실적 매출은 항상
-  `get_ad_performance`의 `매출_AB`에서 가져온다 (naver actual 0 반환 사례 실측).
+  `get_ad_performance`의 revenue 역할 키에서 가져온다 (naver actual 0 반환 사례 실측).
+- **디스커버리된 매체마다 1회 호출, 미지원은 허용**: `media`는 서버 제약으로
+  naver/google/meta/tiktok 네 값만 받는다(변경 없음). 디스커버리로 받은 매체 목록을 순회하며
+  `media.lower()`로 호출하고, 값이 네 가지에 없거나 호출이 에러를 내면 그 매체는 **목표 없음**
+  으로 취급한다(목표 셀 `-`, 오류 아님). google/meta/naver를 리터럴로 열거하지 않는다.
 
 ## 4. `get_naver_channel_budget_progress` — naver 채널별 예산 진행
 
@@ -94,15 +101,16 @@ naver 전용 계열, v1 target_progress, 리포트 공유 계열)은 **서버에
 ## 6. `list_promotions` — 프로모션 목록 (불변)
 
 ```json
-{ "brand_name": "breezm", "start_date": "YYYY-MM-DD", "end_date": "YYYY-MM-DD" }
+{ "brand_name": "<brand>", "start_date": "YYYY-MM-DD", "end_date": "YYYY-MM-DD" }
 ```
 
 - 응답 `items[]`의 `{title, date_begin, date_end}`를 각 스킬 빌더에 가공 없이 넘긴다.
 
 ## 공통 규칙
 
-- 모든 호출의 `brand_name`은 정확한 영문 브랜드명(예: `"breezm"`)이다 — 한국어 표시명을 넣으면
-  `Unknown brand` 에러.
+- 모든 호출의 `brand_name`은 사용자가 말한 브랜드명을 **그대로** 넣는다 — 스킬 파일에 브랜드
+  문자열을 두지 않는다. 서버가 `Unknown brand`로 거절할 때만 `get_brand_list`로 정확한 이름을
+  확인한다.
 - Executive Summary류 분석 텍스트는 `df_dify` MCP를 호출하지 않고, 이미 수집한 수치 데이터를
   근거로 실행 LLM이 직접 작성한다 (근거 수치가 없으면 생성하지 않음).
 - 고카디널리티 응답(campaign/ad 차원)은 이 플러그인의 PostToolUse 캡처 훅

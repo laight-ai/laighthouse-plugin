@@ -1,6 +1,6 @@
 # laighthouse-analytics
 
-라이트하우스 MCP 연동 데이터를(airbridge 기반) 성과 보고서(HTML)로 렌더링하는 Cowork
+라이트하우스 MCP 연동 데이터를 성과 보고서(HTML)로 렌더링하는 Cowork
 플러그인입니다.
 
 ## 컴포넌트
