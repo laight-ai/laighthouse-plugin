@@ -100,7 +100,7 @@ generic 도구(`get_ad_performance`)와 `get_target_progress_v2`, `list_promotio
 ## 실행 순서
 
 1. 파라미터를 파싱한다. report_type은 `daily-summary` 고정.
-2. **디스커버리 1회** (`generic-report-pattern.md` 2절): `get_ad_performance`(당월 1일~
+2. **디스커버리 1회** (`generic-report-pattern.md` 2절): `get_ad_performance`(min(당월 1일, target_date-6일)~
    target_date, `time_grain:"total"`, `group_by:["media"]`, `metrics:[]`) → `media_list`/
    `has_organic`/`metric_names`. 여기서 역할별 `metric_keys`를 정한다(3절; cost/impression/
    click/revenue 미해결이면 한 번에 질문).

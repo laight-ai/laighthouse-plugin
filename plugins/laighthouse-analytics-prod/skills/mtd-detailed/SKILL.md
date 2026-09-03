@@ -104,7 +104,7 @@ generic 도구(`get_ad_performance`)와 `get_target_progress_v2`, `list_promotio
 ## 실행 순서
 
 1. 파라미터를 파싱한다. report_type은 `mtd-detailed` 고정.
-2. **디스커버리 호출 (1회, 다른 호출보다 먼저)**: `get_ad_performance`(당월 1일~target_date,
+2. **디스커버리 호출 (1회, 다른 호출보다 먼저)**: `get_ad_performance`(5개월 전 1일~target_date,
    `time_grain:"total"`, `group_by:["media"]`, `metrics:[]`) → `media_list`/`has_organic`/
    `metric_names`를 얻고 역할별 `metric_keys`를 정한다(`generic-report-pattern.md` 2·3절).
    필수 역할(cost/impression/click/revenue)을 못 정하면 여기서 한 번만 사용자에게 묻는다.

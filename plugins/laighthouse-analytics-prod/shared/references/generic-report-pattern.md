@@ -12,10 +12,13 @@
 ## 2. 디스커버리 호출 (실행당 1회, 다른 호출보다 먼저)
 
 ```json
-{ "brand_name": "<brand>", "start_date": "<보고 기간 시작>", "end_date": "<보고 기간 끝>",
+{ "brand_name": "<brand>", "start_date": "<그 스킬이 조회하는 가장 이른 날짜>", "end_date": "target_date",
   "time_grain": "total", "group_by": ["media"], "metrics": [] }
 ```
 
+- `start_date` = **그 스킬의 모든 섹션이 조회하는 가장 이른 날짜**(예: 일간 스킬은 min(당월 1일,
+  target_date-6일), 월간/MTD 스킬은 5개월 전 1일). 보고 기간 시작이 아니다 — 창이 좁으면 앞선
+  기간에만 집행된 매체가 `media_list`에서 빠진다.
 - 응답 `rows`는 매체당 한 행. 여기서 세 값을 도출한다:
   - `media_list` — `media`가 `null`이 아닌 값들, **응답 문자열 그대로**(순서 유지).
   - `has_organic` — `media: null` 행이 있으면 `true` (미귀속/Organic).

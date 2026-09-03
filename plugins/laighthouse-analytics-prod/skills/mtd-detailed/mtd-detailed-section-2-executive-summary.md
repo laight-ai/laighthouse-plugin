@@ -12,7 +12,7 @@
 ## MCP 도구 호출: `get_ad_performance` × 1 (전월 동기 비교용 — 이 섹션 유일의 신규 호출)
 
 ```json
-{ "brand_name": "<brand>", "start_date": "전월 YYYY-MM-01", "end_date": "target_date", "time_grain": "month", "group_by": ["media"], "day_offset": "target_date.day" }
+{ "brand_name": "<brand>", "start_date": "전월 YYYY-MM-01", "end_date": "target_date", "time_grain": "month", "group_by": ["media"], "day_offset": <target_date.day (정수)> }
 ```
 
 - **`filters` 생략 + `day_offset` 필수** — 이 1회 호출로 **당월 MTD 누적치**와 **전월 동기(같은

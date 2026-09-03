@@ -15,8 +15,8 @@
 | `mtd` (임원 요약) | `mtd-summary` | 월초~기준일 누적, 전월 동기 비교 | 5 |
 | `monthly` (실무 상세) | `monthly-detailed` | 월 단위, M-1 vs M0 | 5 |
 | `monthly` (임원 요약) | `monthly-summary` | 월 단위, M-1 vs M0 + 분기 비교 | 5 |
-| `creative` (실무 상세) | `creative-detailed` | 소재(Meta Ads) 단위, 최근 7일 | 5 |
-| `creative` (임원 요약) | `creative-summary` | 소재(Meta Ads) 단위, 최근 7일 | 5 |
+| `creative` (실무 상세) | `creative-detailed` | 소재 단위(디스커버리로 선택한 매체 1개), 최근 7일 | 5 |
+| `creative` (임원 요약) | `creative-summary` | 소재 단위(디스커버리로 선택한 매체 1개), 최근 7일 | 5 |
 | (예산 최적화) | `mid-month-optimizer` | 월중 예산 리밸런싱 제안 | — |
 
 - 섹션 구성·MCP 호출 명세는 각 스킬 폴더의 `SKILL.md`와 섹션 파일이 단일 소스다.

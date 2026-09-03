@@ -11,7 +11,7 @@
 ## MCP 도구 호출: `get_ad_performance` × 1 (전월~당월, 캠페인 단위, `filters` 생략)
 
 ```json
-{ "brand_name": "<brand>", "start_date": "전월 YYYY-MM-01", "end_date": "target_date", "time_grain": "month", "group_by": ["media", "campaign_id", "campaign_name"], "day_offset": "target_date.day" }
+{ "brand_name": "<brand>", "start_date": "전월 YYYY-MM-01", "end_date": "target_date", "time_grain": "month", "group_by": ["media", "campaign_id", "campaign_name"], "day_offset": <target_date.day (정수)> }
 ```
 
 - **`filters`는 생략한다** — 캠페인 단위는 광고 단위보다 카디널리티가 낮다. 각 행에 `month`/

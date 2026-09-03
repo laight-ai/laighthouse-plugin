@@ -1,8 +1,8 @@
 # MCP 도구 라우팅 규칙 (laighthouse 서버 — 전 스킬 공용)
 
 `laighthouse` MCP 서버가 제공하는 도구 인벤토리와 사용 규칙의 단일 소스(single source of
-truth)다. 서버가 ELT 기반으로 개편되면서(2026-08) 도구 수가 대폭 줄었다 — **아래 6개가
-전부다.** 여기 없는 도구 이름(예전의 daily/range/monthly 표 도구 3종, SKU 매출 계열,
+truth)다. 서버가 ELT 기반으로 개편되면서(2026-08) 도구 수가 대폭 줄었다 — **스킬이 쓰는 도구는 아래 6개가
+전부다**(서버에는 헬스체크용 `ping`이 추가로 등록되어 있으나 스킬은 쓰지 않는다). 여기 없는 도구 이름(예전의 daily/range/monthly 표 도구 3종, SKU 매출 계열,
 naver 전용 계열, v1 target_progress, 리포트 공유 계열)은 **서버에서 제거되어 더 이상
 존재하지 않는다** — 호출하면 unknown tool 에러다.
 
@@ -27,6 +27,13 @@ naver 전용 계열, v1 target_progress, 리포트 공유 계열)은 **서버에
 - `metrics`: 생략(null) → 테넌트의 공개 지표 전부 / `[]` → 지표 없이 차원만(디스커버리 모드) /
   리스트 → 그 지표만. 알 수 없는 지표명·차원명을 넣으면 서버가 유효한 이름 목록을 담은
   ValueError를 돌려준다 — 그 목록으로 바로잡는다(추측 재시도 금지).
+- **검증 규칙(서버가 ValueError로 거절)**: `metrics:[]`는 `time_grain:"day"`가 아니면 비어 있지
+  않은 `group_by`가 필요하다. `filters`는 알 수 없는 차원 키, `"date"` 키, 빈 값 리스트(`[]`)를
+  거절한다. 서버 에러 메시지는 **그대로** 사용자에게 전달한다(재해석·추측 재시도 금지).
+- **ELT 테넌트가 없는 브랜드(레거시 DB 폴백)**: `filters`와 null이 아닌 `metrics`를 거절하고
+  `group_by`는 최대 1개만 허용한다 — 따라서 이 문서의 브랜드 비종속 패턴(디스커버리 `metrics:[]`,
+  `filters` 매체 필터)은 **ELT 테넌트가 있는 브랜드에서만** 동작한다. 서버 에러를 그대로 전달한다.
+- **상한**: 조회 구간은 `day`/`total` 366일, `month` 730일까지; 응답은 50,000행이 한도다.
 - **time_grain 매핑(구 도구 대응)**: 일별 표(`daily_table`) → `"day"`, 구간 합산 표
   (`range_table`) → `"total"`, 월별 표(`monthly_table` + `day_offset`) → `"month"`(+
   `day_offset`).
@@ -66,8 +73,10 @@ naver 전용 계열, v1 target_progress, 리포트 공유 계열)은 **서버에
 { "brand_name": "<brand>", "source": "meta_ads", "name_query": "AD_251212_old5059_02", "limit": 20 }
 ```
 
-- `source` ∈ `google_ads`|`meta_ads`|`naver_search_ads`|`tiktok_ads` (선택), `name_query`는
-  소재 이름 검색(선택), `limit`은 개수 제한(선택).
+- `source`는 닫힌 enum이 아니라 **정확 일치 필터**다(선택, 임의 문자열). 마트의 `source` 차원
+  값 — 디스커버리를 `group_by:["media","source"]`로 호출하면 행에 함께 나온다 — 을 그대로
+  넣는다. 마트에 없는 값을 넣으면 **에러가 아니라 `items: []`**가 돌아온다(값을 추측하지
+  않는다). `name_query`는 소재 이름 검색(선택), `limit`은 개수 제한(선택).
 - 응답은 JSON: `{"source": "elt", "items": [...]}` — 각 항목은 광고 메타데이터 행이며 서버
   계산 `image_url`을 포함한다. ⚠️ **이미지 URL은 IP 화이트리스트 뒤에 있다** — 허용되지 않은
   네트워크에서는 이미지가 렌더링되지 않을 수 있다(오류 아님, 템플릿 onerror 폴백으로 처리).

@@ -9,7 +9,7 @@
 ## MCP 도구 호출: `get_ad_performance` × 1 (`filters` 생략)
 
 ```json
-{ "brand_name": "<brand>", "start_date": "5개월 전 YYYY-MM-01", "end_date": "target_date", "time_grain": "month", "group_by": ["media"], "day_offset": "target_date.day" }
+{ "brand_name": "<brand>", "start_date": "5개월 전 YYYY-MM-01", "end_date": "target_date", "time_grain": "month", "group_by": ["media"], "day_offset": <target_date.day (정수)> }
 ```
 
 - **`filters` 생략** — 1회 호출로 월별·매체별(`media_list` 전 매체 + Organic `null` 행) 행을
