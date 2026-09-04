@@ -102,7 +102,7 @@ naver 전용 계열, v1 target_progress, 리포트 공유 계열)은 **서버에
 
 ## 4. `get_naver_channel_budget_progress` — naver 채널별 예산 진행
 
-- 시그니처·응답 불변(사용 스킬: `mid-month-optimizer`). 서버 측에서는 deprecated로 표시됐지만
+- 시그니처·응답 불변(현재 사용 스킬 없음). 서버 측에서는 deprecated로 표시됐지만
   동작한다 — 신규 스킬에서 새로 채택하지는 않는다.
 
 ## 5. `get_brand_list` — 브랜드 목록 (불변)
