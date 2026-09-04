@@ -55,9 +55,13 @@
 
 ## 5. 월 목표 (`get_target_progress_v2`)
 
-`media_list`를 순회하며 매체당 1회 `media: <값>.lower()`로 호출한다. 서버는
-naver/google/meta/tiktok만 받는다 — 그 외 값이거나 호출이 에러를 내면 그 매체는 **목표 없음**
-(목표 셀 `-`)으로 처리한다. 매체명을 리터럴로 열거하지 않는다.
+`media`를 생략해 1회 호출하면 응답은 naver, google, meta, tiktok 순서로 **고정된 4개
+블록**이 온다(항상 이 순서, `media_list`와 무관). 각 블록은 (a) 헤더 3줄 + 빈 줄 + 표,
+또는 (b) 헤더 없이 `"No {media} budget/target available for {month}."` 한 줄 중 하나이므로
+`media:` 헤더 줄로 찾지 말고 **고정 순서대로 정확히 4개 세그먼트로 나눠** 배정한 뒤,
+`media_list`와 일치하는 세그먼트만 쓰고 나머지는 버린다. 서버는 naver/google/meta/tiktok만
+지원한다 — `media_list`의 값이 그 외이면 그 매체는 **목표 없음**(목표 셀 `-`)으로 처리한다.
+매체명을 리터럴로 열거하지 않는다.
 
 ## 6. 빌더 입력 (공통 계약)
 

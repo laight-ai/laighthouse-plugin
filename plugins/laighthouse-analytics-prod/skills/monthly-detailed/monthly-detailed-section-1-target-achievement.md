@@ -10,18 +10,23 @@
 
 ---
 
-## MCP 도구 호출: `get_target_progress_v2` × len(media_list) (디스커버리된 매체마다 1회)
+## MCP 도구 호출: `get_target_progress_v2` × 1 (media 생략, 4개 매체 전부 응답)
 
 ```json
-{ "brand_name": "<brand>", "month": "YYYY-MM", "media": "<media_list 값>.lower()", "as_of_date": "target_date" }
+{ "brand_name": "<brand>", "month": "YYYY-MM", "as_of_date": "target_date" }
 ```
 
-- `media_list`(디스커버리 결과)를 순회한다 — 매체명을 리터럴로 열거하지 않는다. 서버는
-  naver/google/meta/tiktok만 받으므로, 그 외 값이거나 호출이 에러를 내면 그 매체는 **목표
-  없음**으로 취급한다(no-budget과 동일 처리, 오류 아님). Organic(`media: null`)은 목표 개념이
-  없어 호출하지 않는다.
+- `media`를 생략하면 응답은 naver, google, meta, tiktok 순서로 **고정된 4개 블록**이 빈
+  줄로 이어붙어 온다 — `media_list`와 무관하게 항상 이 순서로 4개가 온다.
+- 각 블록은 (a) `month:`/`as_of_date:`/`media:` 헤더 3줄 + 빈 줄 + 표, 또는 (b) 헤더 없이
+  `"No {media} budget/target available for {month}."` 한 줄 중 하나다 — 표 없는 블록은
+  `media:` 헤더가 없으므로 헤더 줄로 찾지 말고, **고정 순서대로 정확히 4개 세그먼트로
+  나눠** 1번째=naver, 2번째=google, 3번째=meta, 4번째=tiktok로 배정한다.
+- 그 중 `media_list`(디스커버리 결과)에 있는 매체에 해당하는 세그먼트만 쓰고, 나머지는
+  버린다. 매체명을 리터럴로 열거하지 않는다. Organic(`media: null`)은 목표 개념이 없어
+  이 블록들과 무관하다.
 
-> ℹ️ 응답은 markdown이다 — 헤더 라인 뒤에 행(cost/revenue/roas) × 열(target|actual|
+> ℹ️ 블록마다 헤더 라인 뒤에 행(cost/revenue/roas) × 열(target|actual|
 > progress_ratio) 표. 해당 매체 예산이 전혀 없으면 `"No {media} budget/target available for
 > {month}."` 한 줄이 반환된다 — 오류가 아니다. **표를 반환하더라도 `cost`/`revenue` 목표는
 > 서로 독립적으로 있을 수도 없을 수도 있다** (revenue 목표가 `target: 0`으로 비어 있는
@@ -38,7 +43,7 @@
   (각 행의 revenue 키 합)과 (b) no-budget fallback 소진액(각 행의 cost 키)을 동시에 준다.
   응답은 JSON 봉투(`rows` 배열)이며, `media` 차원 값은 디스커버리와 같은 문자열이다
   (`has_organic`이면 `media: null` 행도 함께 온다).
-- **위 `get_target_progress_v2` 호출들과 같은 배치(한 메시지)에서 동시에 발사한다** — 목표
+- **위 `get_target_progress_v2` 호출과 같은 배치(한 메시지)에서 동시에 발사한다** — 목표
   판정을 기다리는 조건부 라운드를 만들지 않는다.
 - **절대 규칙**: `기간 매출`은 목표 유무와 무관하게 **항상** 이 호출의 revenue 키에서 가져온다 —
   `get_target_progress_v2`의 `revenue` 행 `actual`은 어떤 매체에서도 매출 실적으로 쓰지

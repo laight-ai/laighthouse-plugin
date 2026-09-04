@@ -133,8 +133,8 @@ generic 도구(`get_ad_performance`)와 `get_target_progress_v2`, `list_promotio
    target_date, `time_grain:"total"`, `group_by:["media"]`, `metrics:[]`) → `media_list`/
    `has_organic`/`metric_names`. 여기서 역할별 `metric_keys`를 정한다(3절; cost/impression/
    click/revenue 미해결이면 한 번에 질문, conversion 미해결이면 역할 없음).
-3. **1차 배치 (한 메시지에 동시 발사)**: `get_target_progress_v2` × len(media_list)
-   (media=각 값 `.lower()`; 미지원/에러는 목표 없음) + `get_ad_performance` ×1(당월 1일~
+3. **1차 배치 (한 메시지에 동시 발사)**: `get_target_progress_v2` × 1 (media 생략, 4개
+   매체 전부 응답; media_list와 일치하는 블록만 사용) + `get_ad_performance` ×1(당월 1일~
    target_date, `time_grain:"month"`, `group_by:["media"]`, `filters` 생략) — section-1용
    (`monthly-detailed-section-1-target-achievement.md` 참고).
 4. ⏱ **필수 체크포인트 — 스켈레톤 선(先) 게시.** 3단계 응답 수신 즉시, 다음 단계 전에
@@ -177,7 +177,7 @@ generic 도구(`get_ad_performance`)와 `get_target_progress_v2`, `list_promotio
 > 개수 축소(section-1의 `filters` 생략 통합, section-4의 호출 완전 제거·section-3 응답 재사용,
 > section-5도 매출이 행에 포함돼 1회 통합), (b) 캡처 훅(대용량 응답의 파일 우회), (c) asset
 > 스크립트(재타이핑·손계산 제거)에서 나온다. 데이터 호출은 디스커버리 1회 + 1차 배치
-> (len(media_list)+1회) + 2차 배치 3회로 끝난다.
+> (2회) + 2차 배치 3회로 끝난다.
 
 ---
 

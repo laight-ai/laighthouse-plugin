@@ -108,8 +108,8 @@ generic 도구(`get_ad_performance`)와 `get_target_progress_v2`, `list_promotio
    `time_grain:"total"`, `group_by:["media"]`, `metrics:[]`) → `media_list`/`has_organic`/
    `metric_names`를 얻고 역할별 `metric_keys`를 정한다(`generic-report-pattern.md` 2·3절).
    필수 역할(cost/impression/click/revenue)을 못 정하면 여기서 한 번만 사용자에게 묻는다.
-3. **1차 배치 (한 메시지에 동시 발사)**: `get_target_progress_v2` × len(media_list)(매체당 1회,
-   `media: <값>.lower()` — 미지원/에러는 목표 없음) + `get_ad_performance` ×1(당월 1일~
+3. **1차 배치 (한 메시지에 동시 발사)**: `get_target_progress_v2` × 1 (media 생략, 4개
+   매체 전부 응답; media_list와 일치하는 블록만 사용) + `get_ad_performance` ×1(당월 1일~
    target_date, `time_grain:"month"`, `group_by:["media"]`, `filters` 생략) — section-1/6용
    (`mtd-detailed-section-1-target-achievement.md` 참고). 목표 판정을 기다리는 조건부 라운드는
    없다.

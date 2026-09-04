@@ -129,8 +129,8 @@ generic 도구(`get_ad_performance`)와 `get_target_progress_v2`, `list_promotio
    target_date, `time_grain:"total"`, `group_by:["media"]`, `metrics:[]`) → `media_list`/
    `has_organic`/`metric_names`. 여기서 역할별 `metric_keys`를 정한다(3절; cost/impression/
    click/revenue 미해결이면 한 번에 질문, conversion 미해결이면 역할 없음).
-3. **1차 배치 (한 메시지에 동시 발사)**: `get_target_progress_v2` × len(media_list)
-   (media=각 값 `.lower()`; 미지원/에러는 목표 없음) + `get_ad_performance` ×1(당월 1일~
+3. **1차 배치 (한 메시지에 동시 발사)**: `get_target_progress_v2` × 1 (media 생략, 4개
+   매체 전부 응답; media_list와 일치하는 블록만 사용) + `get_ad_performance` ×1(당월 1일~
    target_date, `time_grain:"month"`, `group_by:["media"]`, `filters` 생략) — section-1용
    (`daily-detailed-section-1-target-achievement.md` 참고).
 4. ⏱ **필수 체크포인트 — 스켈레톤 선(先) 게시.** 3단계 응답 수신 즉시, 다음 단계 전에
