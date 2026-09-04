@@ -86,9 +86,10 @@ generic 도구(`get_ad_performance`)와 `get_ad_creative_info`만 쓴다 —
    - 후보가 정확히 1개 → 그 매체가 `chosen_media`(질문 없음).
    - 후보가 2개 이상 → 후보 목록을 보여주며 어느 매체를 분석할지 **한 번** 묻는다.
    - 후보가 0개 → 소재 단위 데이터가 있는 매체가 없다고 알리고 종료한다(보고서 생성 안 함).
-4. `get_ad_creative_info`의 `source`는 `sources_of[chosen_media]`의 값이다 — 여럿이면 소스마다
-   1회씩 호출한다. 서버가 그 `source` 값을 거절하면(지원 소스 아님) 썸네일은 `null`로 두고
-   진행한다(오류 아님).
+4. `get_ad_creative_info`의 `source`는 `sources_of[chosen_media]`에서 귀속/분석 전용 소스
+   (`airbridge`, `google_analytics_4`, `ga4`)를 제외한 값이다 — 제외 후 남은 소스마다 1회씩
+   호출한다(제외 후 0개면 원래 `sources_of[chosen_media]` 전체로 호출한다). 서버가 그 `source`
+   값을 거절하면(지원 소스 아님) 썸네일은 `null`로 두고 진행한다(오류 아님).
 
 ---
 
