@@ -105,8 +105,8 @@ generic 도구(`get_ad_performance`)와 `get_target_progress_v2`, `list_promotio
    `has_organic`/`metric_names`. 여기서 역할별 `metric_keys`를 정한다(3절; cost/impression/
    click/revenue 미해결이면 한 번에 질문).
 3. **데이터 호출을 전부 한 메시지에 동시 발사한다** (조건부 3차 라운드 없음):
-   - `get_target_progress_v2` × len(media_list) (media=각 값 `.lower()`; 미지원/에러는 목표
-     없음) — section-1
+   - `get_target_progress_v2` × 1 (media 생략, 4개 매체 전부 응답; media_list와 일치하는
+     블록만 사용) — section-1
    - `get_ad_performance` ×1 (당월 1일~target_date, `time_grain:"month"`, `group_by:["media"]`,
      `filters` 생략) — section-1의 매출 실적 + fallback 소진액
    - `get_ad_performance` ×1 (기준일 6일 전~target_date, `time_grain:"day"`,

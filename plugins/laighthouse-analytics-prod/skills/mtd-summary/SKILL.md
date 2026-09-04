@@ -101,8 +101,8 @@ generic 도구(`get_ad_performance`)와 `get_target_progress_v2`, `list_promotio
    target_date, `time_grain:"total"`, `group_by:["media"]`, `metrics:[]`) → `media_list`/
    `has_organic`/`metric_names`. 여기서 역할별 `metric_keys`를 정한다(3절; cost/impression/
    click/revenue 미해결이면 한 번에 질문).
-3. **1차 배치 (한 메시지에 동시 발사)**: `get_target_progress_v2` × len(media_list)(media=각 값
-   `.lower()`; 미지원/에러는 목표 없음) + `get_ad_performance` ×1(당월 1일~target_date,
+3. **1차 배치 (한 메시지에 동시 발사)**: `get_target_progress_v2` × 1 (media 생략, 4개
+   매체 전부 응답; media_list와 일치하는 블록만 사용) + `get_ad_performance` ×1(당월 1일~target_date,
    `time_grain:"month"`, `group_by:["media"]`, `filters` 생략)
    — section-1용 (`mtd-summary-section-1-target-achievement.md` 참고).
 4. ⏱ **필수 체크포인트 — 스켈레톤 선(先) 게시.** 3단계 응답 수신 즉시, 다음 단계 전에
@@ -141,13 +141,13 @@ generic 도구(`get_ad_performance`)와 `get_target_progress_v2`, `list_promotio
 > 호출은 한 메시지 안에서 동시에(병렬 tool call로) 발사한다.** 배치의 실제 효과는 "턴 오버헤드
 > 제거"다(네트워크 동시 실행 보장은 아님 — 실측 daily-summary 참고). 진짜 속도는 (a) 호출 총
 > 개수 축소 — 이 스킬은 `filters` 생략 통합 조회와 section-3 응답의 4/5 공유로 데이터 호출이
-> 디스커버리 1회 + 매체 수 + 3회다, (b) asset 스크립트(재타이핑·손계산 제거)에서 나온다.
+> 디스커버리 1회 + 2회 + 3회다, (b) asset 스크립트(재타이핑·손계산 제거)에서 나온다.
 
 - section-1의 당월 1개월 호출을 section-3의 6개월 호출에 **의도적으로 합치지 않는다** —
   이론적으로 당월 데이터는 6개월 응답에도 있지만, 합치면 section-1(스켈레톤 직후 첫 렌더링)이
   더 무거운 6개월 조회 완료까지 기다려야 해서 스켈레톤 선게시 목적과 어긋난다.
-- `get_target_progress_v2`는 도구 스키마가 `media`를 단일 값으로 요구해 매체 수만큼 호출한다
-  (`media_list` 순회 — 매체명을 리터럴로 열거하지 않는다).
+- `get_target_progress_v2`는 `media`를 생략해 1회 호출로 4개 매체 블록을 전부 받고,
+  `media_list`와 일치하는 블록만 쓴다(매체명을 리터럴로 열거하지 않는다).
 
 ---
 

@@ -6,8 +6,8 @@
 
 > ℹ️ 표 HTML(`<thead>` 포함)/통화·%·`-` 포맷은 전부 템플릿+빌더가 한다 — 모델은 아래 규칙으로
 > 매체별 원본 수치만 계산해 빌더 입력 JSON의 `s6.rows`에 넣는다. **신규 MCP 호출 없음** —
-> 섹션 1의 `get_target_progress_v2` 응답들(매체당 1회)과 `get_ad_performance`(month grain,
-> `filters` 생략) 응답을 그대로 재사용한다.
+> 섹션 1의 `get_target_progress_v2` 응답(1회, 4개 매체 블록에서 media_list와 일치하는 것만
+> 사용)과 `get_ad_performance`(month grain, `filters` 생략) 응답을 그대로 재사용한다.
 
 ## 매체별 계산 규칙 (cost/revenue 독립 판단)
 

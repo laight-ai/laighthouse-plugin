@@ -55,8 +55,9 @@
 
 ## 5. 월 목표 (`get_target_progress_v2`)
 
-`media_list`를 순회하며 매체당 1회 `media: <값>.lower()`로 호출한다. 서버는
-naver/google/meta/tiktok만 받는다 — 그 외 값이거나 호출이 에러를 내면 그 매체는 **목표 없음**
+`media`를 생략해 1회 호출하면 naver/google/meta/tiktok 4개 매체 블록이 전부 온다 —
+`media_list`와 대소문자 무관 일치하는 블록만 쓰고 나머지는 버린다. 서버는
+naver/google/meta/tiktok만 지원한다 — `media_list`의 값이 그 외이면 그 매체는 **목표 없음**
 (목표 셀 `-`)으로 처리한다. 매체명을 리터럴로 열거하지 않는다.
 
 ## 6. 빌더 입력 (공통 계약)

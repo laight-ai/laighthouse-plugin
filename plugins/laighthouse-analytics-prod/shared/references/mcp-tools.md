@@ -83,22 +83,24 @@ naver 전용 계열, v1 target_progress, 리포트 공유 계열)은 **서버에
 - 예전 시그니처(`meta: [{account_id, creative_id}]` 배열,
   `thumbnail_image_url`/`thumbnail_image_data_url` 필드)는 폐기됐다.
 
-## 3. `get_target_progress_v2` — 월 목표 대비 진행 (계약 불변)
+## 3. `get_target_progress_v2` — 월 목표 대비 진행
 
 ```json
-{ "brand_name": "<brand>", "month": "YYYY-MM", "media": "naver"|"google"|"meta"|"tiktok", "as_of_date": "YYYY-MM-DD" }
+{ "brand_name": "<brand>", "month": "YYYY-MM", "as_of_date": "YYYY-MM-DD" }
 ```
 
-- **이 도구만 여전히 markdown 표를 반환한다** — 행(cost/revenue/roas) × 열(target|actual|
+- **`media` 생략(기본, 권장)**: naver/google/meta/tiktok 4개 매체 블록이 빈 줄로 이어붙어
+  한 번에 온다 — 블록마다 자기 `media: <값>` 헤더 줄을 갖는다. 디스커버리로 받은
+  `media_list`와 대소문자 무관 일치하는 블록만 쓰고, 나머지(브랜드가 쓰지 않는 매체)는
+  버린다. **1회 호출로 충분** — 매체마다 반복 호출하지 않는다.
+- **`media` 명시(선택)**: `"naver"|"google"|"meta"|"tiktok"` 중 하나를 넘기면 해당 매체
+  블록 하나만 온다(단일 매체 동작은 이전과 동일, 변경 없음).
+- 각 블록은 여전히 markdown 표다 — 행(cost/revenue/roas) × 열(target|actual|
   progress_ratio). 해당 매체 예산이 전혀 없으면 리터럴
   `"No {media} budget/target available for {month}."` 한 줄이 반환된다 — **오류가 아니다**.
 - ⚠️ ROAS류 수치는 비율값(예: 0.87, 5.06)이므로 반드시 ×100 후 표시한다 (0.87 → 87%).
 - `revenue` 행의 `actual`은 매출 실적으로 쓰지 않는다 — 실적 매출은 항상
   `get_ad_performance`의 revenue 역할 키에서 가져온다 (naver actual 0 반환 사례 실측).
-- **디스커버리된 매체마다 1회 호출, 미지원은 허용**: `media`는 서버 제약으로
-  naver/google/meta/tiktok 네 값만 받는다(변경 없음). 디스커버리로 받은 매체 목록을 순회하며
-  `media.lower()`로 호출하고, 값이 네 가지에 없거나 호출이 에러를 내면 그 매체는 **목표 없음**
-  으로 취급한다(목표 셀 `-`, 오류 아님). google/meta/naver를 리터럴로 열거하지 않는다.
 
 ## 4. `get_brand_list` — 브랜드 목록 (불변)
 
