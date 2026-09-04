@@ -1,7 +1,7 @@
 # MCP 도구 라우팅 규칙 (laighthouse 서버 — 전 스킬 공용)
 
 `laighthouse` MCP 서버가 제공하는 도구 인벤토리와 사용 규칙의 단일 소스(single source of
-truth)다. 서버가 ELT 기반으로 개편되면서(2026-08) 도구 수가 대폭 줄었다 — **스킬이 쓰는 도구는 아래 6개가
+truth)다. 서버가 ELT 기반으로 개편되면서(2026-08) 도구 수가 대폭 줄었다 — **스킬이 쓰는 도구는 아래 5개가
 전부다**(서버에는 헬스체크용 `ping`이 추가로 등록되어 있으나 스킬은 쓰지 않는다). 여기 없는 도구 이름(예전의 daily/range/monthly 표 도구 3종, SKU 매출 계열,
 naver 전용 계열, v1 target_progress, 리포트 공유 계열)은 **서버에서 제거되어 더 이상
 존재하지 않는다** — 호출하면 unknown tool 에러다.
@@ -100,14 +100,9 @@ naver 전용 계열, v1 target_progress, 리포트 공유 계열)은 **서버에
   `media.lower()`로 호출하고, 값이 네 가지에 없거나 호출이 에러를 내면 그 매체는 **목표 없음**
   으로 취급한다(목표 셀 `-`, 오류 아님). google/meta/naver를 리터럴로 열거하지 않는다.
 
-## 4. `get_naver_channel_budget_progress` — naver 채널별 예산 진행
+## 4. `get_brand_list` — 브랜드 목록 (불변)
 
-- 시그니처·응답 불변(현재 사용 스킬 없음). 서버 측에서는 deprecated로 표시됐지만
-  동작한다 — 신규 스킬에서 새로 채택하지는 않는다.
-
-## 5. `get_brand_list` — 브랜드 목록 (불변)
-
-## 6. `list_promotions` — 프로모션 목록 (불변)
+## 5. `list_promotions` — 프로모션 목록 (불변)
 
 ```json
 { "brand_name": "<brand>", "start_date": "YYYY-MM-DD", "end_date": "YYYY-MM-DD" }
