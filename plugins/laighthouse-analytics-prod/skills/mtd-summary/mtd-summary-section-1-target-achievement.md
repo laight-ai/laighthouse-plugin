@@ -14,11 +14,14 @@
 { "brand_name": "<brand>", "month": "YYYY-MM", "as_of_date": "target_date" }
 ```
 
-- `media`를 생략하면 naver/google/meta/tiktok 4개 매체 블록이 빈 줄로 이어붙어 한 번에
-  온다 — 블록마다 자기 `media: <값>` 헤더 줄을 갖는다.
-- 응답 블록 중 `media_list`(디스커버리 결과)에 있는 매체와 대소문자 무관 일치하는 블록만
-  쓴다 — `media_list`에 없는 매체의 블록(브랜드가 쓰지 않는 매체)은 버린다. 매체명을
-  리터럴로 열거하지 않는다.
+- `media`를 생략하면 응답은 naver, google, meta, tiktok 순서로 **고정된 4개 블록**이 빈
+  줄로 이어붙어 온다 — `media_list`와 무관하게 항상 이 순서로 4개가 온다.
+- 각 블록은 (a) `month:`/`as_of_date:`/`media:` 헤더 3줄 + 빈 줄 + 표, 또는 (b) 헤더 없이
+  `"No {media} budget/target available for {month}."` 한 줄 중 하나다 — 표 없는 블록은
+  `media:` 헤더가 없으므로 헤더 줄로 찾지 말고, **고정 순서대로 정확히 4개 세그먼트로
+  나눠** 1번째=naver, 2번째=google, 3번째=meta, 4번째=tiktok로 배정한다.
+- 그 중 `media_list`(디스커버리 결과)에 있는 매체에 해당하는 세그먼트만 쓰고, 나머지는
+  버린다. 매체명을 리터럴로 열거하지 않는다.
 
 > ℹ️ 블록마다 헤더 라인 뒤에 행(cost/revenue/roas) × 열(target|actual|
 > progress_ratio) 표. 해당 매체 예산이 전혀 없으면 `"No {media} budget/target available for
