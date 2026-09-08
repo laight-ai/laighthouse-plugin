@@ -155,7 +155,6 @@ generic 도구(`get_ad_performance`)와 `get_target_progress_v2`, `list_promotio
 {브랜드명} Executive 월간 보고서({기준_일자}) 생성 완료.
 가장 인상적인 부분: {한 문장 하이라이트}.
 — by LaightAI
-📁 {저장된 html 파일 경로}
 ```
 
 - `{한 문장 하이라이트}`: 렌더링된 수치 중 가장 눈에 띄는 지표 하나만 (여러 개 나열 금지).
