@@ -12,11 +12,16 @@
 
 입력 (stdin, JSON):
 {
-  "out": "~/Downloads/laighthouse-reports/브리즘_creative-detailed_2026-05-15.html",  # 필수
-  "title": "브리즘 소재 보고서",                                                      # 필수
+  "out": "~/Downloads/laighthouse-reports/{브랜드명}_creative-detailed_2026-05-15.html",  # 필수
+  "title": "{브랜드명} 소재 보고서",                                                      # 필수
   "target_date": "2026-05-15",                                                       # 필수 (기준일)
   "skeleton": true,          # 선택 — true면 모든 섹션을 "데이터 준비 중"으로 채운 스켈레톤 생성
                              #        (실행 순서의 필수 체크포인트용. s1~s5는 무시된다)
+  "metric_keys": {           # 역할 → 실제 지표 키 (shared/references/generic-report-pattern.md 3절)
+    "cost": "광고비", "impression": "노출", "click": "클릭", "revenue": "매출_AB",
+    "conversion": "예약완료_AB"   # 선택 — 없으면 section-5의 전환·CPA 컬럼을 숨긴다
+  },                         # section-5 <th> 라벨에 그대로 쓴다. 생략 시 노출/클릭/광고비/매출
+  "currency": "₩",           # 선택 — 금액 접두 기호, 기본 "₩"
 
   "s1": {                    # 최우수 소재 — 각 배열은 1·2위 순, 최대 2개 (2위 없으면 1개만)
     "roas": [ {"name": "소재명", "value": 812.3, "thumbnail_url": "https://..."},
@@ -35,12 +40,12 @@
     "roas_series": [[7개 값], ...]       # 매출 매칭 실패/광고비 0인 날은 0 (null이 와도 0으로 보정)
   },
   "s5": {                    # 소재 단위 누적 성과 표 — 조인이 끝난 소재별 원본 수치 (포맷 금지)
-    "rows": [ { "media": "Meta Ads", "campaign": "...", "asset_group": "...", "ad_name": "...",
-                "impression": 12345, "click": 67, "cost": 89012,
-                "revenue": 345678,      # airbridge 미매칭 소재는 null (0과 다르다 — 0은 매칭됐는데 매출 0)
-                "reservation": 3 } ]    # airbridge 미매칭 소재는 null
+    "rows": [ { "media": "Kakao", "campaign": "...", "asset_group": "...", "ad_name": "...",
+                "impression": 12345, "click": 67, "cost": 89012,   # media는 chosen_media 값 그대로
+                "revenue": 345678,      # 값이 없는 소재는 null (0과 다르다 — 0은 실제 매출 0)
+                "conversion": 3 } ]     # metric_keys에 conversion이 있을 때만; 없는 소재는 null
   }                          # (파일 경로로 넘기려면 "rows_file": "/tmp/s5.json" — rows 배열이 든 JSON)
-    # CTR/CPA/ROAS 계산, ₩·%·콤마 포맷, 광고비 내림차순 정렬, <tr> HTML·검색 텍스트 생성은 빌더가 한다.
+    # CTR/CPA/ROAS 계산, 통화·%·콤마 포맷, 광고비 내림차순 정렬, <thead>/<tr> HTML·검색 텍스트 생성은 빌더가 한다.
 }
 
 - s1~s5 중 키 자체가 없거나 null인 섹션은 "데이터 준비 중" 카드로 렌더링된다(섹션 생략 없음).
@@ -76,23 +81,20 @@ S1_IMG_TMPL = (
     'text-decoration:underline; font-size:12.5px;">소재 미리보기 →</a>'
 )
 
-# section-5 행 템플릿 — 식별열은 안 잘림 원칙(고정폭+break-word), 지표열은 nowrap (섹션 스펙 그대로)
-S5_TR_TMPL = (
-    '<tr>'
-    '<td style="border:1px solid #e2e8f0; padding:10px 14px; text-align:center; white-space:nowrap;">{media}</td>'
-    '<td style="border:1px solid #e2e8f0; padding:10px 14px; text-align:left; white-space:normal; overflow-wrap:break-word; line-height:1.4;">{campaign}</td>'
-    '<td style="border:1px solid #e2e8f0; padding:10px 14px; text-align:left; white-space:normal; overflow-wrap:break-word; line-height:1.4;">{asset_group}</td>'
-    '<td style="border:1px solid #e2e8f0; padding:10px 14px; text-align:left; white-space:normal; overflow-wrap:break-word; line-height:1.4;">{ad_name}</td>'
-    '<td style="border:1px solid #e2e8f0; padding:12px 14px; text-align:center; white-space:nowrap;">{impression}</td>'
-    '<td style="border:1px solid #e2e8f0; padding:12px 14px; text-align:center; white-space:nowrap;">{click}</td>'
-    '<td style="border:1px solid #e2e8f0; padding:12px 14px; text-align:center; white-space:nowrap;">{ctr}</td>'
-    '<td style="border:1px solid #e2e8f0; padding:12px 14px; text-align:center; white-space:nowrap;">{cost}</td>'
-    '<td style="border:1px solid #e2e8f0; padding:12px 14px; text-align:center; white-space:nowrap;">{revenue}</td>'
-    '<td style="border:1px solid #e2e8f0; padding:12px 14px; text-align:center; white-space:nowrap;">{reservation}</td>'
-    '<td style="border:1px solid #e2e8f0; padding:12px 14px; text-align:center; white-space:nowrap;">{cpa}</td>'
-    '<td style="border:1px solid #e2e8f0; padding:12px 14px; text-align:center; white-space:nowrap;">{roas}</td>'
-    '</tr>'
-)
+# section-5 셀 템플릿 — 식별열은 안 잘림 원칙(고정폭+break-word), 지표열은 nowrap (섹션 스펙 그대로)
+S5_TD_ID = '<td style="border:1px solid #e2e8f0; padding:10px 14px; text-align:center; white-space:nowrap;">{}</td>'
+S5_TD_TEXT = ('<td style="border:1px solid #e2e8f0; padding:10px 14px; text-align:left; white-space:normal; '
+              'overflow-wrap:break-word; line-height:1.4;">{}</td>')
+S5_TD_NUM = '<td style="border:1px solid #e2e8f0; padding:12px 14px; text-align:center; white-space:nowrap;">{}</td>'
+
+# section-5 <thead> — 지표 라벨은 metric_keys 값 그대로, conversion이 없으면 전환·CPA 컬럼 생략
+S5_TH = ('<th style="border:1px solid #e2e8f0; padding:12px 14px; text-align:center; background:#f8fafc; '
+         'white-space:nowrap; width:{width}px;">{label}</th>')
+S5_TH_TEXT = ('<th style="border:1px solid #e2e8f0; padding:12px 14px; text-align:center; background:#f8fafc; '
+              'width:{width}px;">{label}</th>')
+S5_ID_HEADERS = [("매체", 90, S5_TH), ("캠페인", 260, S5_TH_TEXT), ("광고그룹", 200, S5_TH_TEXT), ("광고", 200, S5_TH_TEXT)]
+DEFAULT_METRIC_LABELS = {"impression": "노출", "click": "클릭", "cost": "광고비", "revenue": "매출"}
+CURRENCY = "₩"
 
 
 def esc(v):
@@ -100,7 +102,7 @@ def esc(v):
 
 
 def fmt_won(v):
-    return f"₩{round(v):,}"
+    return f"{CURRENCY}{round(v):,}"
 
 
 def fmt_int(v):
@@ -167,29 +169,59 @@ def s1_slots(entries, label):
     return out
 
 
-def build_s5_rows(rows):
-    """조인이 끝난 소재별 원본 수치 → 광고비 내림차순 정렬 + 파생지표/포맷 + <tr> HTML."""
+def s5_metric_labels(metric_keys):
+    """역할별 <th> 라벨 — metric_keys 값 그대로, 없으면 기본 라벨. conversion은 있을 때만."""
+    labels = [metric_keys.get(role) or DEFAULT_METRIC_LABELS[role]
+              for role in ("impression", "click")]
+    labels.append("CTR")
+    labels += [metric_keys.get(role) or DEFAULT_METRIC_LABELS[role] for role in ("cost", "revenue")]
+    conv = metric_keys.get("conversion")
+    if conv:
+        labels += [conv, f"{conv} CPA"]
+    labels.append("ROAS")
+    return labels
+
+
+def build_s5_thead(metric_keys):
+    ths = [tmpl.format(label=label, width=width) for label, width, tmpl in S5_ID_HEADERS]
+    ths += [S5_TH.format(label=esc(label), width=150) for label in s5_metric_labels(metric_keys)]
+    return "\n            ".join(ths)
+
+
+def build_s5_rows(rows, has_conversion):
+    """소재별 원본 수치 → 광고비 내림차순 정렬 + 파생지표/포맷 + <tr> HTML.
+    conversion 역할이 없으면 전환·CPA 셀을 만들지 않는다(<thead>와 컬럼 수 일치)."""
     rows = sorted(rows, key=lambda r: r.get("cost") or 0, reverse=True)
     out = []
     for r in rows:
         imp = r.get("impression") or 0
         clk = r.get("click") or 0
         cost = r.get("cost") or 0
-        rev = r.get("revenue")          # None = airbridge 미매칭 (0과 구분)
-        res = r.get("reservation")      # None = airbridge 미매칭
+        rev = r.get("revenue")          # None = 값 없음 (0과 구분)
+        conv = r.get("conversion")      # None = 값 없음
         ctr = fmt_pct2(clk / imp * 100) if imp > 0 else "N/A"
         revenue_s = fmt_won(rev) if rev is not None else "-"
-        reservation_s = fmt_int(res) if res is not None else "-"
-        cpa_s = fmt_won(cost / res) if res else "-"
         roas_s = fmt_pct1(rev / cost * 100) if (rev is not None and cost > 0) else "-"
-        html = S5_TR_TMPL.format(
-            media=esc(r.get("media", "")), campaign=esc(r.get("campaign", "")),
-            asset_group=esc(r.get("asset_group", "")), ad_name=esc(r.get("ad_name", "")),
-            impression=fmt_int(imp), click=fmt_int(clk), ctr=ctr, cost=fmt_won(cost),
-            revenue=revenue_s, reservation=reservation_s, cpa=cpa_s, roas=roas_s)
+        cells = [
+            S5_TD_ID.format(esc(r.get("media", ""))),
+            S5_TD_TEXT.format(esc(r.get("campaign", ""))),
+            S5_TD_TEXT.format(esc(r.get("asset_group", ""))),
+            S5_TD_TEXT.format(esc(r.get("ad_name", ""))),
+            S5_TD_NUM.format(fmt_int(imp)),
+            S5_TD_NUM.format(fmt_int(clk)),
+            S5_TD_NUM.format(ctr),
+            S5_TD_NUM.format(fmt_won(cost)),
+            S5_TD_NUM.format(revenue_s),
+        ]
+        if has_conversion:
+            cells += [
+                S5_TD_NUM.format(fmt_int(conv) if conv is not None else "-"),
+                S5_TD_NUM.format(fmt_won(cost / conv) if conv else "-"),
+            ]
+        cells.append(S5_TD_NUM.format(roas_s))
         search = " ".join(str(r.get(k, "") or "") for k in
                           ("media", "campaign", "asset_group", "ad_name")).lower()
-        out.append({"search": search, "html": html})
+        out.append({"search": search, "html": "<tr>" + "".join(cells) + "</tr>"})
     return out
 
 
@@ -206,9 +238,13 @@ def load_rows(section):
 
 
 def main():
+    global CURRENCY
     payload = json.load(sys.stdin)
     target = date.fromisoformat(payload["target_date"])
     skeleton = bool(payload.get("skeleton"))
+    metric_keys = payload.get("metric_keys") or {}
+    has_conversion = bool(metric_keys.get("conversion"))
+    CURRENCY = payload.get("currency") or CURRENCY
 
     with open(TEMPLATE, encoding="utf-8") as f:
         html = f.read()
@@ -277,12 +313,14 @@ def main():
     rows = load_rows(section_data("s5"))
     if rows is not None:
         status["s5"] = "ok"
-        s5_rows = build_s5_rows(rows)
+        s5_rows = build_s5_rows(rows, has_conversion)
+        html = html.replace("__S5_THEAD_HTML__", build_s5_thead(metric_keys))
     else:
         status["s5"] = "placeholder"
         html = swap_section(html, "s5", PLACEHOLDER_CARD)
         s5_rows = []
     html = html.replace("__S5_ROWS_JSON__", js_json(s5_rows))
+    html = html.replace("__S5_COLSPAN__", str(len(S5_ID_HEADERS) + len(s5_metric_labels(metric_keys))))
 
     # ── 공통 치환
     html = html.replace("__REPORT_TITLE__", payload["title"])
@@ -293,7 +331,7 @@ def main():
     leftovers = [t for t in [
         "__REPORT_TITLE__", "__REPORT_DATE_LABEL__", "__S1_", "__S2_ITEMS_HTML__",
         "__S34_LABELS_JSON__", "__S34_NAMES_JSON__", "__S3_CTR_SERIES_JSON__",
-        "__S4_ROAS_SERIES_JSON__", "__S5_ROWS_JSON__",
+        "__S4_ROAS_SERIES_JSON__", "__S5_THEAD_HTML__", "__S5_ROWS_JSON__", "__S5_COLSPAN__",
     ] if t in html]
     if leftovers:
         raise SystemExit(f"치환 누락: {leftovers}")

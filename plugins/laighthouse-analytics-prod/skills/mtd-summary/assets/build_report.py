@@ -12,15 +12,20 @@
 
 입력 (stdin, JSON):
 {
-  "out": "~/Downloads/laighthouse-reports/브리즘_mtd-summary_2026-05-15.html",  # 필수
-  "title": "브리즘 Executive MTD 보고서",                                        # 필수
+  "out": "~/Downloads/laighthouse-reports/{브랜드명}_mtd-summary_2026-05-15.html",  # 필수
+  "title": "{브랜드명} Executive MTD 보고서",                                        # 필수
   "target_date": "2026-05-15",                                                  # 필수
   "skeleton": true,          # 선택 — true면 모든 섹션을 "데이터 준비 중"으로 채운 스켈레톤 생성
                              #        (실행 순서의 필수 체크포인트용. s1~s5는 무시된다)
+  "metric_keys": {           # 역할 → 실제 지표 키 (shared/references/generic-report-pattern.md 3절)
+    "cost": "광고비", "impression": "노출", "click": "클릭", "revenue": "매출_AB",
+    "conversion": "예약완료_AB"   # 선택 — 없으면 section-5의 전환 컬럼을 숨긴다
+  },                         # <th> 라벨에 그대로 쓴다. 생략 시 cost="광고비", revenue="매출"
+  "currency": "₩",           # 선택 — 금액 접두 기호, 기본 "₩" (템플릿 JS 포맷터에도 주입)
 
   "s1": {                    # 목표 달성 현황 — 숫자(원본 수치) 또는 표시 문자열, 없으면 null
     "소진율": 33.13,          # 숫자면 % 소수점 1자리로 포맷, null이면 "N/A"
-    "목표_예산": 168110000,   # 숫자면 ₩+천단위 콤마로 포맷
+    "목표_예산": 168110000,   # 숫자면 통화기호+천단위 콤마로 포맷
     "소진액": 55700000,
     "매출_달성률": null,
     "목표_매출": null,
@@ -31,8 +36,8 @@
   },
   "s2": {                    # Executive Summary — 불릿 카드 3~5개 (6개 이상이면 앞 5개만 사용)
     "bullets": [
-      {"text": "Google Ads 매출이 전월 대비 <strong>+22.4%</strong> 성장...", "color": "green"},
-      {"text": "Meta Ads 매출이 전월 대비 -19.8% 감소...", "color": "red"},
+      {"text": "Kakao 매출이 전월 대비 <strong>+22.4%</strong> 성장...", "color": "green"},
+      {"text": "TikTok 매출이 전월 대비 -19.8% 감소...", "color": "red"},
       {"text": "브랜딩 캠페인 이월 영향 가능성...", "color": "neutral"}
     ]                         # color: "green"(성장/개선) | "red"(하락/점검) | "neutral"(중립 관찰)
                               # ("executive_summary": "줄1\n줄2" 문자열도 허용 — 전부 neutral 처리)
@@ -46,17 +51,16 @@
     "ad_revenue": [..6개..], "total_revenue": [..6개..],
     "labels": [...], "zero_fill": true   # 둘 다 선택 — 규칙은 s3과 동일
   },
-  "s5": {                    # 매체 성과 비교 (M-1 vs M0) — 원본 수치만 넘기면 ROAS·변화량·
-    "channels": [            # 화살표·색상·정렬·행 HTML 생성을 전부 빌더가 한다
-      {"name": "Naver Ads",
-       "m1": {"cost": 5000000, "revenue": 251835000, "reservation": 120},
-       "m0": {"cost": 5100000, "revenue": 260000000, "reservation": 128}},
-      {"name": "Organic",  "m1": {"revenue": 90000000, "reservation": 40}, "m0": {...}},
-      ...
-    ]                         # name은 Naver Ads/Google Ads/Meta Ads/Organic/Others 5개만 허용.
-                              # 빠진 채널은 전부 "-" 행으로 채워진다(5행 고정). Organic/Others는
-                              # cost를 넣어도 무시("-"). 값이 없으면 키 생략 또는 null.
-  }
+  "s5": {                    # 매체 성과 비교 (M-1 vs M0) — 매체별 원본 수치만 넘기면 ROAS·변화량·
+    "rows": [                # 화살표·색상·행 HTML 생성을 전부 빌더가 한다
+      {"name": "Kakao",
+       "m1": {"cost": 5000000, "revenue": 251835000, "conversion": 120},
+       "m0": {"cost": 5100000, "revenue": 260000000, "conversion": 128}},
+      {"name": "TikTok",  "m1": {...}, "m0": {...}},
+      {"name": "Organic", "m1": {"revenue": 90000000, "conversion": 40}, "m0": {...}}  # cost 없음 → "-"
+    ]                         # 디스커버리된 매체(응답 값 그대로) + Organic(있을 때만), 받은 순서대로 렌더링.
+  }                           # 값 키는 역할명(cost/revenue/conversion) — metric_keys에 conversion이 없으면 생략.
+                              # 값이 없으면 키 생략 또는 null → "-".
 }
 
 - s1~s5 중 키 자체가 없거나 null인 섹션은 "데이터 준비 중" 카드로 렌더링된다(섹션 생략 없음).
@@ -86,12 +90,18 @@ PCT_FIELDS = {"소진율", "매출_달성률", "실제_ROAS", "목표_ROAS"}
 
 DOT_COLORS = {"green": "#16a34a", "red": "#dc2626", "neutral": "#78716c"}
 
-S5_CHANNELS = ["Naver Ads", "Google Ads", "Meta Ads", "Organic", "Others"]
-S5_NO_COST = {"Organic", "Others"}
+S5_TH_GROUP = ('<th colspan="2" style="white-space:nowrap; text-align:center; border-bottom:none; '
+               'padding-top:8px; padding-bottom:8px; vertical-align:middle;{border}">{label}</th>')
+S5_TH_MONTH = ('<th style="white-space:nowrap; text-align:center; font-size:11px; font-weight:500; '
+               'padding-top:8px; padding-bottom:8px; vertical-align:middle;{border}">{label}</th>')
+S5_TH_BORDER = " border-right:1px solid #e2e8f0;"
+
+DEFAULT_METRIC_LABELS = {"cost": "광고비", "revenue": "매출"}
+CURRENCY = "₩"
 
 
 def fmt_won(v):
-    return f"₩{round(v):,}"
+    return f"{CURRENCY}{round(v):,}"
 
 
 def fmt_pct(v):
@@ -183,7 +193,7 @@ def s5_fmt(kind, v):
 
 def s5_delta(m0, m1, suffix):
     """M-1 대비 변화량 div HTML — 계산 불가면 빈 문자열.
-    광고비/매출/예약은 상대 변화율(%), ROAS는 %p. 색상·화살표는 반올림된 표시값 기준
+    광고비/매출/전환은 상대 변화율(%), ROAS는 %p. 색상·화살표는 반올림된 표시값 기준
     (표시값 0.0이면 검정·화살표 없음 — 원본이 미세하게 ±여도 동일)."""
     if m0 is None or m1 is None:
         return ""
@@ -203,57 +213,69 @@ def s5_delta(m0, m1, suffix):
     return f'\n            <div style="font-size:10.5px; text-align:center; color:{color};">{label}</div>'
 
 
-def build_s5_rows(channels):
-    """5행 고정(빠진 채널은 '-' 행), M0 매출 내림차순 정렬, <tr> HTML 생성."""
-    by_name = {}
-    for ch in channels or []:
-        name = ch.get("name")
-        if name not in S5_CHANNELS:
-            raise SystemExit(f"s5 channel name은 {S5_CHANNELS} 중 하나여야 합니다: {name!r}")
-        by_name[name] = ch
+def build_s5_thead(metric_keys, m1_label, m0_label):
+    """metric_keys의 역할 라벨로 section-5 <thead> 생성. conversion 역할이 없으면 그 컬럼 생략."""
+    groups = [metric_keys.get("cost") or DEFAULT_METRIC_LABELS["cost"],
+              metric_keys.get("revenue") or DEFAULT_METRIC_LABELS["revenue"]]
+    if metric_keys.get("conversion"):
+        groups.append(metric_keys["conversion"])
+    groups.append("ROAS")
+    row1 = ['<th rowspan="2" style="white-space:nowrap; text-align:center; vertical-align:middle;'
+            f'{S5_TH_BORDER}">매체</th>']
+    row2 = []
+    for i, label in enumerate(groups):
+        last = i == len(groups) - 1
+        row1.append(S5_TH_GROUP.format(label=label, border="" if last else S5_TH_BORDER))
+        row2.append(S5_TH_MONTH.format(label=m1_label, border=""))
+        row2.append(S5_TH_MONTH.format(label=m0_label, border="" if last else S5_TH_BORDER))
+    sep = "\n            "
+    return ("<tr>" + sep + sep.join(row1) + "\n          </tr>\n          <tr>" + sep
+            + sep.join(row2) + "\n          </tr>")
 
-    items = []
-    for name in S5_CHANNELS:
-        ch = by_name.get(name, {})
-        m1, m0 = ch.get("m1") or {}, ch.get("m0") or {}
-        no_cost = name in S5_NO_COST
 
-        def metrics(d):
-            cost = None if no_cost else d.get("cost")
-            revenue = d.get("revenue")
-            reservation = d.get("reservation")
-            roas = (revenue / cost * 100) if (cost not in (None, 0) and revenue is not None) else None
-            return cost, revenue, reservation, roas
+def _num(d, key):
+    v = (d or {}).get(key)
+    return v if isinstance(v, (int, float)) else None
 
-        m1c, m1r, m1b, m1roas = metrics(m1)
-        m0c, m0r, m0b, m0roas = metrics(m0)
-        items.append((name, m1c, m0c, m1r, m0r, m1b, m0b, m1roas, m0roas))
 
-    items.sort(key=lambda t: t[4] if isinstance(t[4], (int, float)) else float("-inf"), reverse=True)
-
-    rows = []
-    for name, m1c, m0c, m1r, m0r, m1b, m0b, m1roas, m0roas in items:
-        rows.append(
-            "<tr>\n"
-            f'            <td style="white-space:nowrap; text-align:left; border-right:1px solid #e2e8f0;">{name}</td>\n'
-            f'            <td style="white-space:nowrap; text-align:center;">{s5_fmt("money", m1c)}</td>\n'
-            f'            <td style="white-space:nowrap; text-align:center; border-right:1px solid #e2e8f0;">{s5_fmt("money", m0c)}{s5_delta(m0c, m1c, "%")}</td>\n'
-            f'            <td style="white-space:nowrap; text-align:center;">{s5_fmt("money", m1r)}</td>\n'
-            f'            <td style="white-space:nowrap; text-align:center; border-right:1px solid #e2e8f0;">{s5_fmt("money", m0r)}{s5_delta(m0r, m1r, "%")}</td>\n'
-            f'            <td style="white-space:nowrap; text-align:center;">{s5_fmt("count", m1b)}</td>\n'
-            f'            <td style="white-space:nowrap; text-align:center; border-right:1px solid #e2e8f0;">{s5_fmt("count", m0b)}{s5_delta(m0b, m1b, "%")}</td>\n'
-            f'            <td style="white-space:nowrap; text-align:center;">{s5_fmt("roas", m1roas)}</td>\n'
-            f'            <td style="white-space:nowrap; text-align:center;">{s5_fmt("roas", m0roas)}{s5_delta(m0roas, m1roas, "%p")}</td>\n'
-            "          </tr>"
-        )
-    return "\n          ".join(rows)
+def build_s5_rows(rows, has_conversion):
+    """매체별 원본 수치 → ROAS 계산·변화량·<tr> HTML. 행은 입력 순서 그대로."""
+    out = []
+    for r in rows:
+        m1, m0 = r.get("m1") or {}, r.get("m0") or {}
+        m1c, m0c = _num(m1, "cost"), _num(m0, "cost")
+        m1r, m0r = _num(m1, "revenue"), _num(m0, "revenue")
+        m1b, m0b = _num(m1, "conversion"), _num(m0, "conversion")
+        m1roas = (m1r / m1c * 100) if (m1c not in (None, 0) and m1r is not None) else None
+        m0roas = (m0r / m0c * 100) if (m0c not in (None, 0) and m0r is not None) else None
+        cells = [
+            f'<td style="white-space:nowrap; text-align:left; border-right:1px solid #e2e8f0;">{r.get("name", "")}</td>',
+            f'<td style="white-space:nowrap; text-align:center;">{s5_fmt("money", m1c)}</td>',
+            f'<td style="white-space:nowrap; text-align:center; border-right:1px solid #e2e8f0;">{s5_fmt("money", m0c)}{s5_delta(m0c, m1c, "%")}</td>',
+            f'<td style="white-space:nowrap; text-align:center;">{s5_fmt("money", m1r)}</td>',
+            f'<td style="white-space:nowrap; text-align:center; border-right:1px solid #e2e8f0;">{s5_fmt("money", m0r)}{s5_delta(m0r, m1r, "%")}</td>',
+        ]
+        if has_conversion:
+            cells += [
+                f'<td style="white-space:nowrap; text-align:center;">{s5_fmt("count", m1b)}</td>',
+                f'<td style="white-space:nowrap; text-align:center; border-right:1px solid #e2e8f0;">{s5_fmt("count", m0b)}{s5_delta(m0b, m1b, "%")}</td>',
+            ]
+        cells += [
+            f'<td style="white-space:nowrap; text-align:center;">{s5_fmt("roas", m1roas)}</td>',
+            f'<td style="white-space:nowrap; text-align:center;">{s5_fmt("roas", m0roas)}{s5_delta(m0roas, m1roas, "%p")}</td>',
+        ]
+        out.append("<tr>\n            " + "\n            ".join(cells) + "\n          </tr>")
+    return "\n          ".join(out)
 
 
 def main():
+    global CURRENCY
     payload = json.load(sys.stdin)
     target = date.fromisoformat(payload["target_date"])
     m1_y, m1_m = shift_month(target.year, target.month, -1)
     skeleton = bool(payload.get("skeleton"))
+    metric_keys = payload.get("metric_keys") or {}
+    CURRENCY = payload.get("currency") or CURRENCY
 
     with open(TEMPLATE, encoding="utf-8") as f:
         html = f.read()
@@ -327,15 +349,17 @@ def main():
 
     # ── section 5
     s5 = section_data("s5")
-    if s5 and s5.get("channels"):
+    if s5 and s5.get("rows"):
         status["s5"] = "ok"
-        html = html.replace("__S5_ROWS_HTML__", build_s5_rows(s5["channels"]))
+        html = html.replace("__S5_THEAD_HTML__", build_s5_thead(metric_keys, f"{m1_m}월", f"{target.month}월"))
+        html = html.replace("__S5_ROWS_HTML__", build_s5_rows(s5["rows"], bool(metric_keys.get("conversion"))))
     else:
         status["s5"] = "placeholder"
         html = swap_section(html, "s5", PLACEHOLDER_CARD)
 
     # ── 공통 치환
     html = html.replace("__REPORT_TITLE__", payload["title"])
+    html = html.replace("__CURRENCY__", CURRENCY)
     html = html.replace("__REPORT_DATE_LABEL__",
                         f"{target.year}년 {target.month}월 1일 ~ {target.month}월 {target.day}일")
     html = (html.replace("__M1_YY__", str(m1_y % 100)).replace("__M1_MM__", str(m1_m))
@@ -345,7 +369,8 @@ def main():
     # ── 치환 누락 검증 (chart.js 인라인 전에 — 알려진 토큰이 남아있으면 실패)
     leftovers = [t for t in [
         "__REPORT_TITLE__", "__REPORT_DATE_LABEL__", "__S1_", "__S2_ITEMS_HTML__",
-        "__S3_", "__S4_", "__S5_ROWS_HTML__", "__M1_", "__M0_", "__TD_DD__",
+        "__S3_", "__S4_", "__S5_THEAD_HTML__", "__S5_ROWS_HTML__", "__CURRENCY__",
+        "__M1_", "__M0_", "__TD_DD__",
     ] if t in html]
     if leftovers:
         raise SystemExit(f"치환 누락: {leftovers}")

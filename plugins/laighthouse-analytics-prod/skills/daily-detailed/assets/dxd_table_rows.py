@@ -8,22 +8,22 @@ MCP 응답 JSON을 받아 stdout으로 완성된 행 배열만 낸다. 중간 �
 ⚠️ **`get_ad_performance`는 JSON 봉투를 반환한다** — `{"source": "elt", "tenant": ...,
 "time_grain": "day", "dimensions": [...], "metrics": [...], "row_count": N, "rows": [...]}`.
 각 행(row)에는 요청한 차원 키(영문: `date`/`media`/`campaign_name`/`ad_group_name`/`ad_name`
-등)와 **테넌트별 지표 키**(브리즘: `광고비`/`노출`/`클릭`/`매출_AB`/`예약완료_AB` 등)가
-들어있다. 그 원본 문자열을 손으로 옮겨 적거나(전사 실수·행 누락 위험) 파싱용 스크립트를 새로
-만들지 않는다 — 아래 입력 형태로 원본 문자열/파일 경로를 **그대로** 넘기면 이 스크립트가
-직접 파싱한다.
+등)와 **테넌트별 지표 키**가 들어있다. 그 원본 문자열을 손으로 옮겨 적거나(전사 실수·행 누락
+위험) 파싱용 스크립트를 새로 만들지 않는다 — 아래 입력 형태로 원본 문자열/파일 경로를
+**그대로** 넘기면 이 스크립트가 직접 파싱한다.
 
 입력 (stdin, JSON):
 
 (A) **권장 — MCP 도구가 반환하는 원본 JSON 봉투 문자열을 그대로 넘길 때** (각 호출의 응답
     문자열을 파싱·가공 없이 그대로 배열에 담는다 — 호출이 몇 번이든(section-4는 1개,
-    section-5는 3개) 전부 이 배열 하나에 넣으면 스크립트가 각 봉투를 파싱해 이어붙인다):
+    section-5는 매체 수만큼) 전부 이 배열 하나에 넣으면 스크립트가 각 봉투를 파싱해 이어붙인다):
 {
   "level": "campaign" | "ad",       # section-4=campaign, section-5=ad
   "d1_date": "YYYY-MM-DD",
   "d0_date": "YYYY-MM-DD",
-  "threshold": 10000,                 # D0 광고비 <= threshold 인 행 제외 (기본 10000)
-  "json": [ "<google 호출의 봉투 원본 문자열>", "<meta 호출의 봉투 원본 문자열>", ... ]
+  "threshold": 10000,                 # D0 광고비 <= threshold 인 행 제외 (기본 10000, currency 단위)
+  "currency": "₩",                    # 금액 접두 기호 (기본 "₩")
+  "json": [ "<매체1 호출의 봉투 원본 문자열>", "<매체2 호출의 봉투 원본 문자열>", ... ]
 }
 
 (B) **플러그인 캡처 훅이 동작하는 호스트(Claude Code)에서 최우선** — MCP 응답이
@@ -44,17 +44,19 @@ MCP 응답 JSON을 받아 stdout으로 완성된 행 배열만 낸다. 중간 �
   "rows": [ ... ]    # 봉투의 rows 배열을 그대로 이어붙인 리스트
 }
 
-선택 필드 `metric_keys` — 지표 키는 테넌트별이다. 생략하면 브리즘(breezm) 기본값을 쓰고,
-봉투의 `metrics` 목록과 대조해 없는 키는 명확한 에러를 낸다. 다른 테넌트라면 그 테넌트의
-실제 지표 키를 넘긴다:
+`metric_keys` — 역할(cost/impression/click/revenue/선택 conversion) → 실제 지표 키
+(`shared/references/generic-report-pattern.md` 3절). 빌더(`build_report.py`)에 넘기는 것과
+**같은 맵**을 넘긴다. 생략하면 봉투의 `metrics`(또는 rows의 키)에서 패턴의 후보 목록으로
+자동 해석하고, cost/impression/click/revenue 중 하나라도 못 정하면 명확한 에러를 낸다.
+`conversion`을 못 정하면 전환·CPA 컬럼을 생략한다:
 {
   "metric_keys": {"cost": "광고비", "impression": "노출", "click": "클릭",
-                  "revenue": "매출_AB", "reservation": "예약완료_AB"}
+                  "revenue": "매출_AB", "conversion": "예약완료_AB"}
 }
 
 출력 (stdout, JSON): [{"search": "매체 캠페인 [광고그룹 광고] (소문자)", "html": "<tr>...</tr>"}, ...]
-D0 광고비 내림차순, threshold 이하 제외, HTML까지 완성된 상태 — 그대로
-{DAILY_CAMPAIGN_ROWS}/{DAILY_AD_ROWS} 자리에 넣으면 된다.
+D0 광고비 내림차순, threshold 이하 제외, HTML까지 완성된 상태. 매체 라벨은 행의 `media` 값
+그대로(`null`이면 "Organic").
 
 사용 예 (단 한 번의 Bash 호출 안에서 따옴표 있는 heredoc으로 — echo나 파일 저장 후 재실행 X):
   python3 assets/dxd_table_rows.py <<'PYEOF'
@@ -68,16 +70,20 @@ import io
 sys.stdin = io.TextIOWrapper(sys.stdin.buffer, encoding="utf-8")
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 
-# media 차원 값 → 표시 라벨 (대소문자 무관 매칭 — ELT는 "Google"/"Meta"/"Naver"를 쓴다)
-MEDIA_LABEL = {"google": "Google Ads", "meta": "Meta Ads", "naver": "Naver Ads"}
-
-DEFAULT_METRIC_KEYS = {
-    "cost": "광고비",
-    "impression": "노출",
-    "click": "클릭",
-    "revenue": "매출_AB",
-    "reservation": "예약완료_AB",
+# 역할별 지표 키 후보(순서대로 정확 일치) — generic-report-pattern.md 3절
+ROLE_CANDIDATES = {
+    "cost": ["광고비", "cost", "spend"],
+    "impression": ["노출", "impressions", "impression"],
+    "click": ["클릭", "clicks", "click"],
+    "revenue": ["매출_AB", "매출", "revenue"],
+    "conversion": ["예약완료_AB", "예약완료", "purchases", "conversions", "전환"],
 }
+REQUIRED_ROLES = ["cost", "impression", "click", "revenue"]
+DIMENSION_KEYS = {"date", "month", "media", "source", "campaign_id", "campaign_name",
+                  "ad_group_id", "ad_group_name", "ad_id", "ad_name", "ad_type"}
+ORGANIC_LABEL = "Organic"
+
+CURRENCY = "₩"
 
 
 def unwrap_json_result(text):
@@ -110,16 +116,32 @@ def parse_envelope(text):
     return obj["rows"], obj.get("metrics")
 
 
-def resolve_metric_keys(payload, envelope_metrics):
-    keys = dict(DEFAULT_METRIC_KEYS)
-    keys.update(payload.get("metric_keys") or {})
-    if envelope_metrics:
-        missing = [v for v in keys.values() if v not in envelope_metrics]
-        if missing:
-            raise SystemExit(
-                f"지표 키 {missing}가 응답 metrics {envelope_metrics}에 없음 — "
-                f"테넌트별 지표 키를 metric_keys로 넘겨라"
-            )
+def resolve_metric_keys(payload, envelope_metrics, rows):
+    """역할 → 지표 키. 명시 override 우선, 나머지는 후보 목록으로 자동 해석.
+    conversion은 선택(못 정하면 None → 전환/CPA 컬럼 생략)."""
+    metric_names = list(envelope_metrics or [])
+    if not metric_names:
+        seen = set()
+        for r in rows:
+            for k in r.keys():
+                if k not in DIMENSION_KEYS and k not in seen:
+                    seen.add(k)
+                    metric_names.append(k)
+    override = payload.get("metric_keys") or {}
+    keys = {}
+    for role, candidates in ROLE_CANDIDATES.items():
+        if override.get(role):
+            keys[role] = override[role]
+            continue
+        keys[role] = next((c for c in candidates if c in metric_names), None)
+    bad = [keys[r] for r in keys if keys[r] and metric_names and keys[r] not in metric_names]
+    if bad:
+        raise SystemExit(f"지표 키 {bad}가 응답 metrics {metric_names}에 없음 — metric_keys를 바로잡아라")
+    unresolved = [r for r in REQUIRED_ROLES if not keys[r]]
+    if unresolved:
+        raise SystemExit(
+            f"역할 {unresolved}의 지표 키를 응답 metrics {metric_names}에서 정할 수 없음 — "
+            f"metric_keys로 넘겨라")
     return keys
 
 
@@ -127,15 +149,22 @@ def resolve_metric_keys(payload, envelope_metrics):
 POSITIVE_ON_INCREASE = {
     "cost": True,
     "ctr": True,
-    "reservation": True,
+    "conversion": True,
     "cpa": False,
     "revenue": True,
     "roas": True,
 }
 
 
+def metric_order(has_conversion):
+    order = [("cost", "%"), ("ctr", "%p")]
+    if has_conversion:
+        order += [("conversion", "%"), ("cpa", "%")]
+    return order + [("revenue", "%"), ("roas", "%p")]
+
+
 def fmt_won(v):
-    return f"₩{round(v):,}"
+    return f"{CURRENCY}{round(v):,}"
 
 
 def fmt_pct1(v):
@@ -148,10 +177,10 @@ def calc_ctr(click, impression):
     return click / impression * 100
 
 
-def calc_cpa(cost, reservation):
-    if not reservation:
+def calc_cpa(cost, conversion):
+    if not conversion:
         return None
-    return cost / reservation
+    return cost / conversion
 
 
 def calc_roas(revenue, cost):
@@ -161,7 +190,7 @@ def calc_roas(revenue, cost):
 
 
 def delta_relative(d0, d1):
-    """% 변화 (광고비/예약 완료/CPA/매출): D0 또는 D1이 없으면 표시 안 함, D1이 0이어도 표시 안 함."""
+    """% 변화 (광고비/전환/CPA/매출): D0 또는 D1이 없으면 표시 안 함, D1이 0이어도 표시 안 함."""
     if d0 is None or d1 in (None, 0):
         return None
     return (d0 - d1) / d1 * 100
@@ -172,6 +201,10 @@ def delta_point(d0, d1):
     if d0 is None or d1 is None:
         return None
     return d0 - d1
+
+
+DELTA_FN = {"cost": delta_relative, "ctr": delta_point, "conversion": delta_relative,
+            "cpa": delta_relative, "revenue": delta_relative, "roas": delta_point}
 
 
 def arrow_color(delta, metric_key, digits=1):
@@ -199,8 +232,14 @@ def delta_html(delta_tuple, suffix):
     )
 
 
+def media_label(row):
+    """매체 라벨은 `media` 값 그대로(접미사·번역 없음). null/빈 값은 Organic."""
+    media = row.get("media")
+    return str(media) if media not in (None, "") else ORGANIC_LABEL
+
+
 def media_group_key(row, level):
-    media = str(row.get("media") or "")
+    media = media_label(row)
     campaign = row.get("campaign_name") or ""
     if level == "ad":
         return (media, campaign, row.get("ad_group_name") or "", row.get("ad_name") or "")
@@ -219,40 +258,45 @@ def sum_rows(rows, mk):
     """같은 (날짜, 키)에 여러 행이 있으면 합산. 행이 없으면 None(그 날짜에 항목 자체가 없음)."""
     if not rows:
         return None
-    return {
+    s = {
         "cost": sum(r.get(mk["cost"]) or 0 for r in rows),
         "impression": sum(r.get(mk["impression"]) or 0 for r in rows),
         "click": sum(r.get(mk["click"]) or 0 for r in rows),
         "revenue": sum(r.get(mk["revenue"]) or 0 for r in rows),
-        "reservation": sum(r.get(mk["reservation"]) or 0 for r in rows),
     }
+    if mk.get("conversion"):
+        s["conversion"] = sum(r.get(mk["conversion"]) or 0 for r in rows)
+    return s
 
 
 def compute_metrics(s):
-    """s는 sum_rows 결과 — 매출/예약이 행에 함께 들어있으므로(ELT) 별도 조인이 없다."""
+    """s는 sum_rows 결과 — 매출/전환이 행에 함께 들어있으므로(ELT) 별도 조인이 없다."""
     cost = s["cost"]
-    return {
+    m = {
         "cost": cost,
         "ctr": calc_ctr(s["click"], s["impression"]),
-        "reservation": s["reservation"],
-        "cpa": calc_cpa(cost, s["reservation"]),
         "revenue": s["revenue"],
         "roas": calc_roas(s["revenue"], cost),
     }
+    if "conversion" in s:
+        m["conversion"] = s["conversion"]
+        m["cpa"] = calc_cpa(cost, s["conversion"])
+    return m
 
 
 def display(metrics):
     d = {}
     d["cost"] = fmt_won(metrics["cost"])
     d["ctr"] = fmt_pct1(metrics["ctr"]) if metrics["ctr"] is not None else "N/A"
-    d["reservation"] = str(int(metrics["reservation"])) if metrics["reservation"] is not None else "N/A"
-    d["cpa"] = fmt_won(metrics["cpa"]) if metrics["cpa"] is not None else "N/A"
+    if "conversion" in metrics:
+        d["conversion"] = str(int(metrics["conversion"])) if metrics["conversion"] is not None else "N/A"
+        d["cpa"] = fmt_won(metrics["cpa"]) if metrics["cpa"] is not None else "N/A"
     d["revenue"] = fmt_won(metrics["revenue"]) if metrics["revenue"] is not None else "N/A"
     d["roas"] = fmt_pct1(metrics["roas"]) if metrics["roas"] is not None else "N/A"
     return d
 
 
-def build_row_html(level, media_label, campaign, ad_group, ad_name, cells):
+def build_row_html(level, media_label, campaign, ad_group, ad_name, cells, order):
     if level == "ad":
         id_html = (
             f'<td style="white-space:nowrap; text-align:left; border-right:1px solid #e2e8f0;">{media_label}</td>\n'
@@ -267,9 +311,7 @@ def build_row_html(level, media_label, campaign, ad_group, ad_name, cells):
         )
 
     metric_html_parts = []
-    for metric_key, suffix in [
-        ("cost", "%"), ("ctr", "%p"), ("reservation", "%"), ("cpa", "%"), ("revenue", "%"), ("roas", "%p")
-    ]:
+    for metric_key, suffix in order:
         d1_val, d0_val, delta = cells[metric_key]
         last = metric_key == "roas"
         border = "" if last else " border-right:1px solid #e2e8f0;"
@@ -284,11 +326,13 @@ def build_row_html(level, media_label, campaign, ad_group, ad_name, cells):
 
 
 def main():
+    global CURRENCY
     payload = json.load(sys.stdin)
     level = payload["level"]
     d1_date = payload["d1_date"]
     d0_date = payload["d0_date"]
     threshold = payload.get("threshold", 10000)
+    CURRENCY = payload.get("currency") or CURRENCY
 
     rows = list(payload.get("rows") or [])
     envelope_metrics = None
@@ -307,16 +351,15 @@ def main():
         rows.extend(env_rows)
         envelope_metrics = envelope_metrics or env_metrics
 
-    mk = resolve_metric_keys(payload, envelope_metrics)
+    mk = resolve_metric_keys(payload, envelope_metrics, rows)
+    order = metric_order(bool(mk.get("conversion")))
 
     idx = index_by_date_key(rows, level)
     keys = {k for (_date, k) in idx.keys()}
 
     out = []
     for key in keys:
-        media_label = MEDIA_LABEL.get(str(key[0]).lower())
-        if media_label is None:
-            continue  # 알 수 없는 매체는 방어적으로 제외
+        label = key[0]
 
         d1_sum = sum_rows(idx.get((d1_date, key)), mk)
         d0_sum = sum_rows(idx.get((d0_date, key)), mk)
@@ -332,19 +375,12 @@ def main():
         d0_disp = display(d0_metrics)
 
         cells = {}
-        for metric_key, delta_fn in [
-            ("cost", delta_relative),
-            ("ctr", delta_point),
-            ("reservation", delta_relative),
-            ("cpa", delta_relative),
-            ("revenue", delta_relative),
-            ("roas", delta_point),
-        ]:
+        for metric_key, _suffix in order:
             d1_val = d1_disp[metric_key] if d1_disp else "N/A"
             d0_val = d0_disp[metric_key]
             d1_raw = d1_metrics[metric_key] if d1_metrics else None
             d0_raw = d0_metrics[metric_key]
-            delta = delta_fn(d0_raw, d1_raw)
+            delta = DELTA_FN[metric_key](d0_raw, d1_raw)
             cells[metric_key] = (d1_val, d0_val, arrow_color(delta, metric_key))
 
         campaign = key[1]
@@ -353,8 +389,8 @@ def main():
         ad_group_disp = ad_group if ad_group else "-"
         ad_name_disp = ad_name if ad_name else "-"
 
-        html = build_row_html(level, media_label, campaign, ad_group_disp, ad_name_disp, cells)
-        search_parts = [media_label.lower(), campaign.lower()]
+        html = build_row_html(level, label, campaign, ad_group_disp, ad_name_disp, cells, order)
+        search_parts = [label.lower(), campaign.lower()]
         if level == "ad":
             search_parts += [ad_group_disp.lower(), ad_name_disp.lower()]
         out.append({

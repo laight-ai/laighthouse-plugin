@@ -1,23 +1,25 @@
-# Breezm Monthly Section 5: 캠페인 성과 비교 (M-1 vs M0)
+# Monthly Section 5: 캠페인 성과 비교 (M-1 vs M0)
 
-**report_type:** `monthly-detailed` — **브리즘(airbridge 기반) 전용** (항상 포함). 매체-캠페인
-단위로 **전월(M-1)과 당월(M0)**을 비교한다 — `daily-detailed`의 section-4를 캠페인 단위로
-유지한 채 시점만 하루→한 달로 바꾼 버전.
+**report_type:** `monthly-detailed` (항상 포함). 매체-캠페인 단위로 **전월(M-1)과 당월(M0)**을
+비교한다 — `daily-detailed`의 section-4를 캠페인 단위로 유지한 채 시점만 하루→한 달로 바꾼
+버전.
 
 > ℹ️ 표 HTML/검색/페이지네이션 렌더링은 템플릿+빌더가, 파생지표·변화율·`(-)` 규칙·
-> ₩300,000 필터·정렬·`<tr>` 생성은 `assets/monthly_campaign_rows.py`가 한다 — 모델의 역할은
+> `threshold` 필터·정렬·`<tr>` 생성은 `assets/monthly_campaign_rows.py`가 한다 — 모델의 역할은
 > 아래 MCP 1회 호출과 스크립트 실행뿐이다.
 
-## MCP 도구 호출: `get_ad_performance` × 1 (전월~당월, 캠페인 단위, `media` 생략)
+## MCP 도구 호출: `get_ad_performance` × 1 (전월~당월, 캠페인 단위, `filters` 생략)
 
 ```json
-{ "brand_name": "breezm", "start_date": "전월 YYYY-MM-01", "end_date": "target_date", "time_grain": "month", "group_by": ["media", "campaign_id", "campaign_name"], "day_offset": "target_date.day" }
+{ "brand_name": "<brand>", "start_date": "전월 YYYY-MM-01", "end_date": "target_date", "time_grain": "month", "group_by": ["media", "campaign_id", "campaign_name"], "day_offset": <target_date.day (정수)> }
 ```
 
-- **`media`는 생략한다** — 캠페인 단위는 광고 단위보다 카디널리티가 낮고, ELT 응답에는 예전
-  같은 ga4/airbridge 잉여 행이 없다. 각 행에 `month`/`media`/`campaign_id`/`campaign_name`
-  차원과 `광고비`/`노출`/`클릭`/`매출_AB`/`예약완료_AB` 지표가 함께 들어있다(매출 조인 없음).
-  ⚠️ 캠페인 수가 크게 늘어 응답이 비대해지면 매체별 호출로 재분리한다.
+- **`filters`는 생략한다** — 캠페인 단위는 광고 단위보다 카디널리티가 낮다. 각 행에 `month`/
+  `media`/`campaign_id`/`campaign_name` 차원과 cost/impression/click/revenue(/conversion) 역할
+  키 지표가 함께 들어있다(매출 조인 없음). 매체 라벨은 행의 `media` 값 그대로(`null`은
+  "Organic" — 광고비가 없어 `threshold` 필터에서 자연히 빠진다).
+  ⚠️ 캠페인 수가 크게 늘어 응답이 비대해지면 `media_list`를 순회하며 `filters:{"media":[<값>]}`
+  매체별 호출로 재분리한다(응답들은 스크립트에 한 번에 넘긴다).
 - **`day_offset: target_date.day` 필수** — 전월을 당월과 같은 일자까지 자른 동일 기간으로
   비교하기 위함. 이 1회 호출에서 M-1·M0 값을 동시에 받는다.
 - ⚠️ **실측 데이터 특성**: 전월에 개별 캠페인 행이 없는 경우가 흔하다 — 비교 불가 캠페인은
@@ -28,13 +30,17 @@
 
 응답이 `[laighthouse-capture-hook] ... 저장됨: <경로>` 스텁으로 오면(캡처 훅 동작 호스트)
 그 경로를 `json_files`로, 원본 JSON 봉투가 그대로 오면 `json`에 원본 문자열 통째로
-(혼용 가능. 손 전사·행 선별 절대 금지 — ₩300,000 초과 행이 조용히 누락될 위험). 스텁이
-가리키는 캡처 파일을 Read로 열어 내용을 컨텍스트로 가져오지 않는다(경로만 넘긴다). 응답을
-그대로 넘기고, 출력은 빌더가 읽을 파일로 저장한다:
+(혼용 가능. 손 전사·행 선별 절대 금지 — threshold 초과 행이 조용히 누락될 위험). 스텁이
+가리키는 캡처 파일을 Read로 열어 내용을 컨텍스트로 가져오지 않는다(경로만 넘긴다). 디스커버리로
+정한 `metric_keys`와 `currency`/`threshold`를 빌더와 같은 값으로 함께 넘기고, 출력은 빌더가
+읽을 파일로 저장한다:
 
 ```bash
 python3 assets/monthly_campaign_rows.py <<'PYEOF' > /tmp/s5_rows.json
-{"m1_month":"2026-06","m0_month":"2026-07","json_files":["<스텁에 적힌 경로>"]}
+{"m1_month":"2026-06","m0_month":"2026-07",
+ "metric_keys":{"cost":"<cost 키>","impression":"<impression 키>","click":"<click 키>","revenue":"<revenue 키>","conversion":"<conversion 키 — 있을 때만>"},
+ "currency":"₩","threshold":300000,
+ "json_files":["<스텁에 적힌 경로>"]}
 PYEOF
 ```
 
@@ -43,12 +49,13 @@ PYEOF
 안전하다. 응답을 받은 바로 그 Bash 호출 안에서 한 번에 끝낸다.
 
 스크립트가 JSON 봉투 파싱, media별 자동 분리, M-1/M0 비교(media+campaign_name 정확 일치 —
-부분일치/정규화 금지. 매출/예약은 같은 행의 `매출_AB`/`예약완료_AB`라 조인이 없다), 6개 지표
-(광고비/CTR/예약 완료/예약 완료 CPA/매출/ROAS)와 변화율·화살표·색상, **비교 불가 시 `(-)`
-회색 표시**(daily의 "변화량 생략"과 다른 이 섹션만의 규칙), M0 광고비 ₩300,000 이하 필터,
-M0 광고비 내림차순 정렬, `<tr>` HTML 생성까지 전부 처리한다. 지표 키는 브리즘 기본값이
-내장돼 있고 응답 `metrics`와 대조·검증된다(다른 테넌트면 `metric_keys`로 넘긴다). 출력 파일
-경로를 빌더 입력 JSON의 `s5.rows_file`에 넣으면 끝.
+부분일치/정규화 금지. 매출/전환은 같은 행의 역할 키라 조인이 없다), 지표 컬럼(cost/CTR/
+[conversion/CPA]/revenue/ROAS — `metric_keys`에 conversion이 없으면 전환·CPA 생략)과 변화율·
+화살표·색상, **비교 불가 시 `(-)` 회색 표시**(daily의 "변화량 생략"과 다른 이 섹션만의 규칙),
+M0 광고비 `threshold` 이하 필터(기본 300000), M0 광고비 내림차순 정렬, `<tr>` HTML 생성까지
+전부 처리한다. `metric_keys`를 생략하면 봉투 `metrics`에서 패턴 후보로 자동 해석하지만 빌더의
+`<th>`와 어긋날 수 있으므로 **항상 명시**한다. 출력 파일 경로를 빌더 입력 JSON의
+`s5.rows_file`에 넣으면 끝.
 
 > 🚫 **응답이 크다고 느껴져도 선택지는 둘뿐이다**: (1) 원본을 가공 없이 전부 스크립트에 넘기거나
 > (2) 정말 불가능하면 `s5`를 빌더 입력에서 빼서 "데이터 준비 중"으로 표시한다. 다른 섹션 값

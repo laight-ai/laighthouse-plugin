@@ -1,8 +1,9 @@
 # report_type 정의 및 스킬 매핑
 
 이 플러그인이 렌더링하는 보고서 종류의 단일 소스다. 보고서 종류마다 **별도 스킬**이 있고,
-사용자가 report_type을 따로 지정하는 개념이 없다 — 스킬 자체가 종류를 고정한다. 모든 스킬의
-대상 브랜드는 브리즘(breezm, airbridge 기반) 하나뿐이다.
+사용자가 report_type을 따로 지정하는 개념이 없다 — 스킬 자체가 종류를 고정한다. 모든 스킬은
+**브랜드 비종속**이다: 사용자가 말한 브랜드명을 그대로 쓰고, 매체 목록·지표 키는 실행 시작의
+디스커버리 호출로 알아낸다 (`shared/references/generic-report-pattern.md`).
 
 ## report_type 개요
 
@@ -14,9 +15,8 @@
 | `mtd` (임원 요약) | `mtd-summary` | 월초~기준일 누적, 전월 동기 비교 | 5 |
 | `monthly` (실무 상세) | `monthly-detailed` | 월 단위, M-1 vs M0 | 5 |
 | `monthly` (임원 요약) | `monthly-summary` | 월 단위, M-1 vs M0 + 분기 비교 | 5 |
-| `creative` (실무 상세) | `creative-detailed` | 소재(Meta Ads) 단위, 최근 7일 | 5 |
-| `creative` (임원 요약) | `creative-summary` | 소재(Meta Ads) 단위, 최근 7일 | 5 |
-| (예산 최적화) | `mid-month-optimizer` | 월중 예산 리밸런싱 제안 | — |
+| `creative` (실무 상세) | `creative-detailed` | 소재 단위(디스커버리로 선택한 매체 1개), 최근 7일 | 5 |
+| `creative` (임원 요약) | `creative-summary` | 소재 단위(디스커버리로 선택한 매체 1개), 최근 7일 | 5 |
 
 - 섹션 구성·MCP 호출 명세는 각 스킬 폴더의 `SKILL.md`와 섹션 파일이 단일 소스다.
 - MCP 도구 인벤토리와 응답 형식은 `shared/references/mcp-tools.md` 참고 — 서버 개편(ELT

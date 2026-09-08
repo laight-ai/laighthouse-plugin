@@ -12,15 +12,20 @@
 
 입력 (stdin, JSON):
 {
-  "out": "~/Downloads/laighthouse-reports/브리즘_monthly-summary_2026-05-15.html",  # 필수
-  "title": "브리즘 Executive 월간 보고서",                                          # 필수
+  "out": "~/Downloads/laighthouse-reports/{브랜드명}_monthly-summary_2026-05-15.html",  # 필수
+  "title": "{브랜드명} Executive 월간 보고서",                                          # 필수
   "target_date": "2026-05-15",                                                     # 필수
   "skeleton": true,          # 선택 — true면 모든 섹션을 "데이터 준비 중"으로 채운 스켈레톤 생성
                              #        (실행 순서의 필수 체크포인트용. s1~s5는 무시된다)
+  "metric_keys": {           # 역할 → 실제 지표 키 (shared/references/generic-report-pattern.md 3절)
+    "cost": "광고비", "impression": "노출", "click": "클릭", "revenue": "매출_AB",
+    "conversion": "예약완료_AB"   # 선택 — 없으면 section-5의 전환 컬럼을 숨긴다
+  },                         # <th> 라벨에 그대로 쓴다. 생략 시 cost="광고비", revenue="매출"
+  "currency": "₩",           # 선택 — 금액 접두 기호, 기본 "₩" (템플릿 JS 포맷터에도 주입)
 
   "s1": {                    # 목표 달성 현황 — 숫자(원본 수치) 또는 표시 문자열, 없으면 null
     "소진율": 33.13,          # 숫자면 % 소수점 1자리로 포맷, null이면 "N/A"
-    "목표_예산": 168110000,   # 숫자면 ₩+천단위 콤마로 포맷
+    "목표_예산": 168110000,   # 숫자면 통화기호+천단위 콤마로 포맷
     "소진액": 55700000,
     "매출_달성률": null,
     "목표_매출": null,
@@ -31,8 +36,8 @@
   },
   "s2": {                    # Executive Summary — 불릿 카드 (5개 초과 시 앞 5개만 렌더링)
     "bullets": [
-      {"text": "Google Ads 매출이 전월 대비 <strong>+22.4%</strong> 성장...", "tone": "up"},
-      {"text": "Meta Ads 매출이 전월 대비 -19.8% 감소...", "tone": "down"},
+      {"text": "Kakao 매출이 전월 대비 <strong>+22.4%</strong> 성장...", "tone": "up"},
+      {"text": "TikTok 매출이 전월 대비 -19.8% 감소...", "tone": "down"},
       {"text": "광고 매출 비중이 분기 단위로도 확대되는 추세...", "tone": "neutral"}
     ]                          # tone: "up"(초록 ●) / "down"(빨강 ●) / "neutral"(회갈색 ●, 기본값)
                                # (대신 "executive_summary": "줄1\n줄2" 문자열도 허용 — 전부 neutral)
@@ -46,16 +51,17 @@
     "ad_revenue": [..6개..], "total_revenue": [..6개..],
     "labels": [...]               # 선택 — s3과 동일한 규칙으로 자동 생성
   },
-  "s5": {                    # 매체 성과 비교 (M-1 vs M0) — 5개 항목 고정, 순서 무관
-    "rows": [                # (빌더가 M0 매출 내림차순 정렬·ROAS/변화량/화살표/색상 계산)
-      {"name": "Naver Ads",
-       "m1": {"cost": 1000000, "revenue": 50000000, "reservation": 120},
-       "m0": {"cost": 1100000, "revenue": 52000000, "reservation": 130}},
+  "s5": {                    # 매체 성과 비교 (M-1 vs M0) — 매체별 원본 수치만 넘기면
+    "rows": [                # ROAS·변화율·화살표·색상·포맷은 전부 빌더가 계산한다
+      {"name": "Kakao",
+       "m1": {"cost": 1000000, "revenue": 50000000, "conversion": 120},
+       "m0": {"cost": 1100000, "revenue": 52000000, "conversion": 130}},
+      {"name": "TikTok",  "m1": {...}, "m0": {...}},
       {"name": "Organic",
-       "m1": {"cost": null, "revenue": 30000000, "reservation": 80},   # 광고비 개념 없는 항목은
-       "m0": {"cost": null, "revenue": 28000000, "reservation": 75}}   # cost: null → "-" 표시
-    ]
-  }
+       "m1": {"revenue": 30000000, "conversion": 80},   # cost 없음 → "-" 표시
+       "m0": {"revenue": 28000000, "conversion": 75}}
+    ]                        # 디스커버리된 매체(응답 값 그대로) + Organic(있을 때만), 받은 순서대로 렌더링.
+  }                          # 값 키는 역할명(cost/revenue/conversion) — metric_keys에 conversion이 없으면 생략
 }
 
 - s1~s5 중 키 자체가 없거나 null인 섹션은 "데이터 준비 중" 카드로 렌더링된다(섹션 생략 없음).
@@ -91,10 +97,18 @@ TONE_COLORS = {"up": "#16a34a", "down": "#dc2626", "neutral": "#78716c"}
 DELTA_UP = "#dc2626"
 DELTA_DOWN = "#2563eb"
 DELTA_ZERO = "#1e293b"
+S5_TH_GROUP = ('<th colspan="2" style="white-space:nowrap; text-align:center; border-bottom:none; '
+               'padding-top:8px; padding-bottom:8px; vertical-align:middle;{border}">{label}</th>')
+S5_TH_MONTH = ('<th style="white-space:nowrap; text-align:center; font-size:11px; font-weight:500; '
+               'padding-top:8px; padding-bottom:8px; vertical-align:middle;{border}">{label}</th>')
+S5_TH_BORDER = " border-right:1px solid #e2e8f0;"
+
+DEFAULT_METRIC_LABELS = {"cost": "광고비", "revenue": "매출"}
+CURRENCY = "₩"
 
 
 def fmt_won(v):
-    return f"₩{round(v):,}"
+    return f"{CURRENCY}{round(v):,}"
 
 
 def fmt_pct(v):
@@ -214,15 +228,31 @@ def delta_html(m1, m0, unit):
             f'color:{color};">({label})</div>')
 
 
-def build_s5_rows(rows):
-    """rows(5개 항목) → M0 매출 내림차순 정렬 + ROAS/변화량 계산 + <tr> HTML."""
-    def m0_revenue(r):
-        v = r.get("m0", {}).get("revenue")
-        return v if isinstance(v, (int, float)) else float("-inf")
+def build_s5_thead(metric_keys, m1_label, m0_label):
+    """metric_keys의 역할 라벨로 section-5 <thead> 생성. conversion 역할이 없으면 그 컬럼 생략."""
+    groups = [metric_keys.get("cost") or DEFAULT_METRIC_LABELS["cost"],
+              metric_keys.get("revenue") or DEFAULT_METRIC_LABELS["revenue"]]
+    if metric_keys.get("conversion"):
+        groups.append(metric_keys["conversion"])
+    groups.append("ROAS")
+    row1 = ['<th rowspan="2" style="vertical-align:middle; white-space:nowrap; text-align:center;'
+            f'{S5_TH_BORDER}">매체</th>']
+    row2 = []
+    for i, label in enumerate(groups):
+        last = i == len(groups) - 1
+        row1.append(S5_TH_GROUP.format(label=label, border="" if last else S5_TH_BORDER))
+        row2.append(S5_TH_MONTH.format(label=m1_label, border=""))
+        row2.append(S5_TH_MONTH.format(label=m0_label, border="" if last else S5_TH_BORDER))
+    sep = "\n            "
+    return ("<tr>" + sep + sep.join(row1) + "\n          </tr>\n          <tr>" + sep
+            + sep.join(row2) + "\n          </tr>")
 
+
+def build_s5_rows(rows, has_conversion):
+    """rows(매체별 원본 수치) → ROAS/변화량 계산 + <tr> HTML. 행은 입력 순서 그대로."""
     out = []
-    for r in sorted(rows, key=m0_revenue, reverse=True):
-        m1, m0 = r.get("m1", {}), r.get("m0", {})
+    for r in rows:
+        m1, m0 = r.get("m1") or {}, r.get("m0") or {}
         m1_roas, m0_roas = roas_of(m1), roas_of(m0)
         cells = [
             f'<td style="white-space:nowrap; text-align:left; border-right:1px solid #e2e8f0;">{r.get("name", "")}</td>',
@@ -234,10 +264,15 @@ def build_s5_rows(rows):
             ('<td style="white-space:nowrap; text-align:center; border-right:1px solid #e2e8f0;">'
              f'{fmt_s5("money", m0.get("revenue"))}{delta_html(m1.get("revenue"), m0.get("revenue"), "%")}'
              "</td>"),
-            f'<td style="white-space:nowrap; text-align:center;">{fmt_s5("int", m1.get("reservation"))}</td>',
-            ('<td style="white-space:nowrap; text-align:center; border-right:1px solid #e2e8f0;">'
-             f'{fmt_s5("int", m0.get("reservation"))}{delta_html(m1.get("reservation"), m0.get("reservation"), "%")}'
-             "</td>"),
+        ]
+        if has_conversion:
+            cells += [
+                f'<td style="white-space:nowrap; text-align:center;">{fmt_s5("int", m1.get("conversion"))}</td>',
+                ('<td style="white-space:nowrap; text-align:center; border-right:1px solid #e2e8f0;">'
+                 f'{fmt_s5("int", m0.get("conversion"))}{delta_html(m1.get("conversion"), m0.get("conversion"), "%")}'
+                 "</td>"),
+            ]
+        cells += [
             f'<td style="white-space:nowrap; text-align:center;">{fmt_s5("roas", m1_roas)}</td>',
             ('<td style="white-space:nowrap; text-align:center;">'
              f'{fmt_s5("roas", m0_roas)}{delta_html(m1_roas, m0_roas, "%p")}'
@@ -248,10 +283,13 @@ def build_s5_rows(rows):
 
 
 def main():
+    global CURRENCY
     payload = json.load(sys.stdin)
     target = date.fromisoformat(payload["target_date"])
     m1_y, m1_m = month_add(target.year, target.month, -1)
     skeleton = bool(payload.get("skeleton"))
+    metric_keys = payload.get("metric_keys") or {}
+    CURRENCY = payload.get("currency") or CURRENCY
 
     with open(TEMPLATE, encoding="utf-8") as f:
         html = f.read()
@@ -325,13 +363,15 @@ def main():
     s5 = section_data("s5")
     if s5 and s5.get("rows"):
         status["s5"] = "ok"
-        html = html.replace("__S5_ROWS_HTML__", build_s5_rows(s5["rows"]))
+        html = html.replace("__S5_THEAD_HTML__", build_s5_thead(metric_keys, f"{m1_m}월", f"{target.month}월"))
+        html = html.replace("__S5_ROWS_HTML__", build_s5_rows(s5["rows"], bool(metric_keys.get("conversion"))))
     else:
         status["s5"] = "placeholder"
         html = swap_section(html, "s5", PLACEHOLDER_CARD)
 
     # ── 공통 치환
     html = html.replace("__REPORT_TITLE__", payload["title"])
+    html = html.replace("__CURRENCY__", CURRENCY)
     html = html.replace("__REPORT_DATE_LABEL__",
                         f"{target.year}년 {target.month}월 1일 ~ {target.month}월 {target.day}일")
     html = (html.replace("__M1_MM__", str(m1_m))
@@ -341,7 +381,7 @@ def main():
     # ── 치환 누락 검증 (chart.js 인라인 전에 — 알려진 토큰이 남아있으면 실패)
     leftovers = [t for t in [
         "__REPORT_TITLE__", "__REPORT_DATE_LABEL__", "__S1_", "__S2_BULLETS_HTML__",
-        "__S3_", "__S4_", "__S5_ROWS_HTML__", "__M1_", "__M0_",
+        "__S3_", "__S4_", "__S5_THEAD_HTML__", "__S5_ROWS_HTML__", "__CURRENCY__", "__M1_", "__M0_",
     ] if t in html]
     if leftovers:
         raise SystemExit(f"치환 누락: {leftovers}")

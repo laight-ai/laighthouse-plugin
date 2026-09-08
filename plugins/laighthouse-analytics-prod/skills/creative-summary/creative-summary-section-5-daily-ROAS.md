@@ -1,14 +1,14 @@
-# Breezm Executive Creative Section 5: 최근 7일 일별 ROAS (광고비 상위 5개 소재)
+# Executive Creative Section 5: 최근 7일 일별 ROAS (광고비 상위 5개 소재)
 
-**report_type:** `creative-summary` — **브리즘(airbridge 기반) 전용** (항상 포함).
-**메타(Meta Ads)만 대상.** **section-4와 동일한 상위 5개 소재**의 일별 ROAS 라인 차트
-(`creative-detailed` section-4와 동일 내용, 번호만 4→5). 색상·범례 순서는 section-4와 동일
-(같은 색 = 같은 소재), Y축 `min:0` 고정 — 전부 템플릿에 고정돼 있다.
+**report_type:** `creative-summary` (항상 포함). **`chosen_media` 하나만 대상.**
+**section-4와 동일한 상위 5개 소재**의 일별 ROAS 라인 차트 (`creative-detailed` section-4와
+동일 내용, 번호만 4→5). 색상·범례 순서는 section-4와 동일(같은 색 = 같은 소재), Y축 `min:0`
+고정 — 전부 템플릿에 고정돼 있다.
 
 ## MCP 도구 호출: 신규 호출 없음
 
-SKILL.md 2-b의 day grain 응답(section-3/4와 공유)을 재사용한다 — 다시 호출하지 않는다.
-각 행에 날짜별·소재별 `매출_AB`/`광고비`가 함께 들어있다(별도 매출 응답 없음).
+SKILL.md 3-b의 day grain 응답(section-3/4와 공유)을 재사용한다 — 다시 호출하지 않는다.
+각 행에 날짜별·소재별 revenue/cost 키 값이 함께 들어있다(별도 매출 응답 없음).
 
 ## 소재 선정·계산: section-4의 것을 그대로 재사용
 
@@ -17,7 +17,7 @@ SKILL.md 2-b의 day grain 응답(section-3/4와 공유)을 재사용한다 — �
 - 일별 ROAS 시리즈는 section-4가 이미 호출한 `assets/creative_daily_series.py`의 **같은 출력
   파일**의 `top5.roas_series`다 — 이 섹션에서 스크립트를 다시 호출하지 않는다.
 - 스크립트가 구현한 계산(참고용 스펙): `campaign_name`+`ad_group_name`+`ad_name` 세 필드
-  정확 일치로 그 날짜 행을 찾아 `매출_AB`÷`광고비`×100. `광고비`가 0/없거나 행 자체가 없으면
+  정확 일치로 그 날짜 행을 찾아 revenue 키÷cost 키×100. cost가 0/없거나 행 자체가 없으면
   그 날짜는 **`0`으로 채운다**(끊긴 구간으로 남기지 않는다 — section-5 고유 스펙,
   section-4의 CTR null 처리와 다르다).
 
