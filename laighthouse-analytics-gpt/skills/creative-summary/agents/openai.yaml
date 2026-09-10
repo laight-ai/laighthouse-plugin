@@ -1,0 +1,16 @@
+interface:
+  display_name: "브리즘 Executive 소재 보고서 (임원용 요약)"
+  short_description: "creative-detailed를 임원이 딥다이브 없이 훑어보도록 재구성한 소재 분석 요약 보고서(HTML)를 생성합니다."
+  brand_color: "#2563EB"
+
+policy:
+  allow_implicit_invocation: true
+
+dependencies:
+  tools:
+    - type: "mcp"
+      value: "get_ad_performance"
+      description: "브랜드 광고 성과 데이터(일/구간 합산, 소재 단위 그룹화)를 조회합니다."
+    - type: "mcp"
+      value: "get_ad_creative_info"
+      description: "소재(개별 광고 크리에이티브)의 이미지·소재 정보를 조회합니다."

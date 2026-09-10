@@ -2,6 +2,11 @@
 
 Laighthouse Analytics 플러그인을 위한 Claude Code 플러그인 마켓플레이스 저장소입니다. MCP로 연동된 라이트하우스(브리즘, airbridge 기반) 데이터를 성과 보고서 형태로 렌더링하는 스킬들을 제공합니다.
 
+> **ChatGPT Skills판**: 같은 보고서 로직을 ChatGPT Skills용으로 이식한 버전이
+> [`laighthouse-analytics-gpt/`](laighthouse-analytics-gpt/README.md)에 있습니다(향후 별도
+> 저장소로 분리 예정). Claude Code판과의 차이(스킬 매니페스트 형식, 훅 부재에 따른 대용량
+> 응답 대응 방식)는 해당 폴더의 README를 참고하세요.
+
 ## 구조
 
 ```
