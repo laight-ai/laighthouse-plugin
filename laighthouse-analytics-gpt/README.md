@@ -22,7 +22,7 @@
 | | Claude Code (`plugins/laighthouse-analytics-prod/`) | ChatGPT / Codex (이 폴더) |
 |---|---|---|
 | 플러그인 매니페스트 | `.claude-plugin/plugin.json` + 레포 루트 `.claude-plugin/marketplace.json` | `.codex-plugin/plugin.json` + 레포 루트 `.agents/plugins/marketplace.json` (로컬 마켓플레이스) |
-| 스킬 메타데이터 | SKILL.md frontmatter만 | 추가로 스킬별 `agents/openai.yaml` (표시 이름·색·MCP 도구 의존성) |
+| 스킬 메타데이터 | SKILL.md frontmatter만 | 추가로 스킬별 `agents/openai.yaml` (표시 이름·색, `dependencies.tools`에 MCP **서버** 단위 의존성 — `value`는 서버 이름 `laighthouse`, 사용 도구 목록은 description에 기재) |
 | MCP 연동 | `.mcp.json` (`"type": "http"`) | `.mcp.json` (`"type": "streamable-http"`, Agent Plugins 스키마). 웹 스킬 zip 경로에서는 ChatGPT 설정에서 커넥터로 별도 연결 |
 | 대용량 응답 처리 | PostToolUse 훅(`hooks/capture_ad_performance.py`) | **같은 훅 스크립트**를 `hooks/`에 포함 (`${PLUGIN_ROOT}` 기준). Codex 런타임(Work 모드·Codex)에서만 실행되며 웹 Chat에서는 사전 예방 규칙으로 대체 — [`shared/references/gpt-large-response-guardrail.md`](shared/references/gpt-large-response-guardrail.md) |
 | 스킬 본문(SKILL.md)·섹션 파일·asset 스크립트 | 원본 | Claude 고유 표현·훅 분기 서술만 수정, 나머지 보고서 로직(계산·렌더링 규칙)은 **동일** |
