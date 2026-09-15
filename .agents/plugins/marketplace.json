@@ -1,0 +1,20 @@
+{
+  "name": "laighthouse-local",
+  "interface": {
+    "displayName": "Laighthouse (local)"
+  },
+  "plugins": [
+    {
+      "name": "laighthouse-analytics",
+      "source": {
+        "source": "local",
+        "path": "./laighthouse-analytics-gpt"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Analytics"
+    }
+  ]
+}

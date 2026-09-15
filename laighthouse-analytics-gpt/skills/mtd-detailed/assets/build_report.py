@@ -1,0 +1,557 @@
+#!/usr/bin/env python3
+"""mtd-detailed 최종 보고서 조립기 — 미리 검증된 asset 스크립트.
+
+`assets/report-template.html`(섹션 1~7 마크업·스크립트가 전부 들어있는 단일 진실 공급원)에
+값을 치환하고 `chart.umd.min.js`를 인라인해서 **최종 HTML 한 파일을 한 번의 호출로** 만든다.
+모델은 HTML을 한 글자도 타이핑하지 않는다 — 아래 값 JSON만 heredoc으로 넘기면 된다.
+
+사용법 (단 한 번의 Bash 호출, 응답을 받은 그 자리에서):
+  python assets/build_report.py <<'PYEOF'
+  { ...아래 입력 JSON... }
+  PYEOF
+
+입력 (stdin, JSON):
+{
+  "out": "~/Downloads/laighthouse-reports/{브랜드명}_mtd-detailed_2026-05-15.html",  # 필수
+  "title": "{브랜드명} MTD 보고서",                                                  # 필수
+  "target_date": "2026-05-15",                                                   # 필수
+  "skeleton": true,          # 선택 — true면 모든 섹션을 "데이터 준비 중"으로 채운 스켈레톤 생성
+                             #        (실행 순서의 필수 체크포인트용. s1~s7은 무시된다)
+  "metric_keys": {           # 역할 → 실제 지표 키 (shared/references/generic-report-pattern.md 3절)
+    "cost": "광고비", "impression": "노출", "click": "클릭", "revenue": "매출_AB",
+    "conversion": "예약완료_AB"   # 선택 — 없으면 section-7의 전환·CPA 컬럼을 숨긴다
+  },                         # <th> 라벨에 그대로 쓴다. s7 봉투 입력이면 생략 가능(응답 metrics에서
+                             # 후보 순서로 자동 해석 — 지정한 키가 있으면 그 키를 우선)
+  "currency": "₩",           # 선택 — 금액 접두 기호, 기본 "₩" (템플릿 JS 포맷터에도 주입)
+
+  "s1": {                    # 목표 달성 현황 — 숫자(원본 수치) 또는 표시 문자열, 없으면 null
+    "소진율": 33.13,          # 숫자면 % 소수점 1자리로 포맷, null이면 "N/A"
+    "목표_예산": 168110000,   # 숫자면 통화기호+천단위 콤마로 포맷
+    "소진액": 55700000,
+    "매출_달성률": null,
+    "목표_매출": null,
+    "기간_매출": 123456789,
+    "실제_ROAS": 221.7,
+    "목표_ROAS": null,
+    "footnote": true          # 목표(예산/매출) 없는 매체가 하나라도 있으면 true → 고정 각주 표시
+  },
+  "s2": { "executive_summary": "문장1\n문장2\n⚠ 주의 문장..." },  # \n 구분, ⚠ 시작 줄은 주황색
+  "s3": {                    # 월별 광고 성과 — 배열은 전부 6개(5개월 전 → 당월 순)
+    "ad_cost": [..6개..], "revenue": [..6개..], "roas": [..6개, 광고비 0인 달은 null..],
+    "labels": ["26년 2월", ...],   # 선택 — 생략하면 target_date 기준 자동 생성(당월 "(진행 중)")
+    "zero_fill_note": "* 26년 2월~26년 3월은 데이터가 수집되지 않아 광고비 또는 매출이 0으로 표시되었습니다."
+                                   # 선택 — 0으로 채워진 월이 있을 때만 완성 문구를 넘긴다(없으면 생략)
+  },                               # 당월 기준일 각주("* {YY}년 {M}월은 기준일...")는 빌더가 자동 생성
+  "s4": {                    # 일일 매출 현황 — 배열은 월초~target_date 일수만큼(하루도 빠짐없이)
+    "ad_revenue": [...], "total_revenue": [...],
+    "labels": [["5/1","(금)"], ...],  # 선택 — 생략하면 빌더가 [M/D, (요일)] 자동 생성
+    "promotions": [                   # 선택 — list_promotions 응답의 원본 날짜를 그대로 넘기면
+      {"title": "여름 세일", "date_begin": "2026-05-01", "date_end": "2026-05-11"}
+    ]                                 # 빌더가 인덱스 계산·클램프·범위 밖 제외·range_label 생성까지 처리.
+                                      # (이미 계산된 {title, start_idx, end_idx, range_label}도 허용)
+  },
+  "s5": { "campaign_analysis": "인트로 문단\n\n캠페인명 (매체명)\n분석 문장..." },
+                             # \n\n 블록 구분 — 첫 블록은 <p> 인트로, 이후 블록은 첫 줄 <h4> + 나머지 <p>
+  "s6": {                    # 광고 매체별 현황 — 디스커버리된 매체마다 한 행, 디스커버리 순서
+    "rows": [                # (숫자 원본 그대로, 목표 없음/계산 불가면 null → "-")
+      {"name": "Kakao", "월_예산": 50000000, "소진액": 21000000, "예산_소진율": 42.0,
+       "목표_매출": null, "광고_매출": 34000000, "매출_달성률": null, "목표_ROAS": null, "ROAS": 161.9},
+      ...  # 목표 없는 매체도 행을 빼지 않는다. name은 media 응답 값 그대로
+    ]
+  },
+  "s7": {                    # 캠페인 성과 — 아래 형태 중 하나 (파생지표·정렬·<tr>은 빌더가 처리)
+    # (a) "json": ["<get_ad_performance(time_grain=\"total\") 응답 봉투 원본 문자열>", ...] /
+    #     "json_files": ["<캡처 훅 스텁 경로>", ...] — 응답 원본을 가공 없이 그대로 담으면
+    #     빌더가 봉투 파싱·행 변환까지 처리 (매출/전환이 행에 함께 있어 조인 불필요).
+    #     media 값은 그대로 매체 라벨, media null 행은 "Organic".
+    # (b) "rows": [...] — 직접 전사한 행(campaign별 {name,campaign,impression,click,cost,revenue,conversion},
+    #     revenue/conversion이 없는 행은 "unmatched": true → 매출/전환/CPA/ROAS "-"). 전 행 — 선별·요약 금지.
+    # (c) "rows_file": "/tmp/s7.json" — (b) 형태의 JSON 파일 경로
+  }
+}
+
+- s1~s7 중 키 자체가 없거나 null인 섹션은 "데이터 준비 중" 카드로 렌더링된다(섹션 생략 없음).
+- 출력(stdout): {"out": 절대경로, "bytes": 크기, "sections": {"s1": "ok"|"placeholder", ...}}
+"""
+import io
+import json
+import os
+import sys
+from datetime import date, timedelta
+
+sys.stdin = io.TextIOWrapper(sys.stdin.buffer, encoding="utf-8")
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
+
+ASSETS_DIR = os.path.dirname(os.path.abspath(__file__))
+TEMPLATE = os.path.join(ASSETS_DIR, "report-template.html")
+CHART_JS = os.path.join(ASSETS_DIR, "chart.umd.min.js")
+
+WEEKDAY_KO = ["월", "화", "수", "목", "금", "토", "일"]
+PLACEHOLDER_CARD = '<div class="card"><p style="color:#94a3b8;font-size:13px;">데이터 준비 중</p></div>'
+S1_FOOTNOTE = ('<p style="font-size:11px; color:#94a3b8; margin-top:8px;">'
+               "* 매체별 예산 및 목표 매출이 등록되지 않은 경우, 현황이 제대로 표시되지 않을 수 있습니다.</p>")
+
+MONEY_FIELDS = {"목표_예산", "소진액", "목표_매출", "기간_매출", "월_예산", "광고_매출"}
+PCT_FIELDS = {"소진율", "매출_달성률", "실제_ROAS", "목표_ROAS", "예산_소진율", "ROAS"}
+
+# 역할 → 지표 키 후보 (shared/references/generic-report-pattern.md 3절, 순서대로 정확 일치)
+ROLE_CANDIDATES = {
+    "cost": ["광고비", "cost", "spend"],
+    "impression": ["노출", "impressions", "impression"],
+    "click": ["클릭", "clicks", "click"],
+    "revenue": ["매출_AB", "매출", "revenue"],
+    "conversion": ["예약완료_AB", "예약완료", "purchases", "conversions", "전환"],
+}
+REQUIRED_ROLES = ["cost", "impression", "click", "revenue"]
+DEFAULT_METRIC_LABELS = {"cost": "광고비", "impression": "노출", "click": "클릭", "revenue": "매출", "conversion": "전환"}
+CURRENCY = "₩"
+
+TH = '<th style="text-align:center;">{label}</th>'
+TH_BORDER = '<th style="text-align:center; border-right:1px solid #e2e8f0;">{label}</th>'
+
+
+def fmt_won(v):
+    return f"{CURRENCY}{round(v):,}"
+
+
+def fmt_pct(v):
+    return f"{v:.1f}%"
+
+
+def fmt_int(v):
+    return f"{round(v):,}"
+
+
+def fmt_value(field, v, none="N/A"):
+    """숫자면 필드 종류에 맞게 포맷, 문자열이면 그대로, None이면 `none`."""
+    if v is None:
+        return none
+    if isinstance(v, str):
+        return v
+    if field in MONEY_FIELDS:
+        return fmt_won(v)
+    if field in PCT_FIELDS:
+        return fmt_pct(v)
+    return str(v)
+
+
+def js_json(value):
+    """<script> 안에 삽입할 JSON — </script> 조기 종료 방지."""
+    return json.dumps(value, ensure_ascii=False).replace("</", "<\\/")
+
+
+def swap_section(html, key, replacement):
+    begin = f"<!--SECTION:{key}:BEGIN-->"
+    end = f"<!--SECTION:{key}:END-->"
+    i = html.index(begin)
+    j = html.index(end) + len(end)
+    return html[:i] + replacement + html[j:]
+
+
+# ── 날짜 파생값 ─────────────────────────────────────────────────────────────
+
+def month_shift(y, m, delta):
+    idx = (y * 12 + (m - 1)) + delta
+    return idx // 12, idx % 12 + 1
+
+
+def build_month_labels(target):
+    """최근 6개월 라벨 — '{YY}년 {M}월', 당월은 ' (진행 중)' 접미사."""
+    labels = []
+    for i in range(-5, 1):
+        y, m = month_shift(target.year, target.month, i)
+        label = f"{y % 100}년 {m}월"
+        if i == 0:
+            label += " (진행 중)"
+        labels.append(label)
+    return labels
+
+
+def build_day_labels(target):
+    """월초~target_date, [['M/D', '(요일)'], ...] — 하루도 건너뛰지 않는다."""
+    first = target.replace(day=1)
+    return [[f"{d.month}/{d.day}", f"({WEEKDAY_KO[d.weekday()]})"]
+            for d in (first + timedelta(days=i) for i in range((target - first).days + 1))]
+
+
+def build_promotions(promos, target):
+    """list_promotions 원본(date_begin/date_end) 또는 사전 계산본을 받아
+    인덱스 계산·클램프·범위 밖 제외·range_label 생성까지 처리한다."""
+    if not promos:
+        return []
+    first = target.replace(day=1)
+    n = (target - first).days + 1
+    out = []
+    for p in promos:
+        if "start_idx" in p and "end_idx" in p:
+            out.append({"title": p.get("title", ""), "start_idx": max(0, min(n - 1, p["start_idx"])),
+                        "end_idx": max(0, min(n - 1, p["end_idx"])),
+                        "range_label": p.get("range_label", "")})
+            continue
+        begin = date.fromisoformat(str(p["date_begin"])[:10])
+        end = date.fromisoformat(str(p["date_end"])[:10])
+        raw_s = (begin - first).days
+        raw_e = (end - first).days
+        if raw_e < 0 or raw_s > n - 1:
+            continue  # 차트 범위와 전혀 안 겹침
+        if begin.month == end.month:
+            range_label = f"{begin.month}월 {begin.day}일~{end.day}일"
+        else:
+            range_label = f"{begin.month}월 {begin.day}일~{end.month}월 {end.day}일"
+        out.append({"title": p.get("title", ""), "start_idx": max(0, raw_s),
+                    "end_idx": min(n - 1, raw_e), "range_label": range_label})
+    return out
+
+
+# ── 텍스트 섹션(s2/s5) ──────────────────────────────────────────────────────
+
+def build_summary_items(text):
+    items = []
+    for line in (text or "").split("\n"):
+        line = line.strip()
+        if not line:
+            continue
+        style = ' style="color:#d97706;"' if line.startswith("⚠") else ""
+        items.append(f"<li{style}>{line}</li>")
+    return "\n      ".join(items)
+
+
+def _para(line):
+    style = ' style="color:#d97706;"' if line.startswith("⚠") else ""
+    return f"<p{style}>{line}</p>"
+
+
+def build_analysis_blocks(text):
+    """\n\n 블록 구분 — 첫 블록은 <p> 인트로, 이후 블록은 첫 줄 <h4> + 나머지 <p>."""
+    blocks = [b.strip() for b in (text or "").split("\n\n") if b.strip()]
+    parts = []
+    for i, block in enumerate(blocks):
+        lines = [ln.strip() for ln in block.split("\n") if ln.strip()]
+        if i == 0:
+            parts.extend(_para(ln) for ln in lines)
+            continue
+        parts.append(f'<h4 style="font-size:14px; font-weight:700; margin:16px 0 6px;">{lines[0]}</h4>')
+        parts.extend(_para(ln) for ln in lines[1:])
+    return "\n      ".join(parts)
+
+
+# ── section 6 ───────────────────────────────────────────────────────────────
+
+S6_FIELDS = ["월_예산", "소진액", "예산_소진율", "목표_매출", "광고_매출", "매출_달성률", "목표_ROAS", "ROAS"]
+S6_THEAD = (
+    "<tr>\n        " + TH_BORDER.format(label="매체") + "\n        "
+    + TH.format(label="월 예산") + TH.format(label="소진액") + TH_BORDER.format(label="예산 소진율") + "\n        "
+    + TH.format(label="목표 매출") + TH.format(label="광고 매출") + TH_BORDER.format(label="매출 달성률") + "\n        "
+    + TH.format(label="목표 ROAS") + TH.format(label="ROAS") + "\n      </tr>"
+)
+
+
+def build_s6_rows(rows):
+    """행은 받은 순서 그대로(디스커버리 순서), name은 media 값 그대로. null(목표 없음 등)은 '-'."""
+    trs = []
+    for r in rows:
+        v = {f: fmt_value(f, r.get(f), none="-") for f in S6_FIELDS}
+        trs.append(
+            "<tr>\n"
+            f'        <td style="border-right:1px solid #e2e8f0;">{r.get("name") or r.get("channel") or ""}</td>\n'
+            f'        <td>{v["월_예산"]}</td><td>{v["소진액"]}</td>'
+            f'<td style="border-right:1px solid #e2e8f0;">{v["예산_소진율"]}</td>\n'
+            f'        <td>{v["목표_매출"]}</td><td>{v["광고_매출"]}</td>'
+            f'<td style="border-right:1px solid #e2e8f0;">{v["매출_달성률"]}</td>\n'
+            f'        <td>{v["목표_ROAS"]}</td><td>{v["ROAS"]}</td>\n'
+            "      </tr>"
+        )
+    return "\n      ".join(trs)
+
+
+# ── section 7 ───────────────────────────────────────────────────────────────
+
+def unwrap_json_result(text):
+    """Cowork(Claude Desktop) 계층이 저장한 응답은 `{"result": "<본문>"}` JSON 래퍼일 수
+    있다(줄바꿈이 리터럴 \\n) — 래퍼면 벗기고, 아니면 그대로 돌려준다."""
+    for _ in range(3):
+        if not isinstance(text, str) or not text.lstrip().startswith("{"):
+            return text
+        try:
+            obj = json.loads(text)
+        except (json.JSONDecodeError, ValueError):
+            return text
+        if isinstance(obj, dict) and isinstance(obj.get("result"), str):
+            text = obj["result"]
+        elif isinstance(obj, str):
+            text = obj
+        else:
+            return text
+    return text
+
+
+def parse_envelope(text):
+    """`get_ad_performance`가 반환하는 JSON 봉투 문자열에서 (rows, metrics)를 꺼낸다."""
+    obj = json.loads(unwrap_json_result(text))
+    if isinstance(obj, list):
+        return obj, None  # rows 배열만 온 경우도 방어적으로 허용
+    if not isinstance(obj, dict) or not isinstance(obj.get("rows"), list):
+        raise SystemExit("s7 입력이 get_ad_performance JSON 봉투가 아님 — rows 배열이 없다")
+    return obj["rows"], obj.get("metrics")
+
+
+def resolve_metric_keys(metric_keys, envelope_metrics):
+    """역할별 지표 키 확정 — 지정한 키 우선, 없으면 봉투 metrics에서 후보 순서로 정확 일치.
+    필수 역할(cost/impression/click/revenue)을 못 정하면 실패. conversion은 선택."""
+    resolved = {}
+    for role, candidates in ROLE_CANDIDATES.items():
+        key = (metric_keys or {}).get(role)
+        if not key and envelope_metrics:
+            key = next((c for c in candidates if c in envelope_metrics), None)
+        if key:
+            resolved[role] = key
+    if envelope_metrics:
+        bad = [k for r, k in resolved.items() if k not in envelope_metrics]
+        if bad:
+            raise SystemExit(f"지표 키 {bad}가 응답 metrics {envelope_metrics}에 없음 — metric_keys를 응답 metrics 값으로 넘겨라")
+    missing = [r for r in REQUIRED_ROLES if r not in resolved]
+    if missing:
+        raise SystemExit(f"역할 {missing}의 지표 키를 정할 수 없음 (응답 metrics: {envelope_metrics}) — "
+                         f"최상위 metric_keys로 지정해라")
+    return resolved
+
+
+def load_s7_input(section, metric_keys):
+    """s7 입력을 정규화 → ({'rows':[...]}, 확정 metric_keys)."""
+    data = section
+    path = section.get("rows_file")
+    if path:
+        with open(os.path.expanduser(path), encoding="utf-8") as f:
+            data = json.load(f)
+        if isinstance(data, list):
+            data = {"rows": data}
+    if "json" in data or "json_files" in data:
+        texts = data.get("json", [])
+        if isinstance(texts, str):
+            texts = [texts]
+        texts = list(texts)
+        files = data.get("json_files", [])
+        if isinstance(files, str):
+            files = [files]
+        for p in files:
+            with open(os.path.expanduser(p), encoding="utf-8") as f:
+                texts.append(f.read())
+        raw = []
+        envelope_metrics = None
+        for text in texts:
+            env_rows, env_metrics = parse_envelope(text)
+            raw.extend(env_rows)
+            envelope_metrics = envelope_metrics or env_metrics
+        mk = resolve_metric_keys(metric_keys, envelope_metrics)
+        # ELT 행에는 매출/전환이 함께 들어있다 — 조인 없이 바로 행으로 변환. media 값 그대로, null → Organic.
+        rows = []
+        for r in raw:
+            row = {
+                "name": r.get("media") or "Organic", "campaign": r.get("campaign_name") or "",
+                "impression": r.get(mk["impression"]), "click": r.get(mk["click"]),
+                "cost": r.get(mk["cost"]), "revenue": r.get(mk["revenue"]),
+                "unmatched": False,
+            }
+            if "conversion" in mk:
+                row["conversion"] = r.get(mk["conversion"])
+            rows.append(row)
+        return {"rows": rows}, mk
+    rows = data.get("rows") or []
+    mk = dict(metric_keys or {})
+    if "conversion" not in mk and any("conversion" in r for r in rows):
+        mk["conversion"] = DEFAULT_METRIC_LABELS["conversion"]
+    return {"rows": rows}, mk
+
+
+def build_s7_thead(mk):
+    """metric_keys의 역할 라벨로 section-7 <thead> 생성. conversion 역할이 없으면 전환·CPA 컬럼 생략."""
+    label = lambda role: mk.get(role) or DEFAULT_METRIC_LABELS[role]  # noqa: E731
+    ths = [TH_BORDER.format(label="매체"), TH_BORDER.format(label="캠페인"),
+           TH.format(label=label("impression")), TH.format(label=label("click")), TH.format(label="CTR"),
+           "\n          ", TH.format(label=label("cost")), TH.format(label=label("revenue"))]
+    if mk.get("conversion"):
+        ths += [TH.format(label=mk["conversion"]), TH.format(label=f"{mk['conversion']} CPA")]
+    ths.append(TH.format(label="ROAS"))
+    return "<tr>\n          " + "".join(ths) + "\n        </tr>"
+
+
+def build_s7_rows(rows, has_conversion):
+    out = []
+    for r in sorted(rows, key=lambda x: x.get("cost") or 0, reverse=True):
+        name = r.get("name") or r.get("channel") or ""
+        campaign = r.get("campaign") or ""
+        impression = r.get("impression")
+        click = r.get("click")
+        cost = r.get("cost") or 0
+        unmatched = bool(r.get("unmatched")) or ("revenue" not in r and "conversion" not in r)
+        revenue = r.get("revenue")
+        conversion = r.get("conversion")
+
+        ctr = (click / impression * 100) if impression else None
+        d = {
+            "impression": fmt_int(impression) if impression is not None else "N/A",
+            "click": fmt_int(click) if click is not None else "N/A",
+            "CTR": fmt_pct(ctr) if ctr is not None else "N/A",
+            "cost": fmt_won(cost),
+        }
+        if unmatched:
+            d["revenue"] = d["conversion"] = d["CPA"] = d["ROAS"] = "-"
+        else:
+            d["revenue"] = fmt_won(revenue) if revenue is not None else "N/A"
+            d["conversion"] = fmt_int(conversion) if conversion is not None else "N/A"
+            d["CPA"] = fmt_won(cost / conversion) if conversion else "N/A"
+            d["ROAS"] = fmt_pct(revenue / cost * 100) if (revenue is not None and cost) else "N/A"
+
+        tail = f'<td>{d["conversion"]}</td><td>{d["CPA"]}</td>' if has_conversion else ""
+        html = (
+            "<tr>\n"
+            f'          <td style="border-right:1px solid #e2e8f0;">{name}</td>'
+            f'<td style="text-align:left; border-right:1px solid #e2e8f0;">{campaign}</td>'
+            f'<td>{d["impression"]}</td><td>{d["click"]}</td><td>{d["CTR"]}</td>\n'
+            f'          <td>{d["cost"]}</td><td>{d["revenue"]}</td>{tail}<td>{d["ROAS"]}</td>\n'
+            "        </tr>"
+        )
+        out.append({"search": f"{name} {campaign}".lower(), "html": html})
+    return out
+
+
+# ── main ────────────────────────────────────────────────────────────────────
+
+def main():
+    global CURRENCY
+    payload = json.load(sys.stdin)
+    target = date.fromisoformat(payload["target_date"])
+    skeleton = bool(payload.get("skeleton"))
+    metric_keys = payload.get("metric_keys") or {}
+    CURRENCY = payload.get("currency") or CURRENCY
+
+    with open(TEMPLATE, encoding="utf-8") as f:
+        html = f.read()
+
+    status = {}
+
+    def section_data(key):
+        return None if skeleton else payload.get(key)
+
+    # ── section 1
+    s1 = section_data("s1")
+    if s1:
+        status["s1"] = "ok"
+        for field in ["소진율", "목표_예산", "소진액", "매출_달성률", "목표_매출", "기간_매출", "실제_ROAS", "목표_ROAS"]:
+            html = html.replace(f"__S1_{field}__", fmt_value(field, s1.get(field)))
+        html = html.replace("__S1_FOOTNOTE_HTML__", S1_FOOTNOTE if s1.get("footnote") else "")
+    else:
+        status["s1"] = "placeholder"
+        html = swap_section(html, "s1", PLACEHOLDER_CARD)
+
+    # ── section 2
+    s2 = section_data("s2")
+    if s2 and s2.get("executive_summary"):
+        status["s2"] = "ok"
+        html = html.replace("__S2_ITEMS_HTML__", build_summary_items(s2["executive_summary"]))
+    else:
+        status["s2"] = "placeholder"
+        html = swap_section(html, "s2", PLACEHOLDER_CARD)
+
+    # ── section 3 (스크립트 데이터는 섹션 유무와 무관하게 항상 유효한 JSON으로 치환 —
+    #    placeholder일 땐 canvas가 없어 스크립트가 스스로 no-op 한다)
+    s3 = section_data("s3")
+    if s3 and s3.get("ad_cost"):
+        status["s3"] = "ok"
+        s3_chart = {
+            "labels": s3.get("labels") or build_month_labels(target),
+            "ad_cost": s3["ad_cost"],
+            "revenue": s3.get("revenue", []),
+            "roas": s3.get("roas", []),
+        }
+        footnote_current = (f"* {target.year % 100}년 {target.month}월은 "
+                            f"기준일({target.month}/{target.day})까지의 데이터만 포함합니다.")
+        html = html.replace("__S3_FOOTNOTE_CURRENT_MONTH__", footnote_current)
+        html = html.replace("__S3_FOOTNOTE_ZERO_FILL__", s3.get("zero_fill_note") or "")
+    else:
+        status["s3"] = "placeholder"
+        html = swap_section(html, "s3", PLACEHOLDER_CARD)
+        s3_chart = {"labels": [], "ad_cost": [], "revenue": [], "roas": []}
+    html = html.replace("__S3_CHART_DATA_JSON__", js_json(s3_chart))
+
+    # ── section 4
+    s4 = section_data("s4")
+    if s4 and (s4.get("ad_revenue") or s4.get("total_revenue")):
+        status["s4"] = "ok"
+        s4_chart = {
+            "labels": s4.get("labels") or build_day_labels(target),
+            "ad_revenue": s4.get("ad_revenue", []),
+            "total_revenue": s4.get("total_revenue", []),
+        }
+        promotions = build_promotions(s4.get("promotions"), target)
+    else:
+        status["s4"] = "placeholder"
+        html = swap_section(html, "s4", PLACEHOLDER_CARD)
+        s4_chart = {"labels": [], "ad_revenue": [], "total_revenue": []}
+        promotions = []
+    html = html.replace("__S4_CHART_DATA_JSON__", js_json(s4_chart))
+    html = html.replace("__S4_PROMOTIONS_JSON__", js_json(promotions))
+
+    # ── section 5
+    s5 = section_data("s5")
+    if s5 and s5.get("campaign_analysis"):
+        status["s5"] = "ok"
+        html = html.replace("__S5_BLOCKS_HTML__", build_analysis_blocks(s5["campaign_analysis"]))
+    else:
+        status["s5"] = "placeholder"
+        html = swap_section(html, "s5", PLACEHOLDER_CARD)
+
+    # ── section 6
+    s6 = section_data("s6")
+    if s6 and s6.get("rows"):
+        status["s6"] = "ok"
+        html = html.replace("__S6_THEAD_HTML__", S6_THEAD)
+        html = html.replace("__S6_ROWS_HTML__", build_s6_rows(s6["rows"]))
+    else:
+        status["s6"] = "placeholder"
+        html = swap_section(html, "s6", PLACEHOLDER_CARD)
+
+    # ── section 7
+    s7 = section_data("s7")
+    if s7 and any(k in s7 for k in ("rows", "rows_file", "json", "json_files")):
+        status["s7"] = "ok"
+        data, mk = load_s7_input(s7, metric_keys)
+        html = html.replace("__S7_THEAD_HTML__", build_s7_thead(mk))
+        s7_rows = build_s7_rows(data["rows"], bool(mk.get("conversion")))
+    else:
+        status["s7"] = "placeholder"
+        html = swap_section(html, "s7", PLACEHOLDER_CARD)
+        s7_rows = []
+    html = html.replace("__S7_ROWS_JSON__", js_json(s7_rows))
+
+    # ── 공통 치환
+    html = html.replace("__REPORT_TITLE__", payload["title"])
+    html = html.replace("__CURRENCY__", CURRENCY)
+    html = html.replace("__REPORT_DATE_LABEL__",
+                        f"{target.year}년 {target.month}월 1일 ~ {target.month}월 {target.day}일")
+    html = html.replace("__T_MM__", str(target.month)).replace("__T_DD__", str(target.day))
+
+    # ── 치환 누락 검증 (chart.js 인라인 전에 — 알려진 토큰이 남아있으면 실패)
+    leftovers = [t for t in [
+        "__REPORT_TITLE__", "__REPORT_DATE_LABEL__", "__T_MM__", "__T_DD__", "__CURRENCY__",
+        "__S1_", "__S2_ITEMS_HTML__", "__S3_", "__S4_", "__S5_BLOCKS_HTML__",
+        "__S6_THEAD_HTML__", "__S6_ROWS_HTML__", "__S7_THEAD_HTML__", "__S7_ROWS_JSON__",
+    ] if t in html]
+    if leftovers:
+        raise SystemExit(f"치환 누락: {leftovers}")
+
+    # ── chart.js 인라인 (마지막 — 내용이 커서 치환 검증 후에 붙인다)
+    with open(CHART_JS, encoding="utf-8") as f:
+        html = html.replace("__CHART_JS_INLINE__", f.read())
+
+    out_path = os.path.abspath(os.path.expanduser(payload["out"]))
+    os.makedirs(os.path.dirname(out_path), exist_ok=True)
+    with open(out_path, "w", encoding="utf-8", newline="\n") as f:
+        f.write(html)
+
+    json.dump({"out": out_path, "bytes": os.path.getsize(out_path), "sections": status},
+              sys.stdout, ensure_ascii=False)
+
+
+if __name__ == "__main__":
+    main()
