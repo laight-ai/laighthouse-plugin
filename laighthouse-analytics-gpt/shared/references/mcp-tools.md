@@ -30,9 +30,9 @@ naver 전용 계열, v1 target_progress, 리포트 공유 계열)은 **서버에
 - **검증 규칙(서버가 ValueError로 거절)**: `metrics:[]`는 `time_grain:"day"`가 아니면 비어 있지
   않은 `group_by`가 필요하다. `filters`는 알 수 없는 차원 키, `"date"` 키, 빈 값 리스트(`[]`)를
   거절한다. 서버 에러 메시지는 **그대로** 사용자에게 전달한다(재해석·추측 재시도 금지).
-- **ELT 테넌트가 없는 브랜드(레거시 DB 폴백)**: `filters`와 null이 아닌 `metrics`를 거절하고
-  `group_by`는 최대 1개만 허용한다 — 따라서 이 문서의 브랜드 비종속 패턴(디스커버리 `metrics:[]`,
-  `filters` 매체 필터)은 **ELT 테넌트가 있는 브랜드에서만** 동작한다. 서버 에러를 그대로 전달한다.
+- **ELT 테넌트가 없는 브랜드**: 레거시 DB 폴백은 제거됐다. 서버가
+  `Brand '<name>' is not ELT-published yet; ... requires the brand's data mart` ValueError를 돌려주며,
+  이 문서의 모든 패턴은 **ELT 테넌트가 있는 브랜드에서만** 동작한다. 서버 에러를 그대로 전달한다.
 - **상한**: 조회 구간은 `day`/`total` 366일, `month` 730일까지; 응답은 50,000행이 한도다.
 - **time_grain 매핑(구 도구 대응)**: 일별 표(`daily_table`) → `"day"`, 구간 합산 표
   (`range_table`) → `"total"`, 월별 표(`monthly_table` + `day_offset`) → `"month"`(+
