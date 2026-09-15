@@ -14,8 +14,8 @@ SKILL.md 실행 순서 3-b에서 호출한 `get_ad_performance`(`time_grain:"day
 
 ## 계산: `assets/creative_daily_series.py` (필수 — 손계산·새 스크립트 금지)
 
-원본 JSON 봉투 문자열을 항상 `json`에 통째로 넘긴다(손 전사·행 선별 절대 금지) — 이
-환경에는 캡처 훅이 없으므로 `json_files`는 쓰지 않는다(대용량 대응 원칙은
+원본 JSON 봉투 문자열이 그대로 왔으면 `json`에 통째로 넘기고(손 전사·행 선별 절대 금지),
+캡처 훅 스텁으로 왔으면 `json_files`에 저장 경로 배열을 넘긴다(판별 규칙은
 `shared/references/gpt-large-response-guardrail.md` 참고).
 section-4/5용 `top5_keys`와 디스커버리에서 정한 `metric_keys`까지 같이 넘겨 **한 번의
 호출**로 끝내고, 출력은 빌더가 읽을 파일로 저장한다:

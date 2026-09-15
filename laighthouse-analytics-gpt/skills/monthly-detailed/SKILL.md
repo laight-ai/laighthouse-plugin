@@ -76,8 +76,8 @@ generic 도구(`get_ad_performance`)와 `get_target_progress_v2`, `list_promotio
 > 프로즈로 손계산하는 것은 전부 금지다.
 >
 > - **`assets/monthly_campaign_rows.py`** — section-5의 파생지표·변화율·`(-)` 규칙·
->   `threshold` 필터·정렬·`<tr>` 생성. 원본 JSON 봉투 문자열을 항상 `json`에 통째로 넘긴다
->   — 이 환경에는 캡처 훅이 없으므로 `json_files` 입력은 쓰지 않는다(대용량 대응 원칙은
+>   `threshold` 필터·정렬·`<tr>` 생성. 원본 JSON 봉투 문자열이 그대로 왔으면 `json`에 통째로
+>   넘기고, 캡처 훅 스텁으로 왔으면 `json_files`에 저장 경로 배열을 넘긴다(판별 규칙은
 >   `shared/references/gpt-large-response-guardrail.md` 참고). 따옴표 있는
 >   heredoc(`<<'PYEOF'`)으로 stdin에 파이프하고, 출력은 `> /tmp/s5_rows.json`처럼 빌더가 읽을
 >   파일로 바로 저장한다. 응답을 먼저 파일로 저장했다가 별도 호출로 다시 읽어 실행하는 2단계도

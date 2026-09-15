@@ -1,0 +1,17 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": ".*get_ad_performance$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${PLUGIN_ROOT}/hooks/capture_ad_performance.py\"",
+            "timeout": 30,
+            "statusMessage": "대용량 광고 성과 응답을 파일로 우회 중"
+          }
+        ]
+      }
+    ]
+  }
+}

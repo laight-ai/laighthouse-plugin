@@ -81,8 +81,8 @@ generic 도구(`get_ad_performance`)와 `get_target_progress_v2`, `list_promotio
 > - 섹션 7의 파생지표(CTR/CPA/ROAS)·정렬·`<tr>` 생성·포맷팅(통화콤마/%/N/A)·날짜 라벨·
 >   프로모션 브래킷 인덱스 계산도 전부 빌더가 한다 — 모델은 응답 원본(`s7.json` 배열)이나
 >   전사한 전체 행만 넘긴다(선별·요약·상위 N개 발췌 금지).
-> - 응답 원본 JSON 봉투 문자열을 항상 `s7.json`에 넘긴다 — 이 환경에는 캡처 훅이 없으므로
->   `s7.json_files`는 쓰지 않는다(대용량 대응 원칙은
+> - 응답 원본 JSON 봉투 문자열이 그대로 왔으면 `s7.json`에 넘기고, 캡처 훅 스텁으로 왔으면
+>   `s7.json_files`에 저장 경로 배열을 넘긴다(판별 규칙은
 >   `shared/references/gpt-large-response-guardrail.md` 참고).
 > - MCP 응답을 스크래치 파일에 옮겨 적었다가 다시 읽는 왕복, 별도 파서/생성 스크립트 작성,
 >   응답 원본의 재타이핑은 전부 금지다.

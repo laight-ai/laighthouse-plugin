@@ -1,5 +1,5 @@
 interface:
-  display_name: "브리즘 데일리 보고서 (실무 상세)"
+  display_name: "데일리 보고서 (실무 상세)"
   short_description: "일자별 캠페인·광고그룹·광고 성과 데일리 보고서(HTML)를 생성합니다."
   brand_color: "#2563EB"
 

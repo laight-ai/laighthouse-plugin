@@ -124,10 +124,10 @@ generic 도구(`get_ad_performance`)와 `get_ad_creative_info`만 쓴다 —
 >   작은 응답을 3중 중복 처리(자연어 서술 → 파일 재입력 → heredoc 스크립트)해 수 분을
 >   소모한 사고가 있었다. "응답이 이미 작으면 바로 결과"가 규칙이다.
 > - **day grain 응답(section-3/4)은 5개 키 × 7일 exact-match만 남는 bounded 작업**이다
->   (소재 선정은 total 응답 정렬로 이미 끝남). 원본 JSON 봉투 문자열이 항상 그대로 오므로
->   컨텍스트에서 바로 5개 키 행만 걸러낸다 — 이 환경에는 캡처 훅이 없으므로 저장 파일을
->   경유하지 않는다(대용량 대응 원칙은 `shared/references/gpt-large-response-guardrail.md`
->   참고). 원본을 통째로 재타이핑하지 않는다.
+>   (소재 선정은 total 응답 정렬로 이미 끝남). 원본 JSON 봉투 문자열이 그대로 왔으면
+>   컨텍스트에서 바로 5개 키 행만 걸러내고, 캡처 훅 스텁(`[laighthouse-capture-hook]` 저장
+>   경로)으로 왔으면 그 파일을 python으로 읽어 걸러낸다(판별 규칙은 `shared/references/gpt-large-response-guardrail.md`
+>   참고). 어느 쪽이든 원본을 통째로 재타이핑하지 않는다.
 >   exact-match는 필수 절차이며 **전부 정확하게** 수행한다 — 일부만 훑고 추정하는 것은
 >   금지("정확한 계산 없는 순위/합계는 넣지 말고 차라리 데이터 준비 중").
 > - MCP 응답을 스크래치 파일에 옮겨 적었다가 다시 읽는 왕복, 별도 파서/생성 스크립트 작성,

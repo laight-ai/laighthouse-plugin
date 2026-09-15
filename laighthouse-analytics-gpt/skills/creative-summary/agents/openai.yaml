@@ -1,5 +1,5 @@
 interface:
-  display_name: "브리즘 Executive 소재 보고서 (임원용 요약)"
+  display_name: "Executive 소재 보고서 (임원용 요약)"
   short_description: "creative-detailed를 임원이 딥다이브 없이 훑어보도록 재구성한 소재 분석 요약 보고서(HTML)를 생성합니다."
   brand_color: "#2563EB"
 

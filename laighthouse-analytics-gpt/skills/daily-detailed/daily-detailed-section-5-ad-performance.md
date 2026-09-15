@@ -27,8 +27,8 @@
 
 ## 계산·행 생성: `assets/dxd_table_rows.py` (필수 절차 — 손계산·새 스크립트 금지)
 
-매체 수만큼의 원본 JSON 봉투 문자열을 전부 `json`에 넘긴다(스크립트가 봉투를 이어붙인다) —
-이 환경에는 캡처 훅이 없으므로 `json_files` 입력은 쓰지 않는다(대용량 대응 원칙은
+매체 수만큼의 원본 JSON 봉투 문자열을 전부 `json`에 넘긴다(스크립트가 봉투를 이어붙인다).
+캡처 훅 스텁으로 온 매체는 `json_files`에 저장 경로를 넘기며 두 입력을 섞어도 된다(판별 규칙은
 `shared/references/gpt-large-response-guardrail.md` 참고). section-4와 **같은**
 `metric_keys`/`currency`/`threshold`를 함께 넘기고, 출력은 빌더가 읽을 파일로 저장:
 

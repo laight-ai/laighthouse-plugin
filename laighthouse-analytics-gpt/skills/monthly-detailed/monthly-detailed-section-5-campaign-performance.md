@@ -29,8 +29,8 @@
 ## 계산·행 생성: `assets/monthly_campaign_rows.py` (필수 절차 — 손계산·새 스크립트 금지)
 
 응답(원본 JSON 봉투 문자열)을 `json`에 그대로 넘긴다(손 전사·행 선별 절대 금지 — threshold
-초과 행이 조용히 누락될 위험). 이 환경에는 캡처 훅이 없으므로 `json_files` 입력은 쓰지 않는다
-— 대용량 대응 원칙은 `shared/references/gpt-large-response-guardrail.md` 참고. 디스커버리로
+초과 행이 조용히 누락될 위험). 캡처 훅 스텁으로 왔으면 `json` 대신 `json_files`에 저장 경로
+배열을 넘긴다 — 판별 규칙은 `shared/references/gpt-large-response-guardrail.md` 참고. 디스커버리로
 정한 `metric_keys`와 `currency`/`threshold`를 빌더와 같은 값으로 함께 넘기고, 출력은 빌더가
 읽을 파일로 저장한다:
 

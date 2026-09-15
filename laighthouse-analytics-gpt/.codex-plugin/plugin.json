@@ -1,0 +1,24 @@
+{
+  "name": "laighthouse-analytics",
+  "version": "2.6.1",
+  "description": "라이트하우스 분석 플러그인 — MCP 연동 데이터(ELT 기반 get_ad_performance)를 MTD/데일리/월간/소재 성과 보고서(실무 상세·임원용 핵심 요약, 각각 별도 스킬, HTML)로 렌더링합니다.",
+  "author": {
+    "name": "LaightAI"
+  },
+  "keywords": [
+    "analytics",
+    "report",
+    "mtd",
+    "daily",
+    "monthly",
+    "creative",
+    "laighthouse"
+  ],
+  "skills": "./skills/",
+  "hooks": "./hooks/hooks.json",
+  "interface": {
+    "displayName": "Laighthouse Analytics",
+    "shortDescription": "라이트하우스 MCP 데이터를 데일리/MTD/월간/소재 성과 보고서(HTML)로 렌더링합니다.",
+    "category": "Analytics"
+  }
+}

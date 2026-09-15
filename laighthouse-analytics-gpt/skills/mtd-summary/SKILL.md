@@ -77,8 +77,8 @@ generic 도구(`get_ad_performance`)와 `get_target_progress_v2`, `list_promotio
 >   빌더가 처리한다. 입력 스키마는 스크립트 상단 docstring 참고.
 > - MCP 응답을 스크래치 파일에 옮겨 적었다가 다시 읽는 왕복, 별도 파서/생성 스크립트 작성,
 >   응답 원본의 재타이핑은 전부 금지다. 응답 원본 JSON 봉투 문자열을 항상 그대로 빌더 입력에
->   넘긴다 — 이 환경에는 캡처 훅이 없으므로 파일 경로 우회는 쓰지 않는다(대용량 대응 원칙은
->   `shared/references/gpt-large-response-guardrail.md` 참고).
+>   넘긴다. 캡처 훅 스텁(`[laighthouse-capture-hook]` 저장 경로)으로 왔으면 그 파일을 python으로
+>   읽어 빌더 입력을 만든다(판별 규칙은 `shared/references/gpt-large-response-guardrail.md` 참고).
 > - (최후 폴백) Bash/python3가 전혀 없는 호스트에서만, `assets/report-template.html`을 Read해서
 >   placeholder를 직접 치환한다 — 그 외 호스트에서는 절대 이 경로를 쓰지 않는다.
 

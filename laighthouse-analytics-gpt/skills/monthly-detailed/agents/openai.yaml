@@ -1,5 +1,5 @@
 interface:
-  display_name: "브리즘 월간 보고서 (실무 상세)"
+  display_name: "월간 보고서 (실무 상세)"
   short_description: "실무자용 월간 보고서(HTML, 5개 섹션, 매체·캠페인 단위 M-1 vs M0 비교 포함)를 생성합니다."
   brand_color: "#2563EB"
 

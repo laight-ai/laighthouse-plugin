@@ -1,5 +1,5 @@
 interface:
-  display_name: "브리즘 MTD 보고서 (실무 상세)"
+  display_name: "MTD 보고서 (실무 상세)"
   short_description: "MTD 보고서(HTML, 7개 섹션, 실무 상세)를 생성합니다."
   brand_color: "#2563EB"
 

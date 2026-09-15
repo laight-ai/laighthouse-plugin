@@ -106,8 +106,8 @@ MCP 데이터를 받아 **라이트하우스 스타일 Executive 소재 보고�
 >
 > - **`assets/creative_daily_series.py`** — section-3(전체 소재 날짜별 합산 CTR/ROAS)과
 >   section-4/5(상위 5개 소재 exact-match 일별 시리즈)의 파싱·계산 전부. 원본 JSON 봉투
->   문자열을 항상 `json`에 통째로 넘긴다 — 이 환경에는 캡처 훅이 없으므로 `json_files`
->   입력은 쓰지 않는다(대용량 대응 원칙은 `shared/references/gpt-large-response-guardrail.md`
+>   문자열이 그대로 왔으면 `json`에 통째로 넘기고, 캡처 훅 스텁으로 왔으면 `json_files`에
+>   저장 경로 배열을 넘긴다(판별 규칙은 `shared/references/gpt-large-response-guardrail.md`
 >   참고). 따옴표 있는 heredoc(`<<'PYEOF'`)으로
 >   stdin에 파이프하고, 출력은 `> /tmp/creative_series.json`처럼 빌더가 읽을 파일로 바로
 >   저장한다. 응답을 먼저 파일로 저장했다가 별도 호출로 다시 읽는 2단계도 금지다.
@@ -154,8 +154,8 @@ MCP 데이터를 받아 **라이트하우스 스타일 Executive 소재 보고�
    - **3-b. section-3/4/5용 (일별 추이)**: `get_ad_performance` ×1
      (`time_grain:"day"`, 같은 `filters`, 같은 `group_by`, 같은 7일). 날짜별 행(`date` 키)이
      필요해서 total로 대체할 수 없다. **이 응답을 section-3/4/5가 전부 공유한다** — 섹션별로
-     다시 호출하지 않는다. 이 환경에는 캡처 훅이 없으므로 원본 JSON 봉투 문자열이 그대로
-   도착한다 — 대용량 대응 원칙은 `shared/references/gpt-large-response-guardrail.md` 참고.
+     다시 호출하지 않는다. 응답은 원본 JSON 봉투 문자열 그대로, 또는(훅이 동작하는 환경이면)
+   캡처 훅 스텁으로 도착한다 — 두 경우의 처리는 `shared/references/gpt-large-response-guardrail.md` 참고.
 4. ⏱ **필수 체크포인트 — 스켈레톤 선(先) 게시.** 3단계 응답 수신 즉시, 다음 단계 전에
    `python3 assets/build_report.py`를 `{"skeleton": true, ...}`로 1회 호출해 전 섹션 "데이터
    준비 중" 골격을 만들고 게시한다(아래 9단계와 같은 출력 경로/Artifact — 이후 재게시로 교체).
