@@ -9,8 +9,7 @@ policy:
 dependencies:
   tools:
     - type: "mcp"
-      value: "get_ad_performance"
-      description: "브랜드 광고 성과 데이터(일/구간 합산, 소재 단위 그룹화)를 조회합니다."
-    - type: "mcp"
-      value: "get_ad_creative_info"
-      description: "소재(개별 광고 크리에이티브)의 이미지·소재 정보를 조회합니다."
+      value: "laighthouse"
+      description: "라이트하우스 광고 성과 MCP 서버 — 이 스킬이 사용하는 도구: get_ad_performance, get_ad_creative_info"
+      transport: "streamable_http"
+      url: "https://app.laight.ai/data/mcp"

@@ -15,6 +15,18 @@
         "authentication": "ON_INSTALL"
       },
       "category": "Analytics"
+    },
+    {
+      "name": "laighthouse-analytics-prod",
+      "source": {
+        "source": "local",
+        "path": "./plugins/laighthouse-analytics-prod"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Analytics"
     }
   ]
 }

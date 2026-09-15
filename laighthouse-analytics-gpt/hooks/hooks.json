@@ -6,7 +6,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"${PLUGIN_ROOT}/hooks/capture_ad_performance.py\"",
+            "command": "python3 -c \"import os,runpy;runpy.run_path(os.path.join(os.environ['PLUGIN_ROOT'],'hooks','capture_ad_performance.py'),run_name='__main__')\"",
+            "commandWindows": "python -c \"import os,runpy;runpy.run_path(os.path.join(os.environ['PLUGIN_ROOT'],'hooks','capture_ad_performance.py'),run_name='__main__')\"",
             "timeout": 30,
             "statusMessage": "대용량 광고 성과 응답을 파일로 우회 중"
           }
