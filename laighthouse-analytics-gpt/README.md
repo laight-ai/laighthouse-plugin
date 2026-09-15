@@ -100,6 +100,30 @@ laighthouse-plugin/
 
 플러그인 파일을 수정한 뒤에는 ChatGPT 데스크톱 앱을 재시작해야 반영됩니다.
 
+### 실측에서 확인된 함정 (2026-09-15)
+
+- **git 마켓플레이스는 자동으로 최신이 아닙니다.** `codex plugin marketplace add laight-ai/laighthouse-plugin`으로
+  등록한 경우 Codex는 리포를 `~/.codex/.tmp/marketplaces/<이름>/`에 체크아웃해 두고 그 시점 커밋을 계속 씁니다.
+  PR 머지 후에는 `codex plugin marketplace upgrade <이름>`(또는 앱의 Sync now)을 실행해야 새 폴더·훅이 보입니다.
+  체크아웃의 `git log -1`로 어느 커밋인지 확인할 수 있습니다.
+- **같은 리포에 마켓플레이스 파일이 두 개 있습니다.** `.claude-plugin/marketplace.json`(Claude Code용, 플러그인
+  `laighthouse-analytics-prod`)과 `.agents/plugins/marketplace.json`(이 폴더용, 플러그인 `laighthouse-analytics`).
+  Codex는 두 위치를 모두 읽을 수 있어 어느 쪽이 잡혔는지에 따라 설치되는 플러그인이 다릅니다. `.agents` 쪽에는
+  두 플러그인을 모두 등록해 두었으므로 Plugins Directory에서 **`laighthouse-analytics`**(GPT판)를 고르면 됩니다.
+  `laighthouse-analytics-prod`(Claude Code판)가 설치돼 있으면 스킬은 동작하지만 `.codex-plugin` 매니페스트와
+  Windows용 훅 명령이 없습니다.
+- **훅은 신뢰 승인 전까지 조용히 건너뜁니다.** 설치·활성화만으로는 실행되지 않고, 대화에서 `/hooks`를 열어
+  `capture_ad_performance` 정의를 trust 해야 합니다. 훅 파일이 바뀌면 해시가 달라져 다시 승인해야 합니다.
+  훅이 돌았는지는 `%TEMP%\laighthouse_mcp_capture\hook.log`(Windows) 또는 `$TMPDIR/laighthouse_mcp_capture/hook.log`에
+  `ran:` 줄이 찍히는지로 판단합니다. 줄이 전혀 없으면 신뢰 미승인 또는 명령 실행 실패, `skip:`이면 훅은 돌았지만
+  조건 미달(작은 응답 등)입니다.
+- **Windows에서는 `${PLUGIN_ROOT}` 셸 확장을 믿을 수 없습니다.** hooks.json의 `commandWindows`는 셸 변수 대신
+  python이 `os.environ['PLUGIN_ROOT']`를 직접 읽도록 작성돼 있어 cmd.exe·PowerShell·sh 어디서 실행돼도 같은
+  경로를 찾습니다(sh와 cmd.exe에서 실행 확인). Python 3이 `python`(Windows) / `python3`(macOS·Linux)로 PATH에
+  있어야 합니다.
+- **개발 중에는 git 대신 로컬 경로 마켓플레이스가 빠릅니다.** `codex plugin marketplace add <클론한 레포 루트>`로
+  등록하면 작업 트리를 바로 읽으므로 머지·동기화 없이 재시작만으로 반영됩니다.
+
 > 검증 포인트: 훅이 실제로 응답을 교체했는지는 `<임시 디렉터리>/laighthouse_mcp_capture/hook.log`
 > (`ran:`/`skip:`/`captured:`)로 확인합니다. Codex PostToolUse가 `updatedToolOutput`으로 도구 응답을
 > 교체하는 동작과 MCP 도구 matcher 이름 형식은 공식 문서에 명시가 없어, 첫 설치 때 이 로그로
