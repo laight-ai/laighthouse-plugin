@@ -7,7 +7,7 @@
 
 | 유형 | 이름 | 설명 |
 |------|------|------|
-| MCP | laighthouse | `https://app.laight.ai/data/mcp` 연동 |
+| MCP | laighthouse | `https://app.laight.ai/api/mcp` 연동 |
 | MCP | laighthouse_local | `https://sedative-duct-numerous.ngrok-free.dev/api/mcp` 연동(개발용) |
 | 스킬 | mtd-detailed |  MTD 보고서(HTML, 7개 섹션, 실무 상세) 렌더링 |
 | 스킬 | mtd-summary |  Executive MTD 보고서(HTML, 5개 섹션, 임원용 핵심 요약) 렌더링 |
@@ -37,7 +37,7 @@
 
 - **이름**: laighthouse
 - **타입**: HTTP (Streamable HTTP transport)
-- **URL**: `https://app.laight.ai/data/mcp`
+- **URL**: `https://app.laight.ai/api/mcp`
 - **인증**: oauth2.1
 
 - **이름**: laighthouse_local(개발용)
@@ -55,7 +55,7 @@ MCP 서버가 인증을 요구하는 경우 `.mcp.json`의 `headers`에 토큰�
   "mcpServers": {
     "laighthouse": {
       "type": "http",
-      "url": "https://app.laight.ai/data/mcp",
+      "url": "https://app.laight.ai/api/mcp",
       "headers": {
         "Authorization": "Bearer ${LAIGHTHOUSE_API_TOKEN}"
       }
