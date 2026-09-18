@@ -22,7 +22,8 @@
 - 응답 `rows`는 매체당 한 행. 여기서 세 값을 도출한다:
   - `media_list` — `media`가 `null`이 아닌 값들, **응답 문자열 그대로**(순서 유지).
   - `has_organic` — `media: null` 행이 있으면 `true` (미귀속/Organic).
-  - `metric_names` — 봉투의 `metrics` 리스트(유효한 지표 키의 유일한 진실).
+  - `metric_names` — 봉투의 `metrics` 리스트(유효한 지표 키의 유일한 진실). 이 호출의
+    `metric_units`는 `{}`다(지표를 요청하지 않았으므로) — 단위는 이후 지표 요청 응답에서 읽는다.
 - 브랜드에 `media` 차원이 없어 호출이 실패하면 `group_by: ["source"]`로 재호출하고 `source`
   값을 `media_list`로 쓴다.
 - 이후 매체 필터가 필요하면 `filters: {"media": ["<media_list의 값>"]}` (정확 일치).
@@ -66,6 +67,7 @@ naver/google/meta/tiktok만 받는다 — 그 외 값이거나 호출이 에러�
   넣는다. 빌더는 받은 행을 그 순서대로 렌더링한다(고정 행 목록 없음).
 - `metric_keys`: 3절의 맵. 빌더는 `<th>` 텍스트에 이 값을 쓰고, `conversion`이 없으면 전환·
   CPA 컬럼을 생략한다.
-- `currency`: 통화 기호 문자열, 생략 시 `"₩"`. 빌더/템플릿은 리터럴 ₩ 대신 이 값을 쓴다.
+- `currency`: 통화 기호 문자열. 첫 지표 요청 응답의 `metric_units[metric_keys["cost"]]`가
+  `null`이 아니면 그 값, 아니면 `"₩"`. 빌더/템플릿은 리터럴 ₩ 대신 이 값을 쓴다.
 - 구현 예시: `skills/daily-summary/assets/build_report.py` (`__S5_THEAD_HTML__`,
   `__CURRENCY__` 토큰).

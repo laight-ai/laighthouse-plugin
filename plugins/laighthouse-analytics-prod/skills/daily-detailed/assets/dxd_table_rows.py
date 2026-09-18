@@ -6,7 +6,7 @@ MCP 응답 JSON을 받아 stdout으로 완성된 행 배열만 낸다. 중간 �
 입출력).
 
 ⚠️ **`get_ad_performance`는 JSON 봉투를 반환한다** — `{"source": "elt", "tenant": ...,
-"time_grain": "day", "dimensions": [...], "metrics": [...], "row_count": N, "rows": [...]}`.
+"time_grain": "day", "dimensions": [...], "metrics": [...], "metric_units": {...}, "row_count": N, "rows": [...]}`.
 각 행(row)에는 요청한 차원 키(영문: `date`/`media`/`campaign_name`/`ad_group_name`/`ad_name`
 등)와 **테넌트별 지표 키**가 들어있다. 그 원본 문자열을 손으로 옮겨 적거나(전사 실수·행 누락
 위험) 파싱용 스크립트를 새로 만들지 않는다 — 아래 입력 형태로 원본 문자열/파일 경로를

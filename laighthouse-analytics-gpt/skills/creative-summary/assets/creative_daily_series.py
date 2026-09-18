@@ -19,7 +19,7 @@
 때문에 원자 지표 합으로 계산해야 정확하다.
 
 ⚠️ **`get_ad_performance`는 마크다운 표가 아니라 JSON 봉투를 반환한다** — `{"source": "elt",
-"tenant": ..., "time_grain": "day", "dimensions": [...], "metrics": [...], "row_count": N,
+"tenant": ..., "time_grain": "day", "dimensions": [...], "metrics": [...], "metric_units": {...}, "row_count": N,
 "rows": [...]}`. 각 행에는 차원 키(영문: `date`/`campaign_name`/`ad_group_name`/`ad_name` 등)와
 **테넌트별 지표 키**(브랜드마다 다르다 — 봉투의 `metrics` 목록이 유일한 진실)가 들어있다 —
 매출이 행 안에 함께 오므로 별도 매출 응답과의 조인이 없다. 원본을 손으로 옮겨

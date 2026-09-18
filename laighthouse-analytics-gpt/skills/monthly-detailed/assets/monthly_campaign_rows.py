@@ -14,7 +14,7 @@ MCP 응답 JSON을 받아 stdout으로 완성된 행 배열만 낸다. 중간 �
   - 필터 기준은 M0 광고비 `threshold` 이하 제외 (기본 300000, daily는 10000).
 
 ⚠️ **`get_ad_performance`는 마크다운 표가 아니라 JSON 봉투를 반환한다** — `{"source": "elt",
-"tenant": ..., "time_grain": "month", "dimensions": [...], "metrics": [...], "row_count": N,
+"tenant": ..., "time_grain": "month", "dimensions": [...], "metrics": [...], "metric_units": {...}, "row_count": N,
 "rows": [...]}`. month grain의 각 행에는 `month`("YYYY-MM")와 요청한 차원 키(영문: `media`/
 `campaign_id`/`campaign_name`), **테넌트별 지표 키**가 들어있다 — 매출/전환이 행 안에 함께
 오므로 별도 조인이 없다. 원본을 손으로 옮겨 적거나 파싱용 스크립트를 새로 만들지 않는다 —
