@@ -45,7 +45,8 @@ naver 전용 계열, v1 target_progress, 리포트 공유 계열)은 **서버에
 
 ```json
 { "source": "elt", "tenant": "<brand>", "time_grain": "day",
-  "dimensions": ["media"], "metrics": ["광고비", "..."], "row_count": 42,
+  "dimensions": ["media"], "metrics": ["광고비", "..."], "metric_units": {"광고비": "₩", "...": null},
+  "row_count": 42,
   "rows": [ { "date": "2026-08-01", "media": "Google", "광고비": 12345, "매출_AB": 67890, "...": 0 } ] }
 ```
 
@@ -56,6 +57,11 @@ naver 전용 계열, v1 target_progress, 리포트 공유 계열)은 **서버에
     **응답의 `metrics` 목록이 유효한 지표 키의 유일한 진실이다** — 키를 추측하지 않는다.
     보고서의 고정 역할(cost/impression/click/revenue/conversion)에 어떤 키를 쓸지는
     `generic-report-pattern.md`의 **지표 역할 해석 규칙**으로 실행마다 한 번 결정한다.
+  - **`metric_units`는 지표별 단위 기호 맵**이다 — 브랜드 카탈로그가 공개한 값 그대로(`"₩"`,
+    `"%"`, `"회"` …), 공개된 단위가 없으면 `null`. 수치를 표시할 때 이 값을 **그대로** 붙이고,
+    지표명(`광고비`, `roas` …)으로 단위를 추측하지 않는다. `null`이면 단위 없이 표시한다.
+    `metrics: []` 디스커버리 호출에서는 `{}`로 온다 — 단위는 지표를 실제로 요청한 응답에서
+    읽는다(`generic-report-pattern.md` 6절 `currency`).
   - ⚠️ 비율 지표는 **요청한 grain 기준으로 서버가 이미 계산한 % 값**이다(예: ROAS 122.4 =
     122.4%) — ×100 하지 않고, **행별 비율 값을 합산/평균해 상위 기간·상위 그룹 비율을 만들지
     않는다**(필요하면 원자 지표 합으로 다시 계산).

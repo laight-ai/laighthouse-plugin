@@ -40,7 +40,7 @@ generic 도구(`get_ad_performance`)와 `get_ad_creative_info`만 쓴다 —
 
 공통 호출 규칙 (`get_ad_performance`):
 - ℹ️ 응답은 **JSON 봉투**다: `{"source": "elt", "tenant": "<brand>", "time_grain": "day"|"month"|
-  "total", "dimensions": [...], "metrics": [...], "row_count": N, "rows": [...]}`. 행의 차원
+  "total", "dimensions": [...], "metrics": [...], "metric_units": {...}, "row_count": N, "rows": [...]}`. 행의 차원
   키는 영문(`date`/`media`/`source`/`campaign_name`/`ad_group_name`/`ad_id`/`ad_name` 등),
   **지표 키는 테넌트별**이다. **응답의 `metrics` 목록이 유효한 지표 키의 유일한 진실이다** —
   키를 추측하지 않고, 디스커버리 응답에서 역할별 `metric_keys`를 한 번 정해 그 키만 쓴다.

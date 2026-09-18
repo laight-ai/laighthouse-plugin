@@ -18,7 +18,9 @@ heredoc으로 **다시 타이핑**해야 했다 — 보고서 생성 시간의 �
 
 응답 형식 참고: `get_ad_performance`는 마크다운 표가 아니라 **JSON 봉투**를 반환한다 —
 `{"source": "elt", "tenant": ..., "time_grain": ..., "dimensions": [...], "metrics": [...],
-"row_count": N, "rows": [ {...}, ... ]}`. 저장 파일에도 이 봉투가 그대로 담긴다.
+"metric_units": {...}, "row_count": N, "rows": [ {...}, ... ]}`. 저장 파일에도 이 봉투가 그대로 담긴다.
+스텁 미리보기에는 `metric_units`(지표별 단위 기호)도 넣는다 — 원본이 컨텍스트에서 빠지는 만큼,
+모델이 지표명으로 단위를 추측하지 않도록 이 맵은 남겨 둔다.
 
 이 훅이 실패해도 보고서 생성은 깨지지 않는다 — 응답이 예전처럼 원본 그대로 전달될 뿐이고,
 스킬들은 기존 heredoc(`json` 배열) 경로로 동작한다.
@@ -117,14 +119,14 @@ def unwrap_json_result(text):
 
 
 def envelope_stats(text):
-    """JSON 봉투에서 (dimensions, metrics, row_count, media별 행 수, 첫 행)을 뽑는다.
+    """JSON 봉투에서 (dimensions, metrics, metric_units, row_count, media별 행 수, 첫 행)을 뽑는다.
     봉투가 아니면 전부 None/빈 값."""
     try:
         obj = json.loads(text)
     except (json.JSONDecodeError, ValueError):
-        return None, None, 0, {}, None
+        return None, None, None, 0, {}, None
     if not isinstance(obj, dict) or not isinstance(obj.get("rows"), list):
-        return None, None, 0, {}, None
+        return None, None, None, 0, {}, None
     rows = obj["rows"]
     by_media = {}
     for r in rows:
@@ -132,7 +134,14 @@ def envelope_stats(text):
             k = str(r.get("media"))
             by_media[k] = by_media.get(k, 0) + 1
     first_row = rows[0] if rows else None
-    return obj.get("dimensions"), obj.get("metrics"), obj.get("row_count", len(rows)), by_media, first_row
+    return (
+        obj.get("dimensions"),
+        obj.get("metrics"),
+        obj.get("metric_units"),
+        obj.get("row_count", len(rows)),
+        by_media,
+        first_row,
+    )
 
 
 def prune_stale():
@@ -232,13 +241,15 @@ def main():
         f.write(text)
     _breadcrumb(f"captured: {path} chars={len(text)}")
 
-    dimensions, metrics, n_rows, by_media, first_row = envelope_stats(text)
+    dimensions, metrics, metric_units, n_rows, by_media, first_row = envelope_stats(text)
     media_summary = ", ".join(f"{k}={v}" for k, v in sorted(by_media.items())) or "n/a"
     preview_parts = []
     if dimensions is not None:
         preview_parts.append(f"dimensions={json.dumps(dimensions, ensure_ascii=False)}")
     if metrics is not None:
         preview_parts.append(f"metrics={json.dumps(metrics, ensure_ascii=False)}")
+    if metric_units is not None:
+        preview_parts.append(f"metric_units={json.dumps(metric_units, ensure_ascii=False)}")
     if first_row is not None:
         preview_parts.append(f"첫 행={json.dumps(first_row, ensure_ascii=False)[:400]}")
     preview = "\n".join(preview_parts) or "(JSON 봉투 파싱 실패 — 파일에 원본 그대로 저장됨)"
