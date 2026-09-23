@@ -2,8 +2,10 @@
 """monthly-summary 최종 보고서 조립기 — 미리 검증된 asset 스크립트.
 
 `assets/report-template.html`(섹션 1~5 마크업·스크립트가 전부 들어있는 단일 진실 공급원)에
-값을 치환하고 `chart.umd.min.js`를 인라인해서 **최종 HTML 한 파일을 한 번의 호출로** 만든다.
-모델은 HTML을 한 글자도 타이핑하지 않는다 — 아래 값 JSON만 heredoc으로 넘기면 된다.
+값을 치환하고 `chart.umd.min.js`와 공용 킷(`shared/assets/report_kit.*`)을 인라인해서
+**최종 HTML 한 파일을 한 번의 호출로** 만든다. 모델은 HTML을 한 글자도 타이핑하지 않는다 —
+아래 값 JSON만 heredoc으로 넘기면 된다. 모드 분기(매출 있음/없음, Organic 있음/없음)는
+전부 공용 킷이 한다(`shared/references/generic-report-pattern.md` 7절).
 
 사용법 (단 한 번의 Bash 호출, 응답을 받은 그 자리에서):
   python3 assets/build_report.py <<'PYEOF'
@@ -17,60 +19,47 @@
   "target_date": "2026-05-15",                                                     # 필수
   "skeleton": true,          # 선택 — true면 모든 섹션을 "데이터 준비 중"으로 채운 스켈레톤 생성
                              #        (실행 순서의 필수 체크포인트용. s1~s5는 무시된다)
-  "metric_keys": {           # 역할 → 실제 지표 키 (shared/references/generic-report-pattern.md 3절)
-    "cost": "광고비", "impression": "노출", "click": "클릭", "revenue": "매출_AB",
-    "conversion": "예약완료_AB"   # 선택 — 없으면 section-5의 전환 컬럼을 숨긴다
-  },                         # <th> 라벨에 그대로 쓴다. 생략 시 cost="광고비", revenue="매출"
-  "currency": "₩",           # 선택 — 금액 접두 기호, 기본 "₩" (템플릿 JS 포맷터에도 주입)
+  "metric_keys": {           # 역할 → 실제 지표 키 (discover.py 출력 그대로)
+    "cost": "<cost 키>", "impression": "<impression 키>", "click": "<click 키>",
+    "revenue": "<revenue 키>",       # 선택 — 없으면 "매출 없음 모드"(매출·ROAS → 노출·클릭·CTR·CPC)
+    "conversion": "<conversion 키>"  # 선택 — 없으면 전환 컬럼 생략
+  },
+  "has_organic": true,       # discover.py 출력 그대로 (매출 없음 모드에선 무시)
+  "currency": "₩",           # discover.py 출력 그대로, 기본 "₩"
 
-  "s1": {                    # 목표 달성 현황 — 숫자(원본 수치) 또는 표시 문자열, 없으면 null
-    "소진율": 33.13,          # 숫자면 % 소수점 1자리로 포맷, null이면 "N/A"
-    "목표_예산": 168110000,   # 숫자면 통화기호+천단위 콤마로 포맷
-    "소진액": 55700000,
-    "매출_달성률": null,
-    "목표_매출": null,
-    "기간_매출": 123456789,
-    "실제_ROAS": 221.7,
-    "목표_ROAS": null,
-    "footnote": true          # 목표(예산/매출) 없는 매체가 하나라도 있으면 true → 고정 각주 표시
+  "s1": {                    # 목표 달성 현황 — 원본 숫자, 없으면 null (포맷·파생 비율은 킷이 계산)
+    "목표_예산": 168110000, "소진액": 55700000,
+    "목표_매출": null, "기간_매출": 123456789,          # 매출 있음 모드
+    "기간_노출": 1234567, "기간_클릭": 23456            # 매출 없음 모드
   },
-  "s2": {                    # Executive Summary — 불릿 카드 (5개 초과 시 앞 5개만 렌더링)
-    "bullets": [
-      {"text": "Kakao 매출이 전월 대비 <strong>+22.4%</strong> 성장...", "tone": "up"},
-      {"text": "TikTok 매출이 전월 대비 -19.8% 감소...", "tone": "down"},
-      {"text": "광고 매출 비중이 분기 단위로도 확대되는 추세...", "tone": "neutral"}
-    ]                          # tone: "up"(초록 ●) / "down"(빨강 ●) / "neutral"(회갈색 ●, 기본값)
-                               # (대신 "executive_summary": "줄1\n줄2" 문자열도 허용 — 전부 neutral)
+  "s2": {                    # Executive Summary — 불릿 카드 (4개 초과 시 앞 4개만 렌더링)
+    "bullets": [{"text": "...<strong>+22.4%</strong>...", "tone": "up|down|neutral"}]
+                             # tone: up(초록 ●) / down(빨강 ●) / neutral(회갈색 ●, 기본값)
+                             # (대신 "executive_summary": "줄1\n줄2" 문자열도 허용 — 전부 neutral)
   },
-  "s3": {                    # 월별 광고 성과 — 배열은 전부 6개(5개월 전 → 당월 순)
-    "ad_cost": [..6개..], "revenue": [..6개..], "roas": [..6개, 광고비 0인 달은 null..],
-    "labels": ["26년 3월", ...]   # 선택 — 생략하면 target_date 기준 "{YY}년 {M}월" 자동 생성
-                                  #        (당월에는 " (진행 중)" 자동 부착)
+  "s3": {                    # 월별 광고 성과 — 배열 6개(5개월 전 → 당월), 광고 매체 행(media non-null) 합
+    "cost": [..], "revenue": [..],                  # 매출 있음
+    "impression": [..], "click": [..],              # 매출 없음 (cost도 함께 — 툴팁·CPC용)
+    "labels": [...]          # 선택 — 생략하면 "{YY}년 {M}월"(당월 "(진행 중)") 자동 생성
   },
-  "s4": {                    # 매출 추이 — 배열은 전부 6개(5개월 전 → 당월 순)
-    "ad_revenue": [..6개..], "total_revenue": [..6개..],
-    "labels": [...]               # 선택 — s3과 동일한 규칙으로 자동 생성
+  "s4": {                    # 매체별 추이 — 매출 있음: revenue 값, 매출 없음: click 값 (배열 6개)
+    "series": [{"name": "<media 값 그대로>", "values": [..6개..]}, ...,
+               {"name": "Organic", "values": [..]}]    # Organic은 has_organic일 때만
   },
-  "s5": {                    # 매체 성과 비교 (M-1 vs M0) — 매체별 원본 수치만 넘기면
-    "rows": [                # ROAS·변화율·화살표·색상·포맷은 전부 빌더가 계산한다
-      {"name": "Kakao",
-       "m1": {"cost": 1000000, "revenue": 50000000, "conversion": 120},
-       "m0": {"cost": 1100000, "revenue": 52000000, "conversion": 130}},
-      {"name": "TikTok",  "m1": {...}, "m0": {...}},
-      {"name": "Organic",
-       "m1": {"revenue": 30000000, "conversion": 80},   # cost 없음 → "-" 표시
-       "m0": {"revenue": 28000000, "conversion": 75}}
-    ]                        # 디스커버리된 매체(응답 값 그대로) + Organic(있을 때만), 받은 순서대로 렌더링.
-  }                          # 값 키는 역할명(cost/revenue/conversion) — metric_keys에 conversion이 없으면 생략
+  "s5": {                    # 매체 성과 비교 (M-1 vs M0) — 역할별 원본 수치
+    "rows": [{"name": "<media 값>", "m1": {"cost":..,"impression":..,"click":..,"revenue":..,"conversion":..},
+                                    "m0": {...}},
+             {"name": "Organic", "m1": {"revenue":..,"conversion":..}, "m0": {...}}]
+  }
 }
 
 - s1~s5 중 키 자체가 없거나 null인 섹션은 "데이터 준비 중" 카드로 렌더링된다(섹션 생략 없음).
-- s5의 ROAS는 빌더가 계산한다(매출 ÷ 광고비 × 100, 광고비 null/0이면 "-").
-- 출력(stdout): {"out": 절대경로, "bytes": 크기, "sections": {"s1": "ok"|"placeholder", ...}}
+- 출력(stdout): {"out": 절대경로, "bytes": 크기, "mode": {...}, "sections": {"s1": "ok"|"placeholder", ...}}
 """
 import io
 import json
 import os
+import shutil
 import sys
 from datetime import date
 
@@ -80,57 +69,34 @@ sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 ASSETS_DIR = os.path.dirname(os.path.abspath(__file__))
 TEMPLATE = os.path.join(ASSETS_DIR, "report-template.html")
 CHART_JS = os.path.join(ASSETS_DIR, "chart.umd.min.js")
+# 스킬 폴더 assets에 chart.umd.min.js가 없으면 자매 스킬 daily-detailed의 것을 복사해 온다.
+CHART_JS_FALLBACK = os.path.normpath(os.path.join(
+    ASSETS_DIR, "..", "..", "daily-detailed", "assets", "chart.umd.min.js"))
+
+
+def _load_kit():
+    for cand in (os.path.join(ASSETS_DIR, "..", "shared", "assets"),          # ChatGPT 번들
+                 os.path.join(ASSETS_DIR, "..", "..", "..", "shared", "assets")):  # 플러그인 루트
+        if os.path.exists(os.path.join(cand, "report_kit.py")):
+            sys.path.insert(0, os.path.normpath(cand))
+            import report_kit
+            return report_kit
+    raise SystemExit("report_kit.py를 찾을 수 없다 (shared/assets)")
+
+
+kit = _load_kit()
 
 PLACEHOLDER_CARD = '<div class="card"><p style="color:#94a3b8;font-size:13px;">데이터 준비 중</p></div>'
-S1_FOOTNOTE = ('<p style="font-size:11px; color:#94a3b8; margin-top:8px;">'
-               "* 매체별 예산 및 목표 매출이 등록되지 않은 경우, 현황이 제대로 표시되지 않을 수 있습니다.</p>")
-S3_ZERO_FILL = "* 광고비 또는 매출 데이터가 정상적으로 연동되지 않은 경우, 제대로 표시되지 않을 수 있습니다."
-S4_ZERO_FILL = "* 매출 데이터가 정상적으로 연동되지 않은 경우, 제대로 표시되지 않을 수 있습니다."
-
-MONEY_FIELDS = {"목표_예산", "소진액", "목표_매출", "기간_매출"}
-PCT_FIELDS = {"소진율", "매출_달성률", "실제_ROAS", "목표_ROAS"}
+S3_NO_REVENUE_NOTE = ("<div>* 매출 지표가 없는 브랜드라 클릭·CTR 기준으로 표시합니다. 광고비·노출·CPC는 "
+                      "막대에 마우스를 올리면 확인할 수 있습니다.</div>")
+S3_ZERO_FILL = "<div>* 광고 데이터가 정상적으로 연동되지 않은 월은 0으로 표시되며, 제대로 표시되지 않을 수 있습니다.</div>"
+S4_ZERO_FILL = "<div>* 데이터가 정상적으로 연동되지 않은 월은 0으로 표시되며, 제대로 표시되지 않을 수 있습니다.</div>"
 
 # s2 불릿 앞머리 점(●) 색 — 성장/개선=초록, 하락/점검=빨강, 중립 관찰=회갈색
-TONE_COLORS = {"up": "#16a34a", "down": "#dc2626", "neutral": "#78716c"}
-
-# s5 변화량 색 — 네 지표 전부 "증가=빨강/감소=파랑/무변화(표시값 0.0)=검정"
-DELTA_UP = "#dc2626"
-DELTA_DOWN = "#2563eb"
-DELTA_ZERO = "#1e293b"
-S5_TH_GROUP = ('<th colspan="2" style="white-space:nowrap; text-align:center; border-bottom:none; '
-               'padding-top:8px; padding-bottom:8px; vertical-align:middle;{border}">{label}</th>')
-S5_TH_MONTH = ('<th style="white-space:nowrap; text-align:center; font-size:11px; font-weight:500; '
-               'padding-top:8px; padding-bottom:8px; vertical-align:middle;{border}">{label}</th>')
-S5_TH_BORDER = " border-right:1px solid #e2e8f0;"
-
-DEFAULT_METRIC_LABELS = {"cost": "광고비", "revenue": "매출"}
-CURRENCY = "₩"
-
-
-def fmt_won(v):
-    return f"{CURRENCY}{round(v):,}"
-
-
-def fmt_pct(v):
-    return f"{v:.1f}%"
-
-
-def fmt_value(field, v):
-    """숫자면 필드 종류에 맞게 포맷, 문자열이면 그대로, None이면 N/A."""
-    if v is None:
-        return "N/A"
-    if isinstance(v, str):
-        return v
-    if field in MONEY_FIELDS:
-        return fmt_won(v)
-    if field in PCT_FIELDS:
-        return fmt_pct(v)
-    return str(v)
-
-
-def js_json(value):
-    """<script> 안에 삽입할 JSON — </script> 조기 종료 방지."""
-    return json.dumps(value, ensure_ascii=False).replace("</", "<\\/")
+# (daily-summary의 green/red 표기도 같은 뜻으로 받는다)
+TONE_COLORS = {"up": "#16a34a", "green": "#16a34a", "down": "#dc2626", "red": "#dc2626",
+               "neutral": "#78716c"}
+MAX_BULLETS = 4   # section-2 문서: 불릿은 항상 4개(a~d)
 
 
 def swap_section(html, key, replacement):
@@ -159,12 +125,12 @@ def build_month_labels(target):
 
 
 def mtd_footnote(target):
-    return (f"* 이번달({target.year % 100}년 {target.month}월)의 데이터는 1일부터 기준일인 "
-            f"{target.month}월 {target.day}일까지의 수치입니다.")
+    return (f"<div>* 이번달({target.year % 100}년 {target.month}월)의 데이터는 1일부터 기준일인 "
+            f"{target.month}월 {target.day}일까지의 수치이며, 이전 달도 같은 일자까지로 잘라 비교합니다.</div>")
 
 
 def has_zero_fill(*arrays):
-    return any(v is None or v == 0 for arr in arrays for v in (arr or []))
+    return any(v is None or v == 0 for arr in arrays if arr for v in arr)
 
 
 def build_bullets(s2):
@@ -176,8 +142,8 @@ def build_bullets(s2):
     if not bullets:
         return None
     cards = []
-    for b in bullets[:5]:  # 5개 초과면 상위(앞) 5개만 — 모델이 임팩트 순으로 정렬해 넘긴다
-        color = b.get("color") or TONE_COLORS.get(b.get("tone", "neutral"), TONE_COLORS["neutral"])
+    for b in bullets[:MAX_BULLETS]:  # 초과분은 버린다 — 모델이 a)~d) 순서로 넘긴다
+        color = TONE_COLORS.get(b.get("tone", "neutral"), TONE_COLORS["neutral"])
         cards.append(
             '<div style="border:1px solid #e2e8f0; border-radius:8px; padding:16px 18px; '
             'display:flex; gap:10px; align-items:flex-start;">\n'
@@ -187,109 +153,13 @@ def build_bullets(s2):
     return "\n      ".join(cards)
 
 
-# ── s5: 매체 성과 비교 표 ──────────────────────────────────────────────────
-
-def roas_of(month):
-    cost = month.get("cost")
-    revenue = month.get("revenue")
-    if cost is None or not cost or revenue is None:
-        return None
-    return revenue / cost * 100
-
-
-def fmt_s5(kind, v):
-    if v is None:
-        return "-"
-    if kind == "money":
-        return fmt_won(v)
-    if kind == "int":
-        return f"{round(v):,}"
-    return fmt_pct(v)  # roas
-
-
-def delta_html(m1, m0, unit):
-    """M0 값 아래 변화량 div. unit '%'=상대 변화율, '%p'=포인트 차. 계산 불가면 ''."""
-    if m1 is None or m0 is None:
-        return ""
-    if unit == "%":
-        if not m1:
-            return ""
-        raw = (m0 - m1) / m1 * 100
-    else:
-        raw = m0 - m1
-    shown = round(raw, 1)
-    if shown == 0:
-        color, label = DELTA_ZERO, f"0.0{unit}"
-    else:
-        color = DELTA_UP if shown > 0 else DELTA_DOWN
-        arrow = "▲" if raw > 0 else "▼"
-        label = f"{arrow} {'+' if shown > 0 else ''}{shown:.1f}{unit}"
-    return (f'\n            <div style="font-size:10.5px; text-align:center; '
-            f'color:{color};">({label})</div>')
-
-
-def build_s5_thead(metric_keys, m1_label, m0_label):
-    """metric_keys의 역할 라벨로 section-5 <thead> 생성. conversion 역할이 없으면 그 컬럼 생략."""
-    groups = [metric_keys.get("cost") or DEFAULT_METRIC_LABELS["cost"],
-              metric_keys.get("revenue") or DEFAULT_METRIC_LABELS["revenue"]]
-    if metric_keys.get("conversion"):
-        groups.append(metric_keys["conversion"])
-    groups.append("ROAS")
-    row1 = ['<th rowspan="2" style="vertical-align:middle; white-space:nowrap; text-align:center;'
-            f'{S5_TH_BORDER}">매체</th>']
-    row2 = []
-    for i, label in enumerate(groups):
-        last = i == len(groups) - 1
-        row1.append(S5_TH_GROUP.format(label=label, border="" if last else S5_TH_BORDER))
-        row2.append(S5_TH_MONTH.format(label=m1_label, border=""))
-        row2.append(S5_TH_MONTH.format(label=m0_label, border="" if last else S5_TH_BORDER))
-    sep = "\n            "
-    return ("<tr>" + sep + sep.join(row1) + "\n          </tr>\n          <tr>" + sep
-            + sep.join(row2) + "\n          </tr>")
-
-
-def build_s5_rows(rows, has_conversion):
-    """rows(매체별 원본 수치) → ROAS/변화량 계산 + <tr> HTML. 행은 입력 순서 그대로."""
-    out = []
-    for r in rows:
-        m1, m0 = r.get("m1") or {}, r.get("m0") or {}
-        m1_roas, m0_roas = roas_of(m1), roas_of(m0)
-        cells = [
-            f'<td style="white-space:nowrap; text-align:left; border-right:1px solid #e2e8f0;">{r.get("name", "")}</td>',
-            f'<td style="white-space:nowrap; text-align:center;">{fmt_s5("money", m1.get("cost"))}</td>',
-            ('<td style="white-space:nowrap; text-align:center; border-right:1px solid #e2e8f0;">'
-             f'{fmt_s5("money", m0.get("cost"))}{delta_html(m1.get("cost"), m0.get("cost"), "%")}'
-             "</td>"),
-            f'<td style="white-space:nowrap; text-align:center;">{fmt_s5("money", m1.get("revenue"))}</td>',
-            ('<td style="white-space:nowrap; text-align:center; border-right:1px solid #e2e8f0;">'
-             f'{fmt_s5("money", m0.get("revenue"))}{delta_html(m1.get("revenue"), m0.get("revenue"), "%")}'
-             "</td>"),
-        ]
-        if has_conversion:
-            cells += [
-                f'<td style="white-space:nowrap; text-align:center;">{fmt_s5("int", m1.get("conversion"))}</td>',
-                ('<td style="white-space:nowrap; text-align:center; border-right:1px solid #e2e8f0;">'
-                 f'{fmt_s5("int", m0.get("conversion"))}{delta_html(m1.get("conversion"), m0.get("conversion"), "%")}'
-                 "</td>"),
-            ]
-        cells += [
-            f'<td style="white-space:nowrap; text-align:center;">{fmt_s5("roas", m1_roas)}</td>',
-            ('<td style="white-space:nowrap; text-align:center;">'
-             f'{fmt_s5("roas", m0_roas)}{delta_html(m1_roas, m0_roas, "%p")}'
-             "</td>"),
-        ]
-        out.append("<tr>\n          " + "\n          ".join(cells) + "\n        </tr>")
-    return "\n        ".join(out)
-
-
 def main():
-    global CURRENCY
     payload = json.load(sys.stdin)
     target = date.fromisoformat(payload["target_date"])
     m1_y, m1_m = month_add(target.year, target.month, -1)
     skeleton = bool(payload.get("skeleton"))
-    metric_keys = payload.get("metric_keys") or {}
-    CURRENCY = payload.get("currency") or CURRENCY
+    currency = payload.get("currency") or "₩"
+    modes = kit.Modes(payload.get("metric_keys"), payload.get("has_organic"))
 
     with open(TEMPLATE, encoding="utf-8") as f:
         html = f.read()
@@ -299,14 +169,15 @@ def main():
     def section_data(key):
         return None if skeleton else payload.get(key)
 
+    labels = None
+
     # ── section 1
     s1 = section_data("s1")
     if s1:
         status["s1"] = "ok"
-        for field in ["소진율", "목표_예산", "소진액", "매출_달성률", "목표_매출", "기간_매출", "실제_ROAS", "목표_ROAS"]:
-            html = html.replace(f"__S1_{field}__", fmt_value(field, s1.get(field)))
+        html = html.replace("__S1_GRID_HTML__", kit.s1_grid_html(s1, modes, currency))
+        html = html.replace("__S1_FOOTNOTE_HTML__", kit.s1_footnote_html(s1))
         html = html.replace("__S1_MM__", str(target.month)).replace("__S1_DD__", str(target.day))
-        html = html.replace("__S1_FOOTNOTE_HTML__", S1_FOOTNOTE if s1.get("footnote") else "")
     else:
         status["s1"] = "placeholder"
         html = swap_section(html, "s1", PLACEHOLDER_CARD)
@@ -324,69 +195,81 @@ def main():
     # ── section 3 (스크립트 데이터는 섹션 유무와 무관하게 항상 유효한 JSON으로 치환 —
     #    placeholder일 땐 canvas가 없어 스크립트가 스스로 no-op 한다)
     s3 = section_data("s3")
-    if s3 and s3.get("ad_cost"):
+    if s3 and (s3.get("cost") or s3.get("ad_cost") or s3.get("click")):
         status["s3"] = "ok"
-        s3_chart = {
-            "labels": s3.get("labels") or build_month_labels(target),
-            "ad_cost": s3["ad_cost"],
-            "revenue": s3.get("revenue", []),
-            "roas": s3.get("roas", []),
-        }
-        html = html.replace("__S3_FOOTNOTE_CURRENT_MONTH__", mtd_footnote(target))
-        html = html.replace("__S3_FOOTNOTE_ZERO_FILL__",
-                            S3_ZERO_FILL if has_zero_fill(s3["ad_cost"], s3.get("revenue")) else "")
+        labels = s3.get("labels") or build_month_labels(target)
+        s3_spec = kit.perf_chart_spec(labels, s3, modes)
+        scale = s3.get("revenue") if modes.has_revenue else s3.get("click")
+        notes = [mtd_footnote(target)]
+        if not modes.has_revenue:
+            notes.append(S3_NO_REVENUE_NOTE)
+        if has_zero_fill(s3.get("cost") or s3.get("ad_cost"), scale):
+            notes.append(S3_ZERO_FILL)
+        html = html.replace("__S3_FOOTNOTE_HTML__", "\n      ".join(notes))
     else:
         status["s3"] = "placeholder"
         html = swap_section(html, "s3", PLACEHOLDER_CARD)
-        s3_chart = {"labels": [], "ad_cost": [], "revenue": [], "roas": []}
-    html = html.replace("__S3_CHART_DATA_JSON__", js_json(s3_chart))
+        s3_spec = None
+    html = html.replace("__S3_CHART_SPEC_JSON__", kit.js_json(s3_spec))
 
-    # ── section 4
+    # ── section 4 (매체별 추이 누적 막대)
     s4 = section_data("s4")
-    if s4 and (s4.get("ad_revenue") or s4.get("total_revenue")):
+    if s4 and s4.get("series"):
         status["s4"] = "ok"
-        s4_chart = {
-            "labels": s4.get("labels") or build_month_labels(target),
-            "ad_revenue": s4.get("ad_revenue", []),
-            "total_revenue": s4.get("total_revenue", []),
-        }
-        html = html.replace("__S4_FOOTNOTE_MTD__", mtd_footnote(target))
-        html = html.replace("__S4_FOOTNOTE_ZERO_FILL__",
-                            S4_ZERO_FILL if has_zero_fill(s4.get("ad_revenue"), s4.get("total_revenue")) else "")
+        s4_labels = s4.get("labels") or labels or build_month_labels(target)
+        s4_spec = kit.media_trend_spec(s4_labels, s4["series"], modes)
+        totals = [sum((s["data"][i] or 0) for s in s4_spec["series"] if i < len(s["data"]))
+                  for i in range(len(s4_labels))]
+        notes = [mtd_footnote(target)]
+        trend_note = kit.media_trend_footnote(modes)
+        if trend_note:
+            notes.append(trend_note)
+        if has_zero_fill(totals):
+            notes.append(S4_ZERO_FILL)
+        html = html.replace("__S4_TITLE__", kit.media_trend_title(modes))
+        html = html.replace("__S4_FOOTNOTE_HTML__", "\n      ".join(notes))
     else:
         status["s4"] = "placeholder"
         html = swap_section(html, "s4", PLACEHOLDER_CARD)
-        s4_chart = {"labels": [], "ad_revenue": [], "total_revenue": []}
-    html = html.replace("__S4_CHART_DATA_JSON__", js_json(s4_chart))
+        s4_spec = None
+    html = html.replace("__S4_CHART_SPEC_JSON__", kit.js_json(s4_spec))
 
-    # ── section 5
+    # ── section 5 (매체 성과 비교 — 컬럼은 모드별로 킷이 고른다)
     s5 = section_data("s5")
     if s5 and s5.get("rows"):
         status["s5"] = "ok"
-        html = html.replace("__S5_THEAD_HTML__", build_s5_thead(metric_keys, f"{m1_m}월", f"{target.month}월"))
-        html = html.replace("__S5_ROWS_HTML__", build_s5_rows(s5["rows"], bool(metric_keys.get("conversion"))))
+        html = html.replace("__S5_THEAD_HTML__", kit.compare_thead_html(
+            modes, f"{m1_y % 100}년 {m1_m}월", f"{target.year % 100}년 {target.month}월"))
+        html = html.replace("__S5_ROWS_HTML__", kit.compare_rows_html(
+            s5["rows"], modes, currency, base_key="m1", cur_key="m0"))
     else:
         status["s5"] = "placeholder"
         html = swap_section(html, "s5", PLACEHOLDER_CARD)
 
     # ── 공통 치환
     html = html.replace("__REPORT_TITLE__", payload["title"])
-    html = html.replace("__CURRENCY__", CURRENCY)
+    html = html.replace("__CURRENCY_JSON__", kit.js_json(currency))
     html = html.replace("__REPORT_DATE_LABEL__",
                         f"{target.year}년 {target.month}월 1일 ~ {target.month}월 {target.day}일")
     html = (html.replace("__M1_MM__", str(m1_m))
                 .replace("__M0_MM__", str(target.month))
                 .replace("__M0_YY__", str(target.year % 100)))
 
-    # ── 치환 누락 검증 (chart.js 인라인 전에 — 알려진 토큰이 남아있으면 실패)
+    # ── 치환 누락 검증 (인라인 전에 — 알려진 토큰이 남아있으면 실패)
     leftovers = [t for t in [
-        "__REPORT_TITLE__", "__REPORT_DATE_LABEL__", "__S1_", "__S2_BULLETS_HTML__",
-        "__S3_", "__S4_", "__S5_THEAD_HTML__", "__S5_ROWS_HTML__", "__CURRENCY__", "__M1_", "__M0_",
+        "__REPORT_TITLE__", "__REPORT_DATE_LABEL__", "__S1_", "__S2_", "__S3_", "__S4_", "__S5_",
+        "__CURRENCY", "__M1_", "__M0_",
     ] if t in html]
     if leftovers:
         raise SystemExit(f"치환 누락: {leftovers}")
 
-    # ── chart.js 인라인 (마지막 — 내용이 커서 치환 검증 후에 붙인다)
+    # ── 공용 킷·chart.js 인라인 (마지막 — 내용이 커서 치환 검증 후에 붙인다)
+    html = kit.inline_assets(html)
+    if not os.path.exists(CHART_JS):
+        if os.path.exists(CHART_JS_FALLBACK):
+            shutil.copyfile(CHART_JS_FALLBACK, CHART_JS)
+        else:
+            raise SystemExit(f"chart.umd.min.js 없음: {CHART_JS} (fallback도 없음: {CHART_JS_FALLBACK})")
     with open(CHART_JS, encoding="utf-8") as f:
         html = html.replace("__CHART_JS_INLINE__", f.read())
 
@@ -395,8 +278,10 @@ def main():
     with open(out_path, "w", encoding="utf-8", newline="\n") as f:
         f.write(html)
 
-    json.dump({"out": out_path, "bytes": os.path.getsize(out_path), "sections": status},
-              sys.stdout, ensure_ascii=False)
+    json.dump({"out": out_path, "bytes": os.path.getsize(out_path),
+               "mode": {"has_revenue": modes.has_revenue, "has_organic": modes.has_organic,
+                        "has_conversion": modes.has_conversion},
+               "sections": status}, sys.stdout, ensure_ascii=False)
 
 
 if __name__ == "__main__":

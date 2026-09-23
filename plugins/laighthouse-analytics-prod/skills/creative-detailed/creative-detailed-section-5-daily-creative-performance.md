@@ -1,11 +1,12 @@
 # Creative Section 5: 최근 7일 소재 단위 누적 성과
 
 **report_type:** `creative-detailed` (항상 포함). **`chosen_media` 하나만 대상**(SKILL.md 매체
-선택). 기준일 포함 **최근 7일을 통째로 합산**해 소재 단위 지표를 한 표에 보여준다(노출/클릭/
-CTR/광고비/매출/ROAS + conversion 역할이 있을 때만 전환/CPA). ⚠️ 파일명의 "daily"는 매일
+선택). 기준일 포함 **최근 7일을 통째로 합산**해 소재 단위 지표를 한 표에 보여준다 — 매출 있음 모드:
+노출/클릭/CTR/광고비/매출/ROAS, **매출 없음 모드: 노출/클릭/CTR/광고비/CPC** (+ 두 모드 모두
+conversion 역할이 있을 때만 전환/CPA). ⚠️ 파일명의 "daily"는 매일
 갱신되는 보고서라는 맥락일 뿐, **이 섹션의 데이터는 날짜별이 아니라 7일 누적값**이다.
 
-> ℹ️ 표 HTML/검색/페이지네이션과 CTR·CPA·ROAS 계산·통화/% 포맷·광고비 내림차순 정렬·
+> ℹ️ 표 HTML/검색/페이지네이션과 모드별 컬럼 선택·CTR·CPC·CPA·ROAS 계산·통화/% 포맷·광고비 내림차순 정렬·
 > `<thead>`/`<tr>` 생성은 전부 템플릿+빌더가 한다 — 모델은 소재별 **원본 수치**만 `s5.rows`에
 > 넣고, 최상위에 `metric_keys`(+`currency`)를 넘긴다. `<th>` 라벨은 `metric_keys` 값 그대로
 > 렌더링되고, `conversion`이 없으면 전환·CPA 컬럼이 통째로 생략된다.
@@ -22,8 +23,8 @@ section-1이 호출한 `get_ad_performance`(`time_grain:"total"`,
 ## 매핑 규칙
 
 - 각 행을 그대로 rows 한 항목으로 옮긴다: `impression`←impression 키, `click`←click 키,
-  `cost`←cost 키, `revenue`←revenue 키, `conversion`←conversion 키(`metric_keys`에 있을
-  때만), `asset_group`←`ad_group_name`(빌더 필드명은 기존 그대로 `asset_group`이다),
+  `cost`←cost 키, `revenue`←revenue 키(`metric_keys`에 있을 때만 — 매출 없음 모드는 키 자체를
+  생략), `conversion`←conversion 키(`metric_keys`에 있을 때만), `asset_group`←`ad_group_name`(빌더 필드명은 기존 그대로 `asset_group`이다),
   `media`←`chosen_media` 값 그대로(접미사·번역 없음).
 - revenue/conversion 키 값이 행에 없으면(null) 그대로 **null**로 넣는다(빌더가 매출/전환/
   CPA/ROAS 칸을 `-`로 렌더링. 0과 다르다 — 0은 값이 실제로 0인 경우).
@@ -31,17 +32,19 @@ section-1이 호출한 `get_ad_performance`(`time_grain:"total"`,
 ## 빌더 `s5` 필드
 
 ```json
-"metric_keys": { "cost": "<cost 키>", "impression": "<impression 키>", "click": "<click 키>", "revenue": "<revenue 키>", "conversion": "<conversion 키 — 있을 때만>" },
+"metric_keys": { "cost": "<cost 키>", "impression": "<impression 키>", "click": "<click 키>", "revenue": "<revenue 키 — 있을 때만>", "conversion": "<conversion 키 — 있을 때만>" },
+"currency": "<discover.py 출력의 currency>",
 "s5": { "rows": [
   { "media": "<chosen_media>", "campaign": "{campaign_name}", "asset_group": "{ad_group_name}", "ad_name": "{ad_name}",
     "impression": 12345, "click": 67, "cost": 89012,
-    "revenue": 345678, "conversion": 3 }
+    "revenue": 345678, "conversion": 3 }   // revenue/conversion은 해당 역할이 있을 때만
 ] }
 ```
 
 - 수치는 응답 원본 그대로(포맷·반올림·정렬 금지 — 빌더가 한다). 빌더가 계산하는 파생지표:
-  CTR = 클릭÷노출×100(노출 0이면 N/A), CPA = 광고비÷전환(0/없음이면 `-`, conversion 역할이
-  있을 때만), ROAS = 매출÷광고비×100(광고비 0이면 `-`).
+  CTR = 클릭÷노출×100(노출 0이면 N/A), CPC = 광고비÷클릭(매출 없음 모드만, 클릭 0이면 `-`),
+  CPA = 광고비÷전환(0/없음이면 `-`, conversion 역할이 있을 때만), ROAS = 매출÷광고비×100(매출
+  있음 모드만, 광고비 0이면 `-`).
 - rows가 크면 `"rows_file": "/tmp/s5.json"`(rows 배열이 든 JSON 파일 경로)로 넘겨도 된다.
 - 데이터가 비어있으면 `s5` 키를 뺀다 → "데이터 준비 중" 카드. 행 선별·근사치 대체는 금지 —
   전 소재를 전부 넣거나, 불가능하면 키를 뺀다(§ 데이터 처리 원칙의 이분법).

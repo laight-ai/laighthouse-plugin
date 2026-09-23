@@ -18,9 +18,10 @@ laighthouse-plugin/
         ├── .claude-plugin/plugin.json
         ├── .mcp.json              # laighthouse MCP 서버 연동 설정
         ├── README.md
-        ├── shared/                # 스킬 간 공유 데이터 스펙 (플러그인 루트 기준 경로로 참조됨)
-        │   ├── references/
-        │   └── sections/          # daily / mtd / monthly / executive-mtd 섹션 데이터 스펙
+        ├── hooks/                 # PostToolUse 캡처 훅 (대용량 get_ad_performance 응답 → 파일)
+        ├── shared/                # 스킬 간 공유 (플러그인 루트 기준 경로로 참조됨)
+        │   ├── references/        # MCP 도구 규칙·브랜드 비종속 패턴·목표 카드 규칙
+        │   └── assets/            # 공용 렌더링 킷 report_kit.py/.js/.css (카드·차트·비교 표·계층 표)
         └── skills/
             ├── daily-detailed/    #  데일리 보고서(HTML, 실무 상세)
             ├── daily-summary/     #  Executive 데일리 보고서(HTML, 임원용 요약)
@@ -29,10 +30,7 @@ laighthouse-plugin/
             ├── monthly-detailed/  #  월간 보고서(HTML, 실무 상세)
             ├── monthly-summary/   #  Executive 월간 보고서(HTML, 임원용 요약)
             ├── creative-detailed/ #  소재 보고서(HTML, 실무 상세)
-            ├── creative-summary/  #  Executive 소재 보고서(HTML, 임원용 요약)
-            └── render-report-docx/       # MCP 결과를 편집 가능한 Word(.docx) 보고서로 렌더링
-                ├── sections/      # DOCX 섹션 정의 (daily / mtd / monthly / executive-mtd / creative)
-                └── assets/docx_report/   # python-docx 렌더러 + 매핑 스크립트
+            └── creative-summary/  #  Executive 소재 보고서(HTML, 임원용 요약)
 ```
 
 ## 포함된 플러그인
@@ -51,7 +49,6 @@ laighthouse-plugin/
 | `monthly-summary` |  Executive 월간 보고서(HTML, 임원용 핵심 요약) 렌더링 |
 | `creative-detailed` |  소재 보고서(HTML, 실무 상세) 렌더링 |
 | `creative-summary` |  Executive 소재 보고서(HTML, 임원용 핵심 요약) 렌더링 |
-| `render-report-docx` | MCP 결과를 편집 가능한 Word(.docx) 보고서로 렌더링 — 배너 섹션 헤더/카드/네이티브 차트, 대용량 표는 매출 0원 행 제외 + 상위 50행 |
 
 자세한 사용법은 [플러그인 README](plugins/laighthouse-analytics-prod/README.md)를 참고하세요.
 
@@ -59,7 +56,6 @@ laighthouse-plugin/
 
 - "<브랜드>의 MTD 보고서로 보여줘"
 - "임원용 데일리 보고서 만들어줘"
-- "<브랜드>의 MTD 보고서를 워드로 만들어줘"
 
 ## 마켓플레이스 등록
 

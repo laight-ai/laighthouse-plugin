@@ -2,11 +2,11 @@
 name: mtd-detailed
 description: >
   브랜드 비종속 상세 MTD 보고서 생성 스킬. "MTD 보고서", "mtd 보고서" 요청 시 사용.
-  매체별 광고 성과와 귀속 매출을 엮어 목표 대비 진행·월별 추이·일별 매출·캠페인 성과까지 보여주는
-  7섹션 MTD 보고서. 사용자가 말한 브랜드의 매체·지표를 실행 시작에 디스커버리해서 어떤 브랜드에도
-  같은 방식으로 동작한다.
+  목표 대비 진행·월별 추이·매체별 일별 추이·매체별 예산·계층 표(매체·캠페인·광고그룹·광고, 전월 동기
+  vs 당월)까지 보여주는 7섹션 MTD 보고서. 사용자가 말한 브랜드의 매체·지표를 실행 시작에
+  디스커버리해서 어떤 브랜드에도 같은 방식으로 동작한다.
 metadata:
-  version: "2.0.0"
+  version: "3.0.0"
 ---
 
 
@@ -22,79 +22,83 @@ MCP 데이터를 받아 **라이트하우스 스타일 MTD 성과 보고서**(HT
 렌더링한다 — weekly는 지원하지 않는다(요청받으면 알맞은 스킬을 안내하거나 미지원임을 알린다).
 
 **브랜드 비종속**: 사용자가 말한 브랜드명을 모든 MCP 호출의 `brand_name`과 제목·파일명에 그대로
-쓴다. 매체 목록(`media_list`/`has_organic`)과 지표 키(`metric_names` → 역할별 `metric_keys`)는
-실행 시작의 **디스커버리 호출**로 알아낸다 — 절차·역할 해석 규칙은
+쓴다. 매체 목록(`media_list`/`has_organic`)과 지표 키(역할별 `metric_keys`)·통화는 실행 시작의
+**디스커버리 호출 + `assets/discover.py`**로 알아낸다 — 절차·역할 해석 규칙은
 `shared/references/generic-report-pattern.md`가 단일 소스다. 이 파일과 섹션 파일에서 "cost/
 impression/click/revenue/conversion 키"라 하면 그 맵의 값을 뜻한다. 매체 구분은 행의 `media`
 차원 값이며, 매출/전환은 각 행에 지표로 함께 들어온다(별도 조인 불필요).
+
+**모드** (`generic-report-pattern.md` 7절, 판정·분기는 빌더의 공용 킷이 한다):
+- **매출 없음 모드** — `metric_keys`에 `revenue`가 없으면. 목표 카드·월별 차트·매체별 예산 표의
+  매출·ROAS 자리에 노출·클릭·CTR·CPC가 나오고, 매체별 일별 추이는 클릭 기준이 된다. 모델은 섹션
+  파일 규칙대로 역할 원본 수치를 넣기만 한다(revenue 값은 생략).
+- **Organic 있음/없음** — `has_organic`. 없으면 Organic 행·계열·서술이 전부 빠진다.
+- 계층 표(section-7)는 모드와 무관하게 봉투의 **모든 지표**를 보여준다.
 
 generic 도구(`get_ad_performance`)와 `get_target_progress_v2`, `list_promotions`만 쓴다.
 
 공통 호출 규칙 (`get_ad_performance`):
 - ℹ️ 응답은 **JSON 봉투**다: `{"source": "elt", "tenant": "<brand>", "time_grain": "day"|"month"|
   "total", "dimensions": [...], "metrics": [...], "metric_units": {...}, "row_count": N, "rows": [...]}`. 행의 차원
-  키는 영문(`date`(day grain)/`month`(month grain, "YYYY-MM")/`media`/`campaign_id`/
-  `campaign_name` 등), **지표 키는 테넌트별**이다. **응답의 `metrics` 목록이 유효한 지표 키의
-  유일한 진실이다** — 키를 추측하지 않고, 디스커버리 응답에서 역할별 `metric_keys`를 한 번 정해
-  그 키만 쓴다.
+  키는 영문(`date`(day grain)/`month`(month grain, "YYYY-MM")/`media`/`campaign_name`/
+  `ad_group_name`/`ad_name` 등), **지표 키는 테넌트별**이다. **응답의 `metrics` 목록이 유효한
+  지표 키의 유일한 진실이다** — 키를 추측하지 않는다.
 - ⚠️ 비율 지표(ROAS/CTR 등)는 요청한 grain 기준으로 서버가 이미 % 값으로 계산해 준다 —
-  ×100 불필요. **행별 비율 값을 합산해 상위 기간/상위 그룹 비율을 만들지 않는다**(필요하면
-  원자 지표 합으로 다시 계산).
-- ⚠️ `group_by`는 **차원명 문자열 리스트**다 (예: `["media"]`,
-  `["media","campaign_id","campaign_name"]`) — 예전의 문자열 enum이 아니다. 생략하면 총계만
-  온다(day/month grain이면 `date`/`month` 키 포함).
-- 매체 필터가 필요하면 `filters: {"media": ["<media_list의 값>"]}` (정확 일치). 이 스킬은
-  필터 없이 `group_by:["media"]`로 전 매체를 한 번에 받는다.
-- ⚠️ `get_target_progress_v2`의 ROAS류 수치는 비율값(0.87)이므로 ×100 해서 %로 쓴다 —
-  이 도구 응답만 여전히 markdown 표다.
+  ×100 불필요. **행별 비율 값을 합산해 상위 기간/상위 그룹 비율을 만들지 않는다**(차트·카드·
+  예산 표의 비율은 빌더가 원자 값 합으로 계산하고, 계층 표는 레벨마다 따로 조회한 서버 값을 쓴다).
+- ⚠️ `group_by`는 **차원명 문자열 리스트**다 (예: `["media","campaign_name"]`). 생략하면 총계만
+  온다(day/month grain이면 `date`/`month` 키 포함). `metrics` 생략 시 테넌트 전체 지표가 온다.
+- 매체 필터는 `filters: {"media": ["<media_list의 값>"]}` (정확 일치, 디스커버리 응답 문자열
+  그대로). 이 스킬에서 필터를 쓰는 곳은 section-7의 광고그룹·광고 레벨(매체별 1회 호출)뿐이다.
 - `group_by:["media"]` 응답의 `media`가 `null`인 행이 `Organic`이다(광고비 없이 매출만 귀속).
-  정상 응답이니 버리지 말고 섹션 규칙대로 매핑한다. 디스커버리에 없는 매체 행을 지어 넣지
-  않는다.
+  정상 응답이니 버리지 말고 섹션 규칙대로 다룬다. 디스커버리에 없는 매체 행을 지어 넣지 않는다.
+- ⚠️ `get_target_progress_v2`: section-1 카드는 `media`를 생략(전체 매체)해 **1회**
+  (`shared/references/target-achievement.md`), section-6 표만 `media_list`의 값을 **그대로** 넣어
+  매체마다 1회씩 부른다(`.lower()` 금지). 한 줄 메시지·0 표·에러는 전부 목표 없음이다. 응답의
+  `actual`은 어디에도 쓰지 않는다 — 실적은 항상 `get_ad_performance`에서 가져온다.
 
 ---
 
 ## 데이터 처리 원칙 (절대 지침)
 
 > 🚫 **MCP 응답은 이미 정제가 끝난 최종 데이터다 — 그대로 스크립트에 넘기고, 값을 의심·보정·
-> 재계산·추정하지 않는다.** 예외는 각 섹션 파일에 명시된 표기 변환뿐이다(ROAS ×100 등).
+> 재계산·추정하지 않는다.** 예외는 각 섹션 파일에 명시된 표기 변환뿐이다.
 > 데이터가 비거나 갭이 있어도 채우거나 추정하지 않는다.
 >
 > 🚫 **응답이 크다고 느껴져도 선택지는 정확히 둘뿐이다**: (1) 원본을 가공 없이 전부 asset
 > 스크립트에 넘기거나, (2) 정말 처리 불가능하면 그 섹션을 "데이터 준비 중"으로 표시한다
 > (빌더 입력에서 해당 `s*` 키를 빼면 된다). **다른 섹션·다른 기간 값의 재사용, 비슷해 보이는
 > 숫자 생성, 부분 전사 후 추정은 — 그 대체 숫자가 진짜 쿼리 결과라도 — 전부 금지다.** 이미
-> 정상적으로 받은 응답은 그 세분화 단위 그대로 쓴다("받았지만 크다"며 다른 것으로 바꾸는
-> 경우는 존재하지 않는다). 응답을 못 받았을 때만 (2)로 간다.
+> 정상적으로 받은 응답은 그 세분화 단위 그대로 쓴다. 응답을 못 받았을 때만 (2)로 간다.
 
 ## 실행 방식 절대 지침
 
 > 이 스킬의 계산·렌더링은 전부 **미리 검증된 asset 스크립트**가 한다 — 모델이 실행 중
-> `.py`/`.js` 스크립트 파일을 새로 만들거나, HTML을 직접 타이핑하거나, 캠페인 행을 프로즈로
-> 손계산하는 것은 전부 금지다.
+> `.py`/`.js` 스크립트 파일을 새로 만들거나, HTML을 직접 타이핑하거나, 캠페인/광고 행을
+> 프로즈로 손계산하는 것은 전부 금지다.
 >
+> - **`assets/discover.py`** — 디스커버리 응답 → `media_list`/`has_organic`/`metric_keys`/
+>   `currency` (실행 순서 2단계, 1회).
 > - **`assets/build_report.py`** — 최종 HTML 조립·저장. `assets/report-template.html`(섹션 1~7
->   마크업·스크립트의 단일 진실 공급원)에 값을 치환하고 chart.js를 인라인해 **한 번의 호출로**
->   완성한다. 모델은 소량 값 JSON만 따옴표 있는 heredoc(`<<'PYEOF'`)으로 stdin에 넘긴다 —
->   섹션별 HTML 조각 파일(`section2.html` 등)을 만들거나 chart.js를 타이핑하는 방식은 금지된
->   과거 패턴이다. 입력 스키마는 스크립트 상단 docstring 참고. 최상위에 `metric_keys`/
->   `currency`를 함께 넘긴다(섹션 6/7 `<th>` 라벨과 통화 기호에 쓰인다).
-> - 섹션 7의 파생지표(CTR/CPA/ROAS)·정렬·`<tr>` 생성·포맷팅(통화콤마/%/N/A)·날짜 라벨·
->   프로모션 브래킷 인덱스 계산도 전부 빌더가 한다 — 모델은 응답 원본(`s7.json` 배열)이나
->   전사한 전체 행만 넘긴다(선별·요약·상위 N개 발췌 금지).
-> - 응답이 `[laighthouse-capture-hook] ... 저장됨: <경로>` 스텁이나 "saved to <경로>" 안내로
->   오면(캡처 훅/호스트 우회 — 이 스킬의 호출은 대부분 저카디널리티라 드물다) 그 파일을 Read로
->   열어 컨텍스트로 가져오지 말고, 경로만 `s7.json_files`에 넘긴다(빌더가 직접 읽는다).
+>   마크업·스크립트의 단일 진실 공급원)에 값을 치환하고 chart.js·공용 킷(`shared/assets/
+>   report_kit.*`)을 인라인해 **한 번의 호출로** 완성한다. section-7 계층 표는 빌더가 레벨별
+>   응답 봉투(`json_files`/`json`)를 받아 직접 만든다. 입력 스키마는 스크립트 상단 docstring 참고.
+> - 캠페인 이하 응답이 `[laighthouse-capture-hook] ... 저장됨: <경로>` 스텁으로 오면(캡처 훅
+>   동작 호스트 — 이 플러그인의 PostToolUse 훅이 대용량 응답을 파일로 저장한 것) 경로만
+>   `json_files`에, 원본 JSON 봉투가 그대로 오면 `json`에 문자열 통째로 넘긴다(혼용 가능).
+>   스텁이 가리키는 캡처 파일을 Read로 열어 내용을 컨텍스트로 가져오지 않는다(section-5가 필요한
+>   캠페인 행은 Bash(python)로 그 파일에서 필요한 행만 뽑는다).
 > - MCP 응답을 스크래치 파일에 옮겨 적었다가 다시 읽는 왕복, 별도 파서/생성 스크립트 작성,
 >   응답 원본의 재타이핑은 전부 금지다.
-> - (최후 폴백) Bash/python이 전혀 없는 호스트에서만, `assets/report-template.html`을 Read해서
+> - (최후 폴백) Bash/python3가 전혀 없는 호스트에서만, `assets/report-template.html`을 Read해서
 >   placeholder를 직접 치환한다 — 그 외 호스트에서는 절대 이 경로를 쓰지 않는다.
 
 ## 입력 파라미터
 
 | 파라미터 | 설명 | 예시 |
 |--------|------|------|
-| 보고서 제목 | 보고서 상단 타이틀 | {브랜드명} MTD 보고서 |
-| brand_name | 사용자가 말한 브랜드명 그대로 | (사용자 입력) |
+| 보고서 제목 | 보고서 상단 타이틀 (`{브랜드명} MTD 보고서`) | acme MTD 보고서 |
+| brand_name | 사용자가 말한 브랜드명 그대로 | acme |
 | 기준 일자 | 보고서 기준 날짜 (`target_date`) | 2026-05-15 |
 
 섹션 구성은 고정 7개(아래 표) — 사용자가 섹션을 고르는 개념이 없다.
@@ -104,33 +108,33 @@ generic 도구(`get_ad_performance`)와 `get_target_progress_v2`, `list_promotio
 ## 실행 순서
 
 1. 파라미터를 파싱한다. report_type은 `mtd-detailed` 고정.
-2. **디스커버리 호출 (1회, 다른 호출보다 먼저)**: `get_ad_performance`(5개월 전 1일~target_date,
-   `time_grain:"total"`, `group_by:["media"]`, `metrics:[]`) → `media_list`/`has_organic`/
-   `metric_names`를 얻고 역할별 `metric_keys`를 정한다(`generic-report-pattern.md` 2·3절).
-   필수 역할(cost/impression/click/revenue)을 못 정하면 여기서 한 번만 사용자에게 묻는다.
-3. **1차 배치 (한 메시지에 동시 발사)**: `get_target_progress_v2` × len(media_list)(매체당 1회,
-   `media: <값>.lower()` — 미지원/에러는 목표 없음) + `get_ad_performance` ×1(당월 1일~
-   target_date, `time_grain:"month"`, `group_by:["media"]`, `filters` 생략) — section-1/6용
-   (`mtd-detailed-section-1-target-achievement.md` 참고). 목표 판정을 기다리는 조건부 라운드는
-   없다.
+2. **디스커버리 1회** (`generic-report-pattern.md` 2절): `get_ad_performance`(5개월 전 1일~
+   target_date, `time_grain:"total"`, `group_by:["media"]`, **`metrics` 생략**) → 응답 원문을 그대로
+   `python3 assets/discover.py`에 넘겨 `media_list`/`has_organic`/`metric_keys`/`currency`를 받는다.
+   출력의 `missing`/`ambiguous`가 비어 있지 않을 때만 사용자에게 한 번에 묻는다(revenue가 없는
+   것은 질문 사유가 아니다 — 매출 없음 모드).
+3. **1차 배치 (한 메시지에 동시 발사)**: `get_target_progress_v2` ×1(`media` 생략 — section-1) +
+   `get_target_progress_v2` × len(media_list)(`media` = 각 값 그대로 — section-6) +
+   `get_ad_performance` ×1(당월 1일~target_date, `time_grain:"month"`, `group_by:["media"]`,
+   `filters` 생략 — section-1/6 실적). 목표 판정을 기다리는 조건부 라운드는 없다.
 4. ⏱ **필수 체크포인트 — 스켈레톤 선(先) 게시.** 3단계 응답 수신 즉시, 다음 단계 전에
-   `python assets/build_report.py`를 `{"skeleton": true, ...}`로 1회 호출해 전 섹션 "데이터
+   `python3 assets/build_report.py`를 `{"skeleton": true, ...}`로 1회 호출해 전 섹션 "데이터
    준비 중" 골격을 만들고 게시한다(아래 9단계와 같은 출력 경로/Artifact — 이후 재게시로 교체).
    이 단계를 건너뛰고 끝에서 한꺼번에 내놓으려다 툴호출 예산이 바닥나면 사용자는 아무것도 못
    본다 — 자매 스킬의 실제 사고 사례가 있는 필수 단계다.
-5. **2차 배치 (한 메시지에 동시 발사)**: section-2 신규 호출(`time_grain:"month"`, 전월~당월,
-   `group_by:["media"]`, `filters` 생략, `day_offset`) 1회 + section-3(`time_grain:"month"`
-   6개월, `group_by:["media"]`, `filters` 생략, `day_offset`) 1회 + section-4(`get_ad_performance`
-   `time_grain:"day"`, 월초~target_date, `group_by:["media"]`, `filters` 생략, 1회 +
-   `list_promotions` 1회) + section-7(`time_grain:"total"`,
-   `group_by:["media","campaign_id","campaign_name"]`, `filters` 생략, 1회). 각 섹션 파일의 호출
-   명세를 그대로 따른다. (section-6은 신규 호출 없음 — 1차 배치 재사용.)
-6. **계산**: section-1 값 판정과 section-6 매체별 행(각 섹션 파일의 계산 규칙), section-3
-   배열 산출, section-7은 응답 원본을 `s7.json`에 담기만 한다.
+5. **2차 배치 (한 메시지에 동시 발사)**: section-3(`time_grain:"month"` 6개월, `group_by:["media"]`,
+   `day_offset`, `metrics`·`filters` 생략) 1회 + section-4(`time_grain:"day"`, 월초~target_date,
+   `group_by:["media"]` 1회 + `list_promotions` 1회) + section-7(전월 1일~target_date,
+   `time_grain:"month"`, `day_offset`, `metrics` 생략 — 캠페인 레벨 1회 + 광고그룹·광고 레벨 각각
+   `media_list`의 매체마다 1회). 각 섹션 파일의 호출 명세를 그대로 따른다.
+6. **계산**: section-1 값(`target-achievement.md`), section-3 역할별 6개월 배열(광고 매체 행 합),
+   section-4 매체별 일별 배열, section-6 매체별 목표 원본 + 실적. section-7은 계산하지 않는다 —
+   응답을 그대로 넘긴다(매체 레벨은 section-3 응답 재사용).
 7. **section-2 Executive Summary + section-5 캠페인 분석 작성** — 추가 MCP 호출 없이 다른
    섹션 응답을 재사용해 AI가 직접 작성 (각 섹션 파일의 규칙).
-8. **최종 빌드**: `assets/build_report.py`에 값 JSON을 heredoc으로 넘겨 최종 HTML을 생성한다.
-   출력 경로(`out`)는 `~/Downloads/laighthouse-reports/{브랜드명}_mtd-detailed_{기준_일자}.html`
+8. **최종 빌드**: `assets/build_report.py`에 값 JSON(`metric_keys`, `has_organic`, `currency` 포함)
+   을 heredoc으로 넘겨 최종 HTML을 생성한다. 출력 경로(`out`)는
+   `~/Downloads/laighthouse-reports/{브랜드명}_mtd-detailed_{기준_일자}.html`
    (디렉터리는 빌더가 만든다).
 9. 완성된 HTML을 **두 곳에 동시에** 낸다 — 하나만 하고 끝내지 않는다:
    - **채팅 내부 표시**: Artifact(또는 `mcp__visualize__show_widget`)로 게시 — 4단계 스켈레톤과
@@ -148,9 +152,12 @@ generic 도구(`get_ad_performance`)와 `get_target_progress_v2`, `list_promotio
 > ⚡ 서브에이전트 없이 오케스트레이터(본 대화)가 MCP를 직접 호출한다. **서로 의존성 없는 MCP
 > 호출은 한 메시지 안에서 동시에(병렬 tool call로) 발사한다.** 배치의 실제 효과는 "턴 오버헤드
 > 제거"다(네트워크 동시 실행 보장은 아님 — 실측 daily-summary 참고). 진짜 속도는 (a) 호출 총
-> 개수 축소(섹션 1/2/3의 `filters` 생략 통합, 섹션 6의 응답 재사용, 섹션 7의 `time_grain:
-> "total"` 1회 통합 — 서버가 이미 합산한 캠페인당 1행이라 Bash 재합산도 불필요), (b) asset
-> 스크립트(재타이핑·손계산 제거)에서 나온다.
+> 개수 축소(섹션 1/3/4의 `filters` 생략 통합, section-3 응답을 section-2 전월 동기 비교와 계층 표
+> 매체 레벨로 재사용, section-1 실적을 section-6이 재사용), (b) 캡처 훅(대용량 응답의 파일 우회),
+> (c) asset 스크립트(재타이핑·손계산 제거)에서 나온다.
+
+- section-1의 당월 1개월 호출을 section-3의 6개월 호출에 **의도적으로 합치지 않는다** — 합치면
+  section-1(스켈레톤 직후 첫 렌더링)이 더 무거운 6개월 조회 완료까지 기다려야 한다.
 
 ---
 
@@ -171,23 +178,22 @@ generic 도구(`get_ad_performance`)와 `get_target_progress_v2`, `list_promotio
 ## 섹션 구성
 
 **총 7개 섹션, 구성 고정.** 각 파일은 MCP 호출 명세와 빌더 입력(`s1`~`s7`) 매핑 규칙을 담는다
-— HTML/Script는 전부 `assets/report-template.html`에 있다.
+— HTML/Script는 전부 `assets/report-template.html`과 공용 킷에 있다.
 
 | 순서 | 섹션 | 파일 | 빌더 키 |
 |-----|------|------|--------|
 | 1 | 목표 달성 현황 | `mtd-detailed-section-1-target-achievement.md` | `s1` |
 | 2 | Executive Summary | `mtd-detailed-section-2-executive-summary.md` | `s2` |
-| 3 | 월별 광고 성과 (차트) | `mtd-detailed-section-3-monthly-ad-performance.md` | `s3` |
-| 4 | 일일 매출 현황 (차트) | `mtd-detailed-section-4-daily-revenue.md` | `s4` |
+| 3 | 월별 광고 성과 (6개월 혼합 차트) | `mtd-detailed-section-3-monthly-ad-performance.md` | `s3` |
+| 4 | 매체별 일별 추이 (누적 막대 — 매출 없음: 매체별 클릭) | `mtd-detailed-section-4-daily-revenue.md` | `s4` |
 | 5 | 캠페인 분석 (서술형) | `mtd-detailed-section-5-campaign-analysis.md` | `s5` |
-| 6 | 광고 매체별 현황 | `mtd-detailed-section-6-channel-budget.md` | `s6` |
-| 7 | 캠페인별 성과 (표) | `mtd-detailed-section-7-campaign-performance.md` | `s7` |
+| 6 | 광고 매체별 현황 (매체별 예산·소진) | `mtd-detailed-section-6-channel-budget.md` | `s6` |
+| 7 | 매체·캠페인·광고그룹·광고 성과 (전월 동기 vs 당월, 계층 표) | `mtd-detailed-section-7-hierarchy-performance.md` | `s7` |
 
-- 응답 공유 관계: 섹션 6은 섹션 1의 호출들을 그대로 재사용(신규 호출 0회), 섹션 2/5는 신규
-  호출(섹션 2의 전월 비교 1회) 외에 다른 섹션 응답만 재사용, `list_promotions`는 섹션 4에서
-  1회만 호출하고 섹션 2/5가 재사용한다. 섹션 4와 7은 날짜 범위가 같아도 `group_by`가 달라
-  응답을 공유할 수 없다.
-- `mtd-detailed`에는 `매출 추이`/`매체 성과 비교`(전월 vs 당월) 섹션이 없다 — 그 둘은
-  `mtd-summary` 전용이다.
+- 응답 공유 관계: section-6은 section-1의 실적 호출을 재사용(매체별 목표 호출만 추가), section-3
+  응답은 section-2(전월 동기 비교)와 section-7(매체 레벨)이 재사용, `list_promotions`는 section-4
+  에서 1회만 호출하고 section-2/5가 재사용한다. section-5는 section-7의 캠페인 레벨 응답을 쓴다.
+- `mtd-detailed`에는 `매체 성과 비교`(전월 vs 당월 매체 표) 섹션이 없다 — `mtd-summary` 전용이다
+  (이 스킬은 계층 표의 매체 행이 그 역할을 한다).
 - 섹션 데이터가 준비 안 되면 해당 `s*` 키를 빌더 입력에서 뺀다 → "데이터 준비 중" 카드로
   렌더링된다. 섹션을 임의로 생략하는 개념은 없다 — 항상 7개 전부.

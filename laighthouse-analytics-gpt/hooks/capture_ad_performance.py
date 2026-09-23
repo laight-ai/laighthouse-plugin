@@ -3,7 +3,7 @@
 
 왜 존재하나: `group_by`에 캠페인/광고그룹/광고 차원(campaign_id/campaign_name/ad_group_id/
 ad_group_name/ad_id/ad_name)이 들어간 응답은 수만~수십만 자까지 커진다. 이 원본이 모델
-컨텍스트에 통째로 들어가고, asset 스크립트(dxd_table_rows.py 등)에 넘기려면 모델이 그 전문을
+컨텍스트에 통째로 들어가고, asset 스크립트(build_report.py 등)에 넘기려면 모델이 그 전문을
 heredoc으로 **다시 타이핑**해야 했다 — 보고서 생성 시간의 최대 병목이자, "응답이 너무 커서
 대체/추정하겠다"는 데이터 무결성 사고의 반복 원인이었다.
 
@@ -259,7 +259,7 @@ def main():
         f"media={media}, time_grain={grain}, group_by={dims}, {start}~{end})은 아래 파일에 전문 저장됨:\n"
         f"{path}\n"
         f"media별 행 수: {media_summary}\n"
-        f"⚠️ 원본을 컨텍스트에 다시 타이핑하지 말 것. asset 스크립트(dxd_table_rows.py 등)에 넘길 때는 "
+        f"⚠️ 원본을 컨텍스트에 다시 타이핑하지 말 것. asset 스크립트(build_report.py 등)에 넘길 때는 "
         f'{{"json_files": ["{path}", ...]}} 입력 형태(경로 배열)를 heredoc으로 넘기고, '
         f"그 외 집계가 필요하면 Bash(python)에서 이 파일을 직접 읽어 처리한다. "
         f"수치를 요약·추정으로 대체하지 않는다.\n"

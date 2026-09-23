@@ -1,7 +1,7 @@
 {
   "name": "laighthouse-analytics-prod",
-  "version": "2.7.0",
-  "description": "라이트하우스 분석 플러그인 — MCP 연동 데이터(ELT 기반 get_ad_performance)를 MTD/데일리/월간/소재 성과 보고서(실무 상세·임원용 핵심 요약, 각각 별도 스킬, HTML)로 렌더링합니다.",
+  "version": "3.0.0",
+  "description": "라이트하우스 분석 플러그인 — MCP 연동 데이터(ELT 기반 get_ad_performance)를 MTD/데일리/월간/소재 성과 보고서(실무 상세·임원용 핵심 요약, 각각 별도 스킬, HTML)로 렌더링합니다. 어떤 브랜드·매체·지표에도 동작하며, 매출 지표가 없는 브랜드는 노출·클릭·CTR 기준으로 보여줍니다.",
   "author": {
     "name": "LaightAI"
   },

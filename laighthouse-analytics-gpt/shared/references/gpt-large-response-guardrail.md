@@ -21,10 +21,11 @@
 ## A. 캡처 훅 스텁으로 왔을 때
 
 1. 스텁에 적힌 저장 경로를 asset 스크립트의 **`json_files`** 입력(경로 배열)에 넘긴다.
-   `dxd_table_rows.py`, `monthly_campaign_rows.py`, `creative_daily_series.py`, MTD
-   `build_report.py`(`s7.json_files`)가 모두 이 입력을 받는다. `json`과 `json_files`를 섞어도 된다.
-2. asset 스크립트가 없는 섹션(예: 소재 보고서 day grain 5개 키 필터)은 Bash(python)에서 그 파일을
-   직접 읽어 필요한 행만 걸러낸다.
+   실무 상세 스킬의 계층 표 섹션(`build_report.py`의 `s4`/`s5`/`s7` — `json_files`/`json`),
+   `discover.py`, `creative_daily_series.py`가 모두 이 입력을 받는다. `json`과 `json_files`를
+   섞어도 된다.
+2. asset 스크립트가 없는 계산(예: Executive Summary 근거용 캠페인 몇 개의 값)은 Bash(python)에서
+   그 파일을 직접 읽어 필요한 행만 걸러낸다.
 3. 저장 파일의 내용을 컨텍스트에 다시 타이핑하거나 `json`에 옮겨 넣지 않는다 — 스텁이 생긴 이유가
    바로 그 재타이핑을 없애기 위함이다.
 
