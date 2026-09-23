@@ -5,7 +5,7 @@ description: >
   대상 월(또는 그 시점까지)의 목표 대비 진행 상황을 임원 관점으로 보여주는 월간 보고서. 사용자가 말한
   브랜드의 매체·지표를 실행 시작에 디스커버리해서 어떤 브랜드에도 같은 방식으로 동작한다.
 metadata:
-  version: "2.0.0"
+  version: "3.0.0"
 ---
 
 
@@ -22,11 +22,17 @@ MCP 데이터를 받아 **라이트하우스 스타일 Executive 월간 보고�
 안내하거나 미지원임을 알린다).
 
 **브랜드 비종속**: 사용자가 말한 브랜드명을 모든 MCP 호출의 `brand_name`과 제목·파일명에 그대로
-쓴다. 매체 목록(`media_list`/`has_organic`)과 지표 키(`metric_names` → 역할별 `metric_keys`)는
-실행 시작의 **디스커버리 호출**로 알아낸다 — 절차·역할 해석 규칙은
+쓴다. 매체 목록(`media_list`/`has_organic`)과 지표 키(역할별 `metric_keys`)·통화는 실행 시작의
+**디스커버리 호출 + `assets/discover.py`**로 알아낸다 — 절차·역할 해석 규칙은
 `shared/references/generic-report-pattern.md`가 단일 소스다. 이 파일과 섹션 파일에서 "cost/
-revenue/conversion 키"라 하면 그 맵의 값을 뜻한다. 매체 구분은 행의 `media` 차원 값이며,
-매출/전환은 각 행에 지표로 함께 들어온다(별도 조인 불필요).
+impression/click/revenue/conversion 키"라 하면 그 맵의 값을 뜻한다. 매체 구분은 행의 `media`
+차원 값이며, 매출/전환은 각 행에 지표로 함께 들어온다(별도 조인 불필요).
+
+**모드** (`generic-report-pattern.md` 7절, 판정·분기는 빌더의 공용 킷이 한다):
+- **매출 없음 모드** — `metric_keys`에 `revenue`가 없으면. 목표 카드·월별 차트·매체 표의 매출·
+  ROAS 자리에 노출·클릭·CTR·CPC가 나오고, 매체별 추이는 매체별 클릭이 된다. 모델은 섹션 파일
+  규칙대로 역할 원본 수치를 넣기만 한다(revenue 값은 생략).
+- **Organic 있음/없음** — `has_organic`. 없으면 Organic 행·계열·서술이 전부 빠진다.
 
 generic 도구(`get_ad_performance`)와 `get_target_progress_v2`, `list_promotions`만 쓴다.
 
@@ -44,8 +50,9 @@ generic 도구(`get_ad_performance`)와 `get_target_progress_v2`, `list_promotio
   생략하면 총계만 온다(day/month grain이면 `date`/`month` 키 포함).
 - 매체 필터가 필요하면 `filters: {"media": ["<media_list의 값>"]}` (정확 일치). 이 스킬은
   필터 없이 `group_by:["media"]`로 전 매체를 한 번에 받는다.
-- ⚠️ `get_target_progress_v2`의 ROAS류 수치는 비율값(0.87)이므로 ×100 해서 %로 쓴다 —
-  이 도구 응답만 여전히 markdown 표다.
+- ⚠️ `get_target_progress_v2`는 `media`를 생략(전체 매체)해 **1회만** 부른다(`shared/references/
+  target-achievement.md`). 응답은 markdown 표이고, 이 스킬은 목표 ROAS를 목표 매출÷목표 예산으로
+  직접 계산하므로 roas 행은 쓰지 않는다.
 - `group_by:["media"]` 응답의 `media`가 `null`인 행이 `Organic`이다(광고비 없이 매출만 귀속).
   정상 응답이니 버리지 말고 섹션 규칙대로 매핑한다. 디스커버리에 없는 매체 행을 지어 넣지
   않는다.
@@ -55,8 +62,8 @@ generic 도구(`get_ad_performance`)와 `get_target_progress_v2`, `list_promotio
 ## 데이터 처리 원칙 (절대 지침)
 
 > 🚫 **MCP 응답은 이미 정제가 끝난 최종 데이터다 — 그대로 스크립트에 넘기고, 값을 의심·보정·
-> 재계산·추정하지 않는다.** 예외는 각 섹션 파일에 명시된 표기 변환뿐이다(ROAS ×100, 6개월
-> 고정 표시의 0 채움 등). 데이터가 비거나 갭이 있어도 채우거나 추정하지 않는다.
+> 재계산·추정하지 않는다.** 예외는 각 섹션 파일에 명시된 표기 변환뿐이다(6개월 고정 표시의
+> 0 채움 등). 데이터가 비거나 갭이 있어도 채우거나 추정하지 않는다.
 >
 > 🚫 **응답이 크다고 느껴져도 선택지는 정확히 둘뿐이다**: (1) 원본을 가공 없이 전부 사용해
 > 빌더 입력을 만들거나, (2) 정말 처리 불가능하면 그 섹션을 "데이터 준비 중"으로 표시한다
@@ -66,6 +73,12 @@ generic 도구(`get_ad_performance`)와 `get_target_progress_v2`, `list_promotio
 
 ## 실행 방식 절대 지침
 
+> 🧩 **ChatGPT/Codex 환경 참고**: 이 번들의 캡처 훅(`hooks/capture_ad_performance.py`)은 Work 모드·
+> Codex에서만 실행되고, 웹 Chat에서는 돌지 않는다 — 응답이 스텁이 아니라 **원본 JSON 봉투**로
+> 올 수 있다. 원본이면 `json`에 문자열 그대로, 스텁이면 `json_files`에 경로를 넘긴다. 판별 규칙과
+> 대용량 응답을 애초에 만들지 않는 사전 예방 규칙은 `shared/references/gpt-large-response-guardrail.md`
+> 가 단일 소스다.
+
 > 이 스킬의 계산·렌더링은 전부 **미리 검증된 asset 스크립트**가 한다 — 모델이 실행 중
 > `.py`/`.js` 스크립트 파일을 새로 만들거나, HTML을 직접 타이핑하거나, 표 행·변화율을
 > 프로즈로 손계산하는 것은 전부 금지다.
@@ -73,9 +86,15 @@ generic 도구(`get_ad_performance`)와 `get_target_progress_v2`, `list_promotio
 > - **`assets/build_report.py`** — 최종 HTML 조립·저장. `assets/report-template.html`(섹션 1~5
 >   마크업·스크립트의 단일 진실 공급원)에 값을 치환하고 chart.js를 인라인해 **한 번의 호출로**
 >   완성한다. 모델은 소량 값 JSON만 heredoc(`<<'PYEOF'`)으로 넘긴다 — 섹션별 HTML 조각 파일
->   (part1.html 등)을 만들거나 chart.js를 타이핑하는 방식은 금지된 과거 패턴이다. section-5의
->   ROAS·변화량·화살표·색상과 6개월 라벨·각주도 전부 빌더가 계산한다 — 손계산하지 않는다.
->   입력 스키마는 스크립트 상단 docstring 참고.
+>   (part1.html 등)을 만들거나 chart.js를 타이핑하는 방식은 금지된 과거 패턴이다. 비율(ROAS/
+>   CTR/CPC)·변화량·화살표·색상·통화 포맷·6개월 라벨·각주·**모드별 컬럼/계열 선택**은 전부
+>   빌더(공용 킷 `shared/assets/report_kit.*`)가 한다 — 손계산하지 않는다. 입력 스키마는
+>   스크립트 상단 docstring 참고.
+> - **`assets/discover.py`** — 디스커버리 응답 → `media_list`/`has_organic`/`metric_keys`/
+>   `currency` (실행 순서 2단계, 1회).
+> - 이 스킬의 호출은 전부 `group_by:["media"]` 저카디널리티라 응답이 작다. 만에 하나 응답이
+>   `[laighthouse-capture-hook] ... 저장됨: <경로>` 스텁으로 오면, 그 파일을 Read해 원본을
+>   컨텍스트로 가져오지 말고 Bash(python)로 그 경로에서 필요한 집계값만 뽑아 쓴다.
 > - MCP 응답을 스크래치 파일에 옮겨 적었다가 다시 읽는 왕복, 별도 파서/생성 스크립트 작성,
 >   응답 원본의 재타이핑은 전부 금지다. 이 스킬이 실행 중 만드는 파일은 최종 보고서 HTML
 >   하나뿐이다(빌더가 저장한다).
@@ -99,29 +118,30 @@ generic 도구(`get_ad_performance`)와 `get_target_progress_v2`, `list_promotio
 
 1. 파라미터를 파싱한다. report_type은 `monthly-summary` 고정.
 2. **디스커버리 1회** (`generic-report-pattern.md` 2절): `get_ad_performance`(5개월 전 1일~
-   target_date, `time_grain:"total"`, `group_by:["media"]`, `metrics:[]`) → `media_list`/
-   `has_organic`/`metric_names`. 여기서 역할별 `metric_keys`를 정한다(3절; cost/impression/
-   click/revenue 미해결이면 한 번에 질문).
+   target_date, `time_grain:"total"`, `group_by:["media"]`, **`metrics` 생략**) → 응답 원문을
+   그대로 `python3 assets/discover.py`에 넘겨 `media_list`/`has_organic`/`metric_keys`/`currency`를
+   받는다. 출력의 `missing`/`ambiguous`가 비어 있지 않을 때만 사용자에게 한 번에 묻는다(revenue가
+   없는 것은 질문 사유가 아니다 — 매출 없음 모드).
 3. **데이터 호출 전체를 한 배치(한 메시지)로 동시 발사** — 조건부 2차 라운드 없음:
-   - `get_target_progress_v2` × len(media_list) (media=각 값 `.lower()`; 미지원/에러는 목표
-     없음) — section-1용.
+   - `get_target_progress_v2` ×1 (`media` 생략 = 전체 매체; 한 줄 메시지/에러는 목표 없음)
+     — section-1용.
    - `get_ad_performance` ×1 (당월 1일~target_date, `time_grain:"month"`, `group_by:["media"]`,
      `filters` 생략) — section-1의 매출 실적 + fallback 소진액.
    - `get_ad_performance` ×1 (5개월 전 1일~target_date, `time_grain:"month"`,
-     `group_by:["media"]`, `filters` 생략, `day_offset`=target_date.day) — section-3/4/5 공유.
+     `group_by:["media"]`, `filters`·`metrics` 생략, `day_offset`=target_date.day) — section-3/4/5 공유.
    - `list_promotions` ×1 (당월 1일 30일 전 ~ target_date) — section-2 전용.
 4. ⏱ **필수 체크포인트 — 스켈레톤 선(先) 게시.** 3단계 응답 수신 즉시, 계산을 시작하기 전에
    `python3 assets/build_report.py`를 `{"skeleton": true, ...}`로 1회 호출해 전 섹션 "데이터
    준비 중" 골격을 만들고 게시한다(아래 7단계와 같은 출력 경로/Artifact — 이후 재게시로 교체).
    이 단계를 건너뛰고 끝에서 한꺼번에 내놓으려다 툴호출 예산이 바닥나면 사용자는 아무것도 못
    본다 — sibling 스킬의 실제 사고 사례가 있는 필수 단계다.
-5. **계산**: section-1 값 판정, section-3 6개월 배열 3개, section-4 6개월 배열 2개, section-5
-   매체별(디스커버리된 매체 + Organic) M-1/M0 원시 수치 — 각 섹션 파일의 매핑 규칙대로 빌더
-   입력 JSON 값을 만든다 (포맷팅·파생지표는 빌더 몫이다).
+5. **계산**: section-1 값(`target-achievement.md`), section-3 역할별 6개월 배열, section-4 매체별
+   6개월 배열, section-5 매체별(디스커버리된 매체 + Organic(있을 때)) M-1/M0 역할 원본 수치 — 각
+   섹션 파일의 매핑 규칙대로 빌더 입력 JSON 값을 만든다 (포맷팅·파생지표는 빌더 몫이다).
 6. **section-2 Executive Summary 작성** — 신규 MCP 호출 없이(3단계의 `list_promotions` 포함)
    다른 섹션 데이터를 재사용해 AI가 직접 작성
    (`monthly-summary-section-2-executive-summary.md`의 규칙, 분기 비교 포함).
-7. **최종 빌드**: `assets/build_report.py`에 값 JSON(`metric_keys`, `currency` 포함)을 heredoc
+7. **최종 빌드**: `assets/build_report.py`에 값 JSON(`metric_keys`, `has_organic`, `currency` 포함)을 heredoc
    으로 넘겨 최종 HTML을 생성한다. 출력 경로(`out`)는
    `~/Downloads/laighthouse-reports/{브랜드명}_monthly-summary_{기준_일자}.html`
    (디렉터리는 빌더가 만든다).
@@ -170,14 +190,14 @@ generic 도구(`get_ad_performance`)와 `get_target_progress_v2`, `list_promotio
 |-----|------|------|--------|
 | 1 | 목표 달성 현황 | `monthly-summary-section-1-target-achievement.md` | `s1` |
 | 2 | Executive Summary | `monthly-summary-section-2-executive-summary.md` | `s2` |
-| 3 | 월별 광고 성과 (차트, 6개월) | `monthly-summary-section-3-monthly-ad-performance.md` | `s3` |
-| 4 | 매출 추이 (차트, 6개월) | `monthly-summary-section-4-revenue-trend.md` | `s4` |
-| 5 | 매체 성과 비교 (M-1 vs M0, 디스커버리된 매체 + Organic) | `monthly-summary-section-5-channel-performance.md` | `s5` |
+| 3 | 월별 광고 성과 (혼합 차트, 6개월) | `monthly-summary-section-3-monthly-ad-performance.md` | `s3` |
+| 4 | 매체별 매출 추이 (누적 막대, 6개월 — 매출 없음: 매체별 클릭) | `monthly-summary-section-4-media-trend.md` | `s4` |
+| 5 | 매체 성과 비교 (M-1 vs M0, 디스커버리된 매체 + Organic(있을 때)) | `monthly-summary-section-5-channel-performance.md` | `s5` |
 
-- section-3의 6개월 공유 응답을 section-4(광고 매출/전체 매출)와 section-5(M-1/M0 두 달치)가
+- section-3의 6개월 공유 응답을 section-4(월별·매체별 값)와 section-5(M-1/M0 두 달치)가
   재사용한다 — 셋이 각자 호출하지 않는다. section-2는 `list_promotions` 외에 신규 호출 없이
   전 섹션 데이터를 재사용해 작성한다.
 - 섹션 데이터가 준비 안 되면 해당 `s*` 키를 빌더 입력에서 뺀다 → "데이터 준비 중" 카드로
   렌더링된다. 섹션을 임의로 생략하는 개념은 없다 — 항상 5개 전부.
-- section-1의 no-budget 메시지는 오류가 아니다 — "데이터 준비 중"이 아니라 N/A 규칙(섹션
-  파일)대로 값을 채워 렌더링한다.
+- section-1의 목표 없음 메시지는 오류가 아니다 — "데이터 준비 중"이 아니라 목표 필드를 `null`로
+  넣어 N/A로 렌더링한다(`target-achievement.md`).

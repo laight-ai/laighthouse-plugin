@@ -1,143 +1,122 @@
 #!/usr/bin/env python3
-"""creative-summary section-3/4/5 공용: 소재(ad) 단위 get_ad_performance(time_grain="day")
-응답으로부터 날짜별 CTR/ROAS 시리즈를 계산하는 이미 검증된 asset 스크립트.
+"""소재 보고서 공용 일별 시리즈 계산기 — 이미 검증된 asset 스크립트.
 
-실행 중 모델이 이 파일을 만들거나 수정하지 않는다. stdin으로 MCP 응답 JSON을 받아 stdout으로
-완성된 시리즈만 낸다. 중간 파일을 만들지 않는다(파이프로만 입출력).
+`creative-summary`(section-3/4/5)와 `creative-detailed`(section-3/4)가 **같은 파일**을 각자의
+`assets/`에 두고 쓴다. 소재(ad) 단위 `get_ad_performance(time_grain="day")` 응답에서 날짜별
+CTR/ROAS/클릭 시리즈를 계산한다. 실행 중 모델이 이 파일을 만들거나 수정하지 않는다. stdin으로
+입력 JSON을 받아 stdout으로 완성된 시리즈만 낸다(중간 파일 없음).
 
 이 스크립트가 대체하는 계산:
 
-  - section-3: **모든** 소재를 날짜별로 합산해 전체 CTR/전체 ROAS 7일 추이를 낸다(열린
-    집계 — 소재 수만큼 행이 있고 5개로 좁혀지지 않는다. 이 스킬에서 정확도 사고가 실제로
-    발생했던 것과 동일한 종류의 "날짜별 행이 여러 개인 소재 단위 응답 합산" 작업이다).
-  - section-4/5: 이미 알고 있는 광고비 상위 5개 소재 키로 daily 응답을 exact-match 필터링해
-    각 소재의 날짜별 CTR/ROAS 시리즈를 만든다(닫힌 추출, section-1의 total 응답에서 이미
-    뽑은 top5_keys를 그대로 입력받는다 — 이 스크립트가 랭킹을 다시 매기지 않는다).
+  - overall (creative-summary section-3): **모든** 소재를 날짜별로 합산한 전체 CTR과
+    전체 ROAS(매출 있음) 또는 전체 클릭(매출 없음) 7일 추이. 소재 수만큼 행이 있는 열린 집계라
+    손계산하면 정확도 사고가 난다(실제 사례).
+  - top5 (creative-summary section-4/5, creative-detailed section-3/4): 이미 정한 광고비 상위
+    5개 소재 키로 day 응답을 exact-match(`campaign_name`+`ad_group_name`+`ad_name` 세 필드 정확
+    일치 — 정규화/부분일치 없음)해 소재별 날짜별 CTR·ROAS·클릭 시리즈를 만든다. 랭킹은 다시
+    매기지 않는다(top5_keys를 그대로 받는다).
 
-⚠️ CTR/ROAS는 항상 원자 지표(클릭/노출/매출/광고비)로 직접 계산한다 — 응답에 서버 계산
-비율 지표(CTR/ROAS류)가 있어도, 날짜별 합산(section-3)은 행 단위 비율을 합칠 수 없기
-때문에 원자 지표 합으로 계산해야 정확하다.
+⚠️ 비율은 항상 원자 지표(역할 키 값) 합으로 직접 계산한다 — 응답에 서버 비율 지표(CTR/ROAS류)가
+있어도 행 단위 비율은 합칠 수 없다.
 
-⚠️ **`get_ad_performance`는 마크다운 표가 아니라 JSON 봉투를 반환한다** — `{"source": "elt",
-"tenant": ..., "time_grain": "day", "dimensions": [...], "metrics": [...], "metric_units": {...}, "row_count": N,
-"rows": [...]}`. 각 행에는 차원 키(영문: `date`/`campaign_name`/`ad_group_name`/`ad_name` 등)와
-**테넌트별 지표 키**(브랜드마다 다르다 — 봉투의 `metrics` 목록이 유일한 진실)가 들어있다 —
-매출이 행 안에 함께 오므로 별도 매출 응답과의 조인이 없다. 원본을 손으로 옮겨
-적거나(전사 실수·행 선별 위험) 파싱용 스크립트를 새로 만들지 않는다 — 아래 입력으로 원본
-문자열/파일 경로를 그대로 넘기면 이 스크립트가 직접 파싱한다.
+⚠️ `media`가 `null`인 행(Organic — 소재 개념이 없다)은 무시한다. 소재 호출은 매체 필터를 걸어
+원래 오지 않지만, 행에 `media` 키가 있고 값이 null이면 건너뛴다.
 
-입력 (stdin, JSON) — 아래 형태 중 하나로 daily 응답을 넘긴다:
-
-(A) **플러그인 캡처 훅이 동작하는 호스트(Claude Code)에서 최우선** — MCP 응답이
-    "[laighthouse-capture-hook] ... 저장됨: <경로>" 스텁으로 도착한 경우, 그 저장 경로를
-    그대로 넘긴다(스크립트가 파일을 직접 읽으므로 원본을 다시 타이핑하지 않는다):
-{
-  "json_files": ["<daily 호출 스텁에 적힌 저장 경로>"],
-  ...
-}
-
-(B) 원본 JSON 봉투 문자열을 그대로 넘길 때 (응답이 크다고 "주요 소재만" 손으로 골라 옮기지
-    않는다, 문자열 하나 또는 리스트 둘 다 허용):
-{
-  "json": "<get_ad_performance(time_grain=\"day\", filters={\"media\": [\"<chosen_media>\"]}) 응답 원본 문자열>",
-  ...
-}
-
-(C) 이미 파싱된 행 객체로 넘길 때:
-{
-  "rows": [ ... ],   # 봉투의 rows 배열 그대로
-  ...
-}
-(A)/(B)/(C)는 섞어 써도 된다 — 여러 형태가 오면 합쳐서 처리한다.
+입력 (stdin, JSON) — day 응답은 아래 중 하나(섞어도 된다, 여러 개면 합쳐서 처리):
+  "json_files": ["<캡처 훅 스텁에 적힌 저장 경로>"]   # 캡처 훅 호스트에서 최우선 — 경로만
+  "json": "<응답 원본 JSON 봉투 문자열>"                # 문자열 하나 또는 리스트
+  "rows": [ ...봉투의 rows 배열 그대로... ]
 
 공통 나머지 필드:
 {
-  "top5_keys": [              # section-4/5용. 생략하면 top5 시리즈는 계산하지 않는다(section-3만 필요할 때).
+  "metric_keys": {             # 권장. 디스커버리(discover.py) 출력의 metric_keys를 그대로.
+    "cost": "<cost 키>", "impression": "<impression 키>", "click": "<click 키>",
+    "revenue": "<revenue 키 — 있을 때만>"      # 없으면 매출 없음 모드 (ROAS 시리즈 생략)
+  },                           # 생략하면 봉투 metrics에서 공용 킷(report_kit.resolve_roles)
+                               # 규칙으로 해석한다. 필수 역할(cost/impression/click)을 못 정하면 에러.
+  "top5_keys": [               # 선택 — 생략하면 top5 시리즈를 계산하지 않는다
     {"campaign_name": "...", "ad_group_name": "...", "ad_name": "..."}, ...
   ],
-  "dates": ["2026-07-19", ..., "2026-07-25"],  # 선택. 기준일 포함 7일 전체를 명시적으로 넘기면
-                                                # 그 날짜 행이 전혀 없는(광고가 완전히 게재되지
-                                                # 않은) 날짜도 결측(null/0)으로 정확히 채워진다.
-                                                # 생략하면 rows에 실제 등장하는 날짜만으로 dates를
-                                                # 만든다(행이 하나도 없는 날은 배열에서 통째로 빠질
-                                                # 수 있음 — 캘린더 7일을 항상 보장하려면 이 필드를
-                                                # 넘기는 것을 권장한다).
-  "metric_keys": {             # 선택. 역할 → 실제 지표 키 (generic-report-pattern.md 3절의 맵).
-    "cost": "광고비",           # 생략한 역할은 봉투의 metrics 목록(없으면 행의 키)에서 후보 순서로
-    "impression": "노출", "click": "클릭", "revenue": "매출_AB"   # 자동 해석하고, 못 정하면
-  }                            # 명확한 에러를 낸다. 넘긴 키가 metrics에 없어도 에러.
+  "dates": ["YYYY-MM-DD", ...] # 선택(권장) — 기준일 포함 7일 전체. 행이 없는 날짜도 결측으로 채운다.
+                               # 생략하면 rows에 등장한 날짜만 쓴다.
 }
 
 출력 (stdout, JSON):
 {
-  "dates": ["2026-07-19", ..., "2026-07-25"],   # 오름차순
+  "dates": [...7개, 오름차순...],
+  "has_revenue": true|false,                   # metric_keys에 revenue가 있었는지
   "overall": {
-    "ctr_series": [1.53, null, ...],             # section-3용. 노출 합 0인 날짜는 null
-    "roas_series": [182.3, null, ...]            # 광고비 합 0인 날짜는 null
+    "ctr_series":   [1.53, null, ...],         # 노출 합 0인 날짜는 null
+    "click_series": [1234, 0, ...],            # 날짜별 클릭 합 (행 없으면 0)
+    "roas_series":  [182.3, null, ...],        # 매출 있음 모드만. 광고비 합 0인 날짜는 null
+    "totals": {"cost": [...], "impression": [...], "click": [...], "revenue": [...]}
+                                               # 날짜별 원자 지표 합 (revenue는 매출 있음 모드만)
   },
-  "top5": {                                       # top5_keys를 준 경우에만 포함
-    "ctr_series": [[...7개...], ...],             # top5_keys와 같은 순서, 값 없는 날짜는 null
-    "roas_series": [[...7개...], ...]             # 매칭 실패/광고비 0인 날짜는 0 (section-5 스펙)
+  "top5": {                                    # top5_keys를 준 경우에만
+    "ctr_series":   [[...7개...], ...],        # top5_keys 순서, 행 없음/노출 0 → null
+    "click_series": [[...7개...], ...],        # 행 없음 → 0
+    "roas_series":  [[...7개...], ...],        # 매출 있음 모드만. 행 없음/광고비 0 → 0 (끊기지 않게)
+    "totals": [ {"cost":..,"impression":..,"click":..,"revenue":..,"ctr":..,"cpc":..,"roas":..}, ...]
+                                               # 소재별 7일 합 + 파생 비율 (Executive Summary 근거용)
   }
 }
 
-사용 예 (단 한 번의 Bash 호출 안에서 따옴표 있는 heredoc으로 — echo나 파일 저장 후 재실행 X):
-  python3 assets/creative_daily_series.py <<'PYEOF'
-  {"json_files": ["<스텁 경로>"], "dates": [...], "top5_keys": [...]}
+사용 예 (한 번의 Bash 호출, 따옴표 있는 heredoc — echo나 파일 저장 후 재실행 금지):
+  python3 assets/creative_daily_series.py <<'PYEOF' > /tmp/creative_series.json
+  {"json_files": ["<스텁 경로>"], "dates": [...], "metric_keys": {...}, "top5_keys": [...]}
   PYEOF
 """
-import sys
-import json
 import io
+import json
+import os
+import sys
 
 sys.stdin = io.TextIOWrapper(sys.stdin.buffer, encoding="utf-8")
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 
-# 역할별 후보 키 (generic-report-pattern.md 3절과 동일 순서) — 정확 일치로 첫 후보를 쓴다
-METRIC_KEY_CANDIDATES = {
-    "cost": ["광고비", "cost", "spend"],
-    "impression": ["노출", "impressions", "impression"],
-    "click": ["클릭", "clicks", "click"],
-    "revenue": ["매출_AB", "매출", "revenue"],
-}
+ASSETS_DIR = os.path.dirname(os.path.abspath(__file__))
+REQUIRED = ("cost", "impression", "click")
 
 
-def resolve_metric_keys(available, override):
-    """역할 → 실제 지표 키. override(사용자가 넘긴 metric_keys)를 우선하고, 나머지 역할은
-    available(봉투 metrics 또는 행 키 집합)에서 후보 순서로 정확 일치시킨다."""
-    mk = {}
-    unresolved = []
-    for role, candidates in METRIC_KEY_CANDIDATES.items():
-        key = (override or {}).get(role)
-        if key is None:
-            key = next((c for c in candidates if c in available), None)
-        if key is None or (available and key not in available):
-            unresolved.append(role)
-        else:
-            mk[role] = key
-    if unresolved:
-        raise SystemExit(
-            f"지표 역할 {unresolved}의 키를 정하지 못함 — 응답 metrics {sorted(available)}에서 "
-            f"쓸 키를 metric_keys로 넘겨라"
-        )
+def _load_kit():
+    for cand in (os.path.join(ASSETS_DIR, "..", "shared", "assets"),          # ChatGPT 번들
+                 os.path.join(ASSETS_DIR, "..", "..", "..", "shared", "assets")):  # 플러그인 루트
+        if os.path.exists(os.path.join(cand, "report_kit.py")):
+            sys.path.insert(0, os.path.normpath(cand))
+            import report_kit
+            return report_kit
+    raise SystemExit("report_kit.py를 찾을 수 없다 (shared/assets)")
+
+
+def resolve_metric_keys(metrics, override):
+    """역할 → 실제 지표 키. 넘겨받은 metric_keys를 우선하고, 없으면 공용 킷 규칙으로 해석한다.
+    revenue는 선택(없으면 매출 없음 모드), cost/impression/click은 필수."""
+    if override:
+        mk = {r: k for r, k in override.items() if k}
+    else:
+        mk = dict(_load_kit().resolve_roles({"metrics": sorted(metrics), "rows": []})["metric_keys"])
+    missing = [r for r in REQUIRED if not mk.get(r)]
+    if missing:
+        raise SystemExit(f"필수 지표 역할 {missing}의 키를 정하지 못함 — 응답 metrics "
+                         f"{sorted(metrics)}에서 쓸 키를 metric_keys로 넘겨라")
+    if metrics:
+        unknown = [f"{r}={k}" for r, k in mk.items() if r in REQUIRED + ("revenue",) and k not in metrics]
+        if unknown:
+            raise SystemExit(f"metric_keys {unknown}가 응답 metrics {sorted(metrics)}에 없다")
     return mk
 
 
 def unwrap_json_result(text):
-    """Cowork(Claude Desktop) 캡처 훅이 저장한 파일은 `{"result": "<본문>"}` JSON 래퍼일 수
-    있다 — 래퍼면 벗기고, 아니면 그대로 돌려준다. `get_ad_performance` 봉투는 `result` 키가
-    없으므로 그대로 통과한다."""
+    """Cowork(Claude Desktop) 캡처 훅 파일은 `{"result": "<본문>"}` 래퍼일 수 있다 — 벗긴다."""
     for _ in range(3):
         if not isinstance(text, str) or not text.lstrip().startswith("{"):
             return text
         try:
             obj = json.loads(text)
-        except (json.JSONDecodeError, ValueError):
+        except ValueError:
             return text
         if isinstance(obj, dict) and isinstance(obj.get("result"), str):
             text = obj["result"]
-        elif isinstance(obj, str):
-            text = obj
         else:
             return text
     return text
@@ -152,126 +131,108 @@ def parse_envelope(text):
     return obj["rows"], obj.get("metrics")
 
 
-def creative_key(row):
-    return (
-        row.get("campaign_name") or "",
-        row.get("ad_group_name") or "",
-        row.get("ad_name") or "",
-    )
-
-
 def key_tuple(d):
     return (d.get("campaign_name") or "", d.get("ad_group_name") or "", d.get("ad_name") or "")
 
 
-def index_by_date(rows):
-    """date -> list[row]"""
-    idx = {}
-    for r in rows:
-        idx.setdefault(r.get("date"), []).append(r)
-    return idx
+def _sum(rows, key):
+    return sum((r.get(key) or 0) for r in rows) if key else 0
 
 
-def index_by_date_key(rows):
-    """(date, key) -> list[row] (같은 날짜/같은 소재의 중복 행은 합산)"""
-    idx = {}
-    for r in rows:
-        idx.setdefault((r.get("date"), creative_key(r)), []).append(r)
-    return idx
+def _ratio(num, den, scale=100.0):
+    return num / den * scale if den else None
 
 
 def compute_overall(rows, dates, mk):
-    by_date = index_by_date(rows)
-
-    ctr_series = []
-    roas_series = []
+    by_date = {}
+    for r in rows:
+        by_date.setdefault(r.get("date"), []).append(r)
+    has_rev = bool(mk.get("revenue"))
+    totals = {role: [] for role in ("cost", "impression", "click") + (("revenue",) if has_rev else ())}
+    ctr, roas = [], []
     for d in dates:
-        day_rows = by_date.get(d, [])
-        cost_sum = sum(r.get(mk["cost"]) or 0 for r in day_rows)
-        impression_sum = sum(r.get(mk["impression"]) or 0 for r in day_rows)
-        click_sum = sum(r.get(mk["click"]) or 0 for r in day_rows)
-        revenue_sum = sum(r.get(mk["revenue"]) or 0 for r in day_rows)
-
-        ctr_series.append(click_sum / impression_sum * 100 if impression_sum else None)
-        roas_series.append(revenue_sum / cost_sum * 100 if cost_sum else None)
-
-    return ctr_series, roas_series
+        day = by_date.get(d, [])
+        sums = {role: _sum(day, mk[role]) for role in totals}
+        for role, v in sums.items():
+            totals[role].append(v)
+        ctr.append(_ratio(sums["click"], sums["impression"]))
+        if has_rev:
+            roas.append(_ratio(sums["revenue"], sums["cost"]))
+    out = {"ctr_series": ctr, "click_series": list(totals["click"]), "totals": totals}
+    if has_rev:
+        out["roas_series"] = roas
+    return out
 
 
 def compute_top5(rows, dates, top5_keys, mk):
-    by_date_key = index_by_date_key(rows)
-
-    ctr_series = []
-    roas_series = []
-    for key_dict in top5_keys:
-        k = key_tuple(key_dict)
-        ctr_row = []
-        roas_row = []
+    idx = {}
+    for r in rows:
+        idx.setdefault((r.get("date"), key_tuple(r)), []).append(r)
+    has_rev = bool(mk.get("revenue"))
+    ctr_s, click_s, roas_s, totals = [], [], [], []
+    for kd in top5_keys:
+        k = key_tuple(kd)
+        ctr_row, click_row, roas_row = [], [], []
+        tot = {"cost": 0, "impression": 0, "click": 0}
+        if has_rev:
+            tot["revenue"] = 0
         for d in dates:
-            day_rows = by_date_key.get((d, k))
-            if not day_rows:
+            day = idx.get((d, k))
+            if not day:
                 ctr_row.append(None)
-                roas_row.append(0)  # section-5 스펙: 데이터가 없는 날은 0으로 채움(끊기지 않게)
+                click_row.append(0)
+                roas_row.append(0)  # ROAS 차트 스펙: 데이터 없는 날은 0 (끊기지 않게)
                 continue
-
-            impression = sum(r.get(mk["impression"]) or 0 for r in day_rows)
-            click = sum(r.get(mk["click"]) or 0 for r in day_rows)
-            ctr_row.append(click / impression * 100 if impression else None)
-
-            cost = sum(r.get(mk["cost"]) or 0 for r in day_rows)
-            revenue = sum(r.get(mk["revenue"]) or 0 for r in day_rows)
-            if not cost:
-                roas_row.append(0)  # section-5 스펙: cost 0이면 0
-            else:
-                roas_row.append(revenue / cost * 100)
-        ctr_series.append(ctr_row)
-        roas_series.append(roas_row)
-
-    return ctr_series, roas_series
+            s = {role: _sum(day, mk[role]) for role in tot}
+            for role, v in s.items():
+                tot[role] += v
+            ctr_row.append(_ratio(s["click"], s["impression"]))
+            click_row.append(s["click"])
+            if has_rev:
+                roas_row.append(_ratio(s["revenue"], s["cost"]) or 0)  # 광고비 0 → 0
+        tot["ctr"] = _ratio(tot["click"], tot["impression"])
+        tot["cpc"] = _ratio(tot["cost"], tot["click"], 1.0)
+        if has_rev:
+            tot["roas"] = _ratio(tot["revenue"], tot["cost"])
+        ctr_s.append(ctr_row)
+        click_s.append(click_row)
+        roas_s.append(roas_row)
+        totals.append(tot)
+    out = {"ctr_series": ctr_s, "click_series": click_s, "totals": totals}
+    if has_rev:
+        out["roas_series"] = roas_s
+    return out
 
 
 def main():
     payload = json.load(sys.stdin)
 
     rows = list(payload.get("rows") or [])
-    envelope_metrics = None
+    metrics = set()
     texts = payload.get("json", [])
-    if isinstance(texts, str):
-        texts = [texts]
-    texts = list(texts)
+    texts = [texts] if isinstance(texts, str) else list(texts)
     files = payload.get("json_files", [])
-    if isinstance(files, str):
-        files = [files]
-    for path in files:
-        with open(path, encoding="utf-8") as f:
+    for path in [files] if isinstance(files, str) else files:
+        with open(os.path.expanduser(path), encoding="utf-8") as f:
             texts.append(f.read())
     for text in texts:
         env_rows, env_metrics = parse_envelope(text)
         rows.extend(env_rows)
-        envelope_metrics = envelope_metrics or env_metrics
-
-    available = set(envelope_metrics or ())
-    if not available:
+        metrics.update(env_metrics or ())
+    # Organic(media=null) 행은 소재가 아니다 — 무시
+    rows = [r for r in rows if not ("media" in r and r["media"] is None)]
+    if not metrics:
         for r in rows:
-            available.update(r.keys())
-    mk = resolve_metric_keys(available, payload.get("metric_keys"))
+            metrics.update(k for k, v in r.items() if isinstance(v, (int, float)) or v is None)
 
-    top5_keys = payload.get("top5_keys")
+    mk = resolve_metric_keys(metrics, payload.get("metric_keys"))
 
-    dates = payload.get("dates")
-    if not dates:
-        dates = sorted({r.get("date") for r in rows if r.get("date") is not None})
+    dates = payload.get("dates") or sorted({r.get("date") for r in rows if r.get("date")})
 
-    overall_ctr, overall_roas = compute_overall(rows, dates, mk)
-
-    out = {
-        "dates": dates,
-        "overall": {"ctr_series": overall_ctr, "roas_series": overall_roas},
-    }
-
-    if top5_keys:
-        top5_ctr, top5_roas = compute_top5(rows, dates, top5_keys, mk)
-        out["top5"] = {"ctr_series": top5_ctr, "roas_series": top5_roas}
+    out = {"dates": dates, "has_revenue": bool(mk.get("revenue")),
+           "overall": compute_overall(rows, dates, mk)}
+    if payload.get("top5_keys"):
+        out["top5"] = compute_top5(rows, dates, payload["top5_keys"], mk)
 
     json.dump(out, sys.stdout, ensure_ascii=False)
 

@@ -1,6 +1,6 @@
 interface:
   display_name: "소재 보고서 (실무 상세)"
-  short_description: "소재(개별 광고 크리에이티브) 단위 ROAS·CTR 분석 보고서(HTML)를 생성합니다."
+  short_description: "소재(개별 광고 크리에이티브) 단위 ROAS·CTR(매출 지표가 없으면 클릭·CTR) 분석 보고서(HTML)를 생성합니다."
   brand_color: "#2563EB"
 
 policy:

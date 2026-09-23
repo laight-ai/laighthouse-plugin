@@ -5,7 +5,7 @@ description: >
   `daily-detailed`를 임원이 딥다이브 없이 훑어보도록 더 간결하게 재구성한 데일리 보고서. 사용자가 말한
   브랜드의 매체·지표를 실행 시작에 디스커버리해서 어떤 브랜드에도 같은 방식으로 동작한다.
 metadata:
-  version: "2.0.0"
+  version: "3.0.0"
 ---
 
 
@@ -22,11 +22,16 @@ MCP 데이터를 받아 **라이트하우스 스타일 Executive 데일리 보�
 안내하거나 미지원임을 알린다).
 
 **브랜드 비종속**: 사용자가 말한 브랜드명을 모든 MCP 호출의 `brand_name`과 제목·파일명에 그대로
-쓴다. 매체 목록(`media_list`/`has_organic`)과 지표 키(`metric_names` → 역할별 `metric_keys`)는
-실행 시작의 **디스커버리 호출**로 알아낸다 — 절차·역할 해석 규칙은
+쓴다. 매체 목록(`media_list`/`has_organic`)과 지표 키(역할별 `metric_keys`)·통화는 실행 시작의
+**디스커버리 호출 + `assets/discover.py`**로 알아낸다 — 절차·역할 해석 규칙은
 `shared/references/generic-report-pattern.md`가 단일 소스다. 이 파일과 섹션 파일에서 "cost/
-revenue/conversion 키"라 하면 그 맵의 값을 뜻한다. 매체 구분은 행의 `media` 차원 값이며,
-매출/전환은 각 행에 지표로 함께 들어온다(별도 조인 불필요).
+impression/click/revenue/conversion 키"라 하면 그 맵의 값을 뜻한다. 매체 구분은 행의 `media`
+차원 값이며, 매출/전환은 각 행에 지표로 함께 들어온다(별도 조인 불필요).
+
+**모드** (`generic-report-pattern.md` 7절, 판정·분기는 빌더의 공용 킷이 한다):
+- **매출 없음 모드** — `metric_keys`에 `revenue`가 없으면. 매출·ROAS 자리에 노출·클릭·CTR·CPC가
+  나온다. 모델은 섹션 파일 규칙대로 역할 원본 수치를 넣기만 한다(revenue 값은 생략).
+- **Organic 있음/없음** — `has_organic`. 없으면 Organic 행·계열·서술이 전부 빠진다.
 
 generic 도구(`get_ad_performance`)와 `get_target_progress_v2`, `list_promotions`만 쓴다.
 
@@ -44,8 +49,9 @@ generic 도구(`get_ad_performance`)와 `get_target_progress_v2`, `list_promotio
   생략하면 총계만 온다(day/month grain이면 `date`/`month` 키 포함).
 - 매체 필터가 필요하면 `filters: {"media": ["<media_list의 값>"]}` (정확 일치). 이 스킬은
   필터 없이 `group_by:["media"]`로 전 매체를 한 번에 받는다.
-- ⚠️ `get_target_progress_v2`의 ROAS류 수치는 비율값(0.87)이므로 ×100 해서 %로 쓴다 —
-  이 도구 응답만 여전히 markdown 표다.
+- ⚠️ `get_target_progress_v2`는 `media`를 생략(전체 매체)해 1회만 부른다. 응답은 markdown
+  표이고, ROAS류는 비율값(0.87)이다 — 이 스킬은 목표 ROAS를 목표 매출÷목표 예산으로 직접
+  계산하므로 roas 행은 쓰지 않는다.
 - `group_by:["media"]` 응답의 `media`가 `null`인 행이 `Organic`이다(광고비 없이 매출만 귀속).
   정상 응답이니 버리지 말고 섹션 규칙대로 매핑한다. 디스커버리에 없는 매체 행을 지어 넣지
   않는다.
@@ -73,8 +79,11 @@ generic 도구(`get_ad_performance`)와 `get_target_progress_v2`, `list_promotio
 > - **`assets/build_report.py`** — 최종 HTML 조립·저장. `assets/report-template.html`(섹션 1~5
 >   마크업·스크립트의 단일 진실 공급원)에 값을 치환하고 chart.js를 인라인해 **한 번의 호출로**
 >   완성한다. 모델은 소량 값 JSON만 따옴표 있는 heredoc(`<<'PYEOF'`)으로 stdin에 넘긴다 —
->   포맷팅(₩콤마/%/N/A)·날짜 파생값·7일 라벨·프로모션 인덱스 계산/클램프·section-5의 ROAS/
->   변화율/화살표/색상/정렬까지 전부 빌더가 한다. 입력 스키마는 스크립트 상단 docstring 참고.
+>   포맷팅(통화/%/N/A)·날짜 파생값·7일 라벨·프로모션 인덱스 계산/클램프·비율(ROAS/CTR/CPC)·
+>   변화율/화살표/색상·모드별 컬럼/계열 선택까지 전부 빌더(공용 킷 `shared/assets/report_kit.*`)가
+>   한다. 입력 스키마는 스크립트 상단 docstring 참고.
+> - **`assets/discover.py`** — 디스커버리 응답 → `media_list`/`has_organic`/`metric_keys`/
+>   `currency` (실행 순서 2단계, 1회).
 > - 이 스킬의 호출은 전부 `group_by:["media"]` 저카디널리티라 응답이 작다 — 캡처 훅이 있는
 >   호스트에서도 스텁으로 바뀌지 않는 것이 정상이다. 만에 하나 응답이
 >   `[laighthouse-capture-hook] ... 저장됨: <경로>` 스텁으로 오면, 그 파일을 Read해 원본을
@@ -101,12 +110,13 @@ generic 도구(`get_ad_performance`)와 `get_target_progress_v2`, `list_promotio
 
 1. 파라미터를 파싱한다. report_type은 `daily-summary` 고정.
 2. **디스커버리 1회** (`generic-report-pattern.md` 2절): `get_ad_performance`(min(당월 1일, target_date-6일)~
-   target_date, `time_grain:"total"`, `group_by:["media"]`, `metrics:[]`) → `media_list`/
-   `has_organic`/`metric_names`. 여기서 역할별 `metric_keys`를 정한다(3절; cost/impression/
-   click/revenue 미해결이면 한 번에 질문).
+   target_date, `time_grain:"total"`, `group_by:["media"]`, **`metrics` 생략**) → 응답 원문을 그대로
+   `python3 assets/discover.py`에 넘겨 `media_list`/`has_organic`/`metric_keys`/`currency`를 받는다.
+   출력의 `missing`/`ambiguous`가 비어 있지 않을 때만 사용자에게 한 번에 묻는다(revenue가 없는
+   것은 질문 사유가 아니다 — 매출 없음 모드).
 3. **데이터 호출을 전부 한 메시지에 동시 발사한다** (조건부 3차 라운드 없음):
-   - `get_target_progress_v2` × len(media_list) (media=각 값 `.lower()`; 미지원/에러는 목표
-     없음) — section-1
+   - `get_target_progress_v2` ×1 (`media` 생략 = 전체 매체; 한 줄 메시지/에러는 목표 없음)
+     — section-1
    - `get_ad_performance` ×1 (당월 1일~target_date, `time_grain:"month"`, `group_by:["media"]`,
      `filters` 생략) — section-1의 매출 실적 + fallback 소진액
    - `get_ad_performance` ×1 (기준일 6일 전~target_date, `time_grain:"day"`,
@@ -117,12 +127,12 @@ generic 도구(`get_ad_performance`)와 `get_target_progress_v2`, `list_promotio
    준비 중" 골격을 만들고 게시한다(아래 7단계와 같은 출력 경로/Artifact — 이후 재게시로 교체).
    이 단계를 건너뛰고 끝에서 한꺼번에 내놓으려다 툴호출 예산이 바닥나면 사용자는 아무것도 못
    본다 — 자매 스킬의 실제 사고 사례가 있는 필수 단계다.
-5. **계산**: 각 섹션 파일의 규칙대로 section-1 값 판정, section-3 배열 3개, section-4 배열
-   2개, section-5 매체별 D-1/D-0 원본 수치(마지막 이틀 행만)를 산출한다.
+5. **계산**: 각 섹션 파일의 규칙대로 section-1 값 판정, section-3 역할별 7일 배열, section-4
+   매체별 7일 배열, section-5 매체별 D-1/D-0 원본 수치(마지막 이틀 행만)를 산출한다.
 6. **section-2 Executive Summary 작성** — 신규 MCP 호출 없이 section-4/5 데이터와 공유
    `list_promotions` 응답을 재사용해 AI가 직접 작성
    (`daily-summary-section-2-executive-summary.md`의 규칙).
-7. **최종 빌드**: `assets/build_report.py`에 값 JSON(`metric_keys`, `currency` 포함)을 heredoc
+7. **최종 빌드**: `assets/build_report.py`에 값 JSON(`metric_keys`, `has_organic`, `currency` 포함)을 heredoc
    으로 넘겨 최종 HTML을 생성한다. 출력 경로(`out`)는
    `~/Downloads/laighthouse-reports/{브랜드명}_daily-summary_{기준_일자}.html`
    (디렉터리는 빌더가 만든다).
@@ -172,14 +182,14 @@ generic 도구(`get_ad_performance`)와 `get_target_progress_v2`, `list_promotio
 | 1 | 목표 달성 현황 (당월 MTD) | `daily-summary-section-1-target-achievement.md` | `s1` |
 | 2 | Executive Summary | `daily-summary-section-2-executive-summary.md` | `s2` |
 | 3 | 최근 7일 성과 (혼합 차트) | `daily-summary-section-3-daily-performance-7days.md` | `s3` |
-| 4 | 일일 매출 현황 (최근 7일, 라인 차트) | `daily-summary-section-4-daily-revenue-7days.md` | `s4` |
-| 5 | 매체별 성과 (D-1 vs D-0, 디스커버리된 매체 + Organic) | `daily-summary-section-5-channel-performance.md` | `s5` |
+| 4 | 매체별 매출 추이 (최근 7일, 누적 막대 — 매출 없음: 매체별 클릭) | `daily-summary-section-4-daily-revenue-7days.md` | `s4` |
+| 5 | 매체별 성과 (D-1 vs D-0, 디스커버리된 매체 + Organic(있을 때)) | `daily-summary-section-5-channel-performance.md` | `s5` |
 
 - 응답 공유 관계: `get_ad_performance`(day grain) 1회 응답을 section-3/4/5가,
   `list_promotions` 1회 응답을 section-2/3/4가 공유한다. section-2는 신규 데이터 호출 없이
   section-3/5 데이터를 재사용해 텍스트만 쓴다.
-- section-3은 `daily-detailed`의 section-3과 동일한 차트, section-4는 그보다 간결한 매출 라인
-  차트(둘 다 나란히 포함), section-5는 캠페인이 아니라 **매체 단위**(디스커버리된 매체 +
-  Organic) 비교표(모든 지표 증가=긍정)다.
+- section-3은 `daily-detailed`의 section-3과 동일한 차트, section-4는 매체 구성을 보여주는
+  누적 막대, section-5는 캠페인이 아니라 **매체 단위**(디스커버리된 매체 + Organic(있을 때))
+  비교표(모든 지표 증가=빨강·감소=파랑)다.
 - 섹션 데이터가 준비 안 되면 해당 `s*` 키를 빌더 입력에서 뺀다 → "데이터 준비 중" 카드로
   렌더링된다. 섹션을 임의로 생략하는 개념은 없다 — 항상 5개 전부.

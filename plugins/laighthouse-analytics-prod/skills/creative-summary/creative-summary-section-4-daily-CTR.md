@@ -26,7 +26,7 @@
 
 section-3 파일에 적힌 **한 번의 heredoc 호출**에 위 5개 키(`campaign_name`/`ad_group_name`/
 `ad_name`)를 `top5_keys`로(위 선정 순서 그대로) 넣으면, 출력 `top5.ctr_series`(이 섹션용)와
-`top5.roas_series`(section-5용)가 함께 나온다 — 이 섹션에서 스크립트를 다시 호출하지 않는다.
+`top5.roas_series`(section-5용, 매출 없음 모드는 `top5.click_series`)가 함께 나온다 — 이 섹션에서 스크립트를 다시 호출하지 않는다.
 CTR은 스크립트가 항상 click 키÷impression 키×100으로 직접 계산한다. 노출 0이거나 그 날짜 행이
 없으면 이미 `null`로 채워져 있다 — 추가 가공 불필요.
 

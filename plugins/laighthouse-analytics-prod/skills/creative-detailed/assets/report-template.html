@@ -46,25 +46,25 @@ __CHART_JS_INLINE__
   </div>
 
 <!--SECTION:s1:BEGIN-->
-  <!-- CREATIVE SECTION 1: 최우수 소재 (ROAS / CTR, 최근 7일 기준) -->
+  <!-- CREATIVE SECTION 1: 최우수 소재 (ROAS 또는 클릭 / CTR, 최근 7일 기준) -->
   <div style="display:flex; gap:16px; align-items:stretch;">
     <div class="card" style="flex:1; display:flex; flex-direction:column;">
-      <div class="section-title" style="text-align:center;">ROAS 최우수 소재 (최근 7일 기준)</div>
+      <div class="section-title" style="text-align:center;">__S1_A_TITLE__</div>
       <table style="width:100%; border-collapse:collapse; font-size:13px;">
         <tr>
-          <td style="border:1px solid #e2e8f0; padding:10px 12px; text-align:center; vertical-align:middle;"><strong>__S1_ROAS_1_NAME__</strong></td>
-          <td style="border:1px solid #e2e8f0; padding:10px 12px; text-align:center; vertical-align:middle;"><strong>__S1_ROAS_2_NAME__</strong></td>
+          <td style="border:1px solid #e2e8f0; padding:10px 12px; text-align:center; vertical-align:middle;"><strong>__S1_A_1_NAME__</strong></td>
+          <td style="border:1px solid #e2e8f0; padding:10px 12px; text-align:center; vertical-align:middle;"><strong>__S1_A_2_NAME__</strong></td>
         </tr>
         <tr>
-          <td style="border:1px solid #e2e8f0; padding:10px 12px; text-align:center; vertical-align:middle;">__S1_ROAS_1_METRIC__</td>
-          <td style="border:1px solid #e2e8f0; padding:10px 12px; text-align:center; vertical-align:middle;">__S1_ROAS_2_METRIC__</td>
+          <td style="border:1px solid #e2e8f0; padding:10px 12px; text-align:center; vertical-align:middle;">__S1_A_1_METRIC__</td>
+          <td style="border:1px solid #e2e8f0; padding:10px 12px; text-align:center; vertical-align:middle;">__S1_A_2_METRIC__</td>
         </tr>
         <tr>
-          <td style="border:1px solid #e2e8f0; padding:12px; text-align:center;">__S1_ROAS_1_IMG_HTML__</td>
-          <td style="border:1px solid #e2e8f0; padding:12px; text-align:center;">__S1_ROAS_2_IMG_HTML__</td>
+          <td style="border:1px solid #e2e8f0; padding:12px; text-align:center;">__S1_A_1_IMG_HTML__</td>
+          <td style="border:1px solid #e2e8f0; padding:12px; text-align:center;">__S1_A_2_IMG_HTML__</td>
         </tr>
       </table>
-      <p style="font-size:11px; color:#64748b; margin-top:12px; line-height:1.5;">*'매출/광고비'로 계산되며, 높을수록 소재에서 매출이 효율적으로 발생하고 있음을 의미합니다.</p>
+      <p style="font-size:11px; color:#64748b; margin-top:12px; line-height:1.5;">__S1_A_NOTE__</p>
     </div>
 
     <div class="card" style="flex:1; display:flex; flex-direction:column;">
@@ -83,7 +83,7 @@ __CHART_JS_INLINE__
           <td style="border:1px solid #e2e8f0; padding:12px; text-align:center;">__S1_CTR_2_IMG_HTML__</td>
         </tr>
       </table>
-      <p style="font-size:11px; color:#64748b; margin-top:12px; line-height:1.5;">*'클릭/노출수'로 계산되며, 높을수록 고객이 광고에 매력을 느껴 클릭하는 경우가 많았음을 의미합니다. 단, CTR이 높아도 구매 전환율은 낮을 수 있으므로 주의가 필요합니다.</p>
+      <p style="font-size:11px; color:#64748b; margin-top:12px; line-height:1.5;">*'클릭/노출수'로 계산되며, 높을수록 고객이 광고에 매력을 느껴 클릭하는 경우가 많았음을 의미합니다. 단, CTR이 높아도 전환율은 낮을 수 있으므로 주의가 필요합니다.</p>
     </div>
   </div>
 <!--SECTION:s1:END-->
@@ -109,11 +109,11 @@ __CHART_JS_INLINE__
 <!--SECTION:s3:END-->
 
 <!--SECTION:s4:BEGIN-->
-  <!-- CREATIVE SECTION 4: 최근 7일 일별 ROAS (광고비 상위 5개 소재) -->
+  <!-- CREATIVE SECTION 4: 최근 7일 일별 ROAS (매출 없음: 클릭) (광고비 상위 5개 소재) -->
   <div class="card" style="margin-bottom:16px;">
-    <div class="section-title" style="text-align:left;">최근 7일 일별 ROAS (광고비 상위 5개 소재)</div>
+    <div class="section-title" style="text-align:left;">__S4_TITLE__</div>
     <div style="position:relative; height:300px;">
-      <canvas id="creativeRoasLineChart"></canvas>
+      <canvas id="creativeSecondLineChart"></canvas>
     </div>
   </div>
 <!--SECTION:s4:END-->
@@ -126,7 +126,7 @@ __CHART_JS_INLINE__
       <input id="assetPerfSearch" style="border:1px solid #e2e8f0; border-radius:8px; padding:6px 12px; font-size:12px; color:#374151; width:180px;" placeholder="검색" oninput="window.__assetPerfSearch && window.__assetPerfSearch(this.value)">
     </div>
     <div style="overflow-x:auto;">
-      <table style="border-collapse:collapse; font-size:12.5px; table-layout:fixed; width:auto;">
+      <table style="border-collapse:collapse; font-size:12.5px; table-layout:fixed; width:auto; min-width:max-content;">
         <thead>
           <tr>
             __S5_THEAD_HTML__
@@ -148,9 +148,11 @@ __CHART_JS_INLINE__
 
 <script>
 /* ── 공통 유틸 ── */
-function changeColor(v){ return v>0?'#16a34a':v<0?'#dc2626':'#6b7280'; }
-function changeLabel(v,s='%'){ return v>0?`▲ +${v.toFixed(1)}${s}`:v<0?`▼ ${v.toFixed(1)}${s}`:'-'; }
-function fmtUSD(v){ return '$'+Number(v).toLocaleString(); }
+// section-4 값 표시 (매출 있음: ROAS %, 매출 없음: 클릭 수)
+function fmtSecond(v, unit){
+  if (v === null || v === undefined) return '-';
+  return unit === '%' ? Number(v).toFixed(1) + '%' : Math.round(v).toLocaleString();
+}
 
 /* ── PDF 저장 (차트 렌더링 완료 후 인쇄) ── */
 function downloadReport(){
@@ -215,13 +217,13 @@ function downloadReport(){
   });
 })();
 
-/* ── Section 4: 일별 ROAS 라인차트 ── */
+/* ── Section 4: 일별 ROAS(매출 없음: 클릭) 라인차트 ── */
 (function(){
-  const ctx = document.getElementById('creativeRoasLineChart');
+  const ctx = document.getElementById('creativeSecondLineChart');
   if(!ctx) return;
   const labels = __S34_LABELS_JSON__; // section-3과 동일한 배열, 예: ["7/9",...,"7/15"]
-  const names = __S34_NAMES_JSON__; // section-3과 동일한 5개 소재의 표시 이름(같은 순서, ad_name 중복 시 "ad_name (asset_group)" 포함)
-  const series = __S4_ROAS_SERIES_JSON__; // names와 같은 순서의 2차원 배열, 각 행이 7개 값(매출 매칭 실패/광고비 0인 날짜는 0으로 채움)
+  const names = __S34_NAMES_JSON__; // section-3과 동일한 5개 소재의 표시 이름(같은 순서)
+  const cfg = __S4_JSON__; // {unit: "%"(ROAS) | ""(클릭 수), series: names와 같은 순서의 2차원 배열 — 데이터 없는 날은 0}
 
   const palette = ['#3b82f6','#16a34a','#ef4444','#f59e0b','#8b5cf6'];
 
@@ -229,7 +231,7 @@ function downloadReport(){
     type:'line',
     data:{
       labels: labels,
-      datasets: series.map((d,i)=>({
+      datasets: cfg.series.map((d,i)=>({
         label: names[i], data:d,
         borderColor: palette[i], backgroundColor:'transparent',
         pointBackgroundColor: palette[i], tension:0.3
@@ -239,10 +241,10 @@ function downloadReport(){
       responsive:true, maintainAspectRatio:false,
       plugins:{
         legend:{ display:true, position:'bottom', labels:{ boxWidth:10, font:{size:11} } },
-        tooltip:{ callbacks:{ label: c => `${c.dataset.label}: ${c.parsed.y}%` } }
+        tooltip:{ callbacks:{ label: c => `${c.dataset.label}: ${fmtSecond(c.parsed.y, cfg.unit)}` } }
       },
       scales:{
-        y:{ min:0, ticks:{ callback: v => v+'%' } },
+        y:{ min:0, ticks:{ callback: v => fmtSecond(v, cfg.unit) } },
         x:{ title:{ display:true, text:'day' } }
       }
     }
