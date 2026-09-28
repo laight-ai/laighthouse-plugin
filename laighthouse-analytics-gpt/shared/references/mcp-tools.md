@@ -16,7 +16,7 @@ naver 전용 계열, v1 target_progress, 리포트 공유 계열)은 **서버에
   "start_date": "YYYY-MM-DD", "end_date": "YYYY-MM-DD",
   "time_grain": "day" | "month" | "total",        // 기본 "day"
   "group_by": ["media", "campaign_id", "campaign_name"],  // 차원명 리스트, 생략 시 총계
-  "metrics": ["광고비", "매출_AB"],                 // 생략(null) 시 전체 지표, [] 이면 차원만(디스커버리)
+  "metrics": ["<광고비 키>", "<매출 키>"],           // 생략(null) 시 전체 지표, [] 이면 차원만
   "filters": {"media": ["<디스커버리로 받은 값>"]},   // 차원 → 허용값 리스트, 정확 일치. 생략 시 전체
   "day_offset": 15                                  // month grain 전용 — 각 월을 N일까지 자름
 }
@@ -24,7 +24,8 @@ naver 전용 계열, v1 target_progress, 리포트 공유 계열)은 **서버에
 
 - 예전의 `media: str` 파라미터는 **제거됐다** — 매체 필터는 `filters={"media": [...]}`로 한다.
   값은 디스커버리 응답에 나온 문자열 그대로(정확 일치)만 쓴다.
-- `metrics`: 생략(null) → 테넌트의 공개 지표 전부 / `[]` → 지표 없이 차원만(디스커버리 모드) /
+- `metrics`: 생략(null) → 테넌트의 공개 지표 전부 / `[]` → 지표 없이 차원만(⚠️ 이때 봉투
+  `metrics` 목록도 빈 배열로 온다 — 지표 키 디스커버리에는 쓸 수 없다) /
   리스트 → 그 지표만. 알 수 없는 지표명·차원명을 넣으면 서버가 유효한 이름 목록을 담은
   ValueError를 돌려준다 — 그 목록으로 바로잡는다(추측 재시도 금지).
 - **검증 규칙(서버가 ValueError로 거절)**: `metrics:[]`는 `time_grain:"day"`가 아니면 비어 있지
@@ -47,7 +48,7 @@ naver 전용 계열, v1 target_progress, 리포트 공유 계열)은 **서버에
 { "source": "elt", "tenant": "<brand>", "time_grain": "day",
   "dimensions": ["media"], "metrics": ["광고비", "..."], "metric_units": {"광고비": "₩", "...": null},
   "row_count": 42,
-  "rows": [ { "date": "2026-08-01", "media": "Google", "광고비": 12345, "매출_AB": 67890, "...": 0 } ] }
+  "rows": [ { "date": "2026-08-01", "media": "Google", "광고비": 12345, "매출": 67890, "...": 0 } ] }
 ```
 
   - 행의 **차원 키는 영문**: `date`(day grain) / `month`(month grain, "YYYY-MM") / `media` /
@@ -59,15 +60,17 @@ naver 전용 계열, v1 target_progress, 리포트 공유 계열)은 **서버에
     `generic-report-pattern.md`의 **지표 역할 해석 규칙**으로 실행마다 한 번 결정한다.
   - **`metric_units`는 지표별 단위 기호 맵**이다 — 브랜드 카탈로그가 공개한 값 그대로(`"₩"`,
     `"%"`, `"회"` …), 공개된 단위가 없으면 `null`. 수치를 표시할 때 이 값을 **그대로** 붙이고,
-    지표명(`광고비`, `roas` …)으로 단위를 추측하지 않는다. `null`이면 단위 없이 표시한다.
-    `metrics: []` 디스커버리 호출에서는 `{}`로 온다 — 단위는 지표를 실제로 요청한 응답에서
-    읽는다(`generic-report-pattern.md` 6절 `currency`).
+    지표명(`광고비`, `roas` …)으로 단위를 추측하지 않는다. `null`이면 단위 없이 표시한다 —
+    **예외: 보고서 통화**(`discover.py`의 `currency` = 광고비 단위 → 없으면 통화 기호인 매출 단위
+    → 없으면 `"₩"`)는 금액 역할(광고비·매출)과 그 파생값(CPC·CPA)에 항상 붙인다(계층 표 포함, 빌더가
+    처리). `metrics: []` 호출에서는 `{}`로 온다.
   - ⚠️ 비율 지표는 **요청한 grain 기준으로 서버가 이미 계산한 % 값**이다(예: ROAS 122.4 =
     122.4%) — ×100 하지 않고, **행별 비율 값을 합산/평균해 상위 기간·상위 그룹 비율을 만들지
     않는다**(필요하면 원자 지표 합으로 다시 계산).
   - **매체 디스커버리**: `media`는 지표가 아니라 차원이며, 브랜드마다 값 집합이 다르다. 고정
     매체 목록을 어디에도 가정하지 않고, 매 실행 시작에
-    `time_grain:"total", group_by:["media"], metrics:[]` 1회 호출로 실제 값을 받는다(절차는
+    `time_grain:"total", group_by:["media"]`(`metrics` 생략) 1회 호출로 실제 값과 지표 키를
+    함께 받는다(절차는
     `generic-report-pattern.md`). **`media`가 `null`인 행이 Organic**(광고비 없이 매출만
     귀속)이다 — 정상 행이며 cost/impression/click은 항상 비어 있으므로 채우지 않는다.
     브랜드에 `media` 차원이 없어 호출이 실패하면 `group_by:["source"]`로 폴백해 `source`
@@ -76,35 +79,52 @@ naver 전용 계열, v1 target_progress, 리포트 공유 계열)은 **서버에
 ## 2. `get_ad_creative_info` — 소재 메타데이터/이미지
 
 ```json
-{ "brand_name": "<brand>", "source": "meta_ads", "name_query": "AD_251212_old5059_02", "limit": 20 }
+{ "brand_name": "<brand>", "name_query": "<ad_name 값>" }
 ```
 
-- `source`는 닫힌 enum이 아니라 **정확 일치 필터**다(선택, 임의 문자열). 마트의 `source` 차원
-  값 — 디스커버리를 `group_by:["media","source"]`로 호출하면 행에 함께 나온다 — 을 그대로
-  넣는다. 마트에 없는 값을 넣으면 **에러가 아니라 `items: []`**가 돌아온다(값을 추측하지
-  않는다). `name_query`는 소재 이름 검색(선택), `limit`은 개수 제한(선택).
+- ⚠️ `source`는 ELT 쪽에서 **닫힌 목록**이다(`google_ads`/`kakao_keyword_ad`/`kakao_moment`/
+  `meta_ads`/`naver_search_ads`/`tiktok_ads` — 그 밖의 값은 400 에러). 마트의 `source` 차원 값
+  (예: `naver_gfa_display`, 테넌트명)과도 일치하지 않으므로 **스킬은 `source`를 넣지 않는다**.
+  `name_query`(서버에서 대소문자 무시 부분 일치)에 소재명을 넣고, 응답 `items[]` 중 `ad_name`이
+  정확히 일치하는(항목에 `adgroup_name`/`campaign_name`이 있으면 그것도 일치하는) 항목의
+  `image_url`을 쓴다. 에러·빈 결과·불일치는 썸네일 없음(null)으로 처리한다. `limit`은 일치 항목을
+  잘라낼 수 있어 쓰지 않는다.
 - 응답은 JSON: `{"source": "elt", "items": [...]}` — 각 항목은 광고 메타데이터 행이며 서버
   계산 `image_url`을 포함한다. ⚠️ **이미지 URL은 IP 화이트리스트 뒤에 있다** — 허용되지 않은
   네트워크에서는 이미지가 렌더링되지 않을 수 있다(오류 아님, 템플릿 onerror 폴백으로 처리).
 - 예전 시그니처(`meta: [{account_id, creative_id}]` 배열,
   `thumbnail_image_url`/`thumbnail_image_data_url` 필드)는 폐기됐다.
 
-## 3. `get_target_progress_v2` — 월 목표 대비 진행 (계약 불변)
+## 3. `get_target_progress_v2` — 월 목표 대비 진행 (report-backend PR #280 계약)
 
 ```json
-{ "brand_name": "<brand>", "month": "YYYY-MM", "media": "naver"|"google"|"meta"|"tiktok", "as_of_date": "YYYY-MM-DD" }
+{ "brand_name": "<brand>", "month": "YYYY-MM", "media": null, "as_of_date": "YYYY-MM-DD",
+  "cost_metric": "<광고비 키>", "revenue_metric": "<매출 키>" }
 ```
 
+- `cost_metric`/`revenue_metric`(선택): 실적을 읽을 마트 지표 이름. **스킬은 항상
+  `discover.py`의 `metric_keys` 값을 넘긴다**(매출 없음 모드면 `revenue_metric` 생략). 생략하면
+  서버가 내장 후보(`광고비`/`cost`, `매출_AB`/`revenue`/`매출`)로 찾는다. 마트에 없는 이름을 주면
+  유효한 목록을 담은 ValueError. 매출 지표가 없으면 표는 그대로 오고 매출·ROAS 실적만 `-`다.
+  구버전 서버가 이 인자를 거절하면 두 인자를 빼고 1회 재호출한다.
+
+- `media`: **생략/`null`/`""`/`"all"` → 전체 매체**(목표 합산 + 브랜드 전체 실적, 헤더
+  `media: all`). 이름을 주면 대소문자 무시 + 한국어 별칭(양방향)으로 그 달 마트가 서빙한 매체와
+  매칭한다 — `get_ad_performance` 응답의 `media` 값을 **그대로** 넣으면 된다(`.lower()` 불필요).
+  예전의 naver/google/meta/tiktok 네 값 제한은 없어졌다.
 - **이 도구만 여전히 markdown 표를 반환한다** — 행(cost/revenue/roas) × 열(target|actual|
-  progress_ratio). 해당 매체 예산이 전혀 없으면 리터럴
-  `"No {media} budget/target available for {month}."` 한 줄이 반환된다 — **오류가 아니다**.
-- ⚠️ ROAS류 수치는 비율값(예: 0.87, 5.06)이므로 반드시 ×100 후 표시한다 (0.87 → 87%).
-- `revenue` 행의 `actual`은 매출 실적으로 쓰지 않는다 — 실적 매출은 항상
-  `get_ad_performance`의 revenue 역할 키에서 가져온다 (naver actual 0 반환 사례 실측).
-- **디스커버리된 매체마다 1회 호출, 미지원은 허용**: `media`는 서버 제약으로
-  naver/google/meta/tiktok 네 값만 받는다(변경 없음). 디스커버리로 받은 매체 목록을 순회하며
-  `media.lower()`로 호출하고, 값이 네 가지에 없거나 호출이 에러를 내면 그 매체는 **목표 없음**
-  으로 취급한다(목표 셀 `-`, 오류 아님). google/meta/naver를 리터럴로 열거하지 않는다.
+  progress_ratio). 표 대신 **한 줄 평문**이 오는 두 경우는 오류가 아니라 "목표 없음"이다:
+  - `No {media} budget/target available for {month}.` (전체 매체면 `No all budget/...`)
+  - 마트 전제 미충족(광고비 지표 없음, `media` 차원 없음) 안내 한 줄
+- 매칭되는 매체가 없으면 0 표(target 0)가 온다 → 역시 목표 없음.
+- ⚠️ ROAS류 수치는 비율값(예: 0.87, 5.06)이므로 ×100 후 표시한다 (0.87 → 87%).
+- ⚠️ **`actual` 열은 쓰지 않는다** — `media: all`에서 목표는 목표가 저장된 매체만 합산되지만
+  실적은 마트 전체라 범위가 다르다. 실적(소진액·매출)은 항상 `get_ad_performance`의 광고 매체
+  행 합에서 가져온다.
+- 호출 정책: 합계 카드는 **전체 매체 1회**. 매체별 목표 표가 있는 스킬(`mtd-detailed`
+  section-6)만 `media_list`의 값마다 1회씩 추가 호출한다(`generic-report-pattern.md` 5절).
+- ⚠️ 운영 서버에 PR #280이 배포되기 전에는 `media`가 enum(naver/google/meta/tiktok)이라
+  `null` 호출이 스키마 에러를 낸다 — 이 경우도 **목표 없음**으로 처리하고 보고서를 계속 만든다.
 
 ## 4. `get_brand_list` — 브랜드 목록 (불변)
 
@@ -114,7 +134,12 @@ naver 전용 계열, v1 target_progress, 리포트 공유 계열)은 **서버에
 { "brand_name": "<brand>", "start_date": "YYYY-MM-DD", "end_date": "YYYY-MM-DD" }
 ```
 
-- 응답 `items[]`의 `{title, date_begin, date_end}`를 각 스킬 빌더에 가공 없이 넘긴다.
+- 응답은 **프로모션 객체의 JSON 배열**이다 — 각 항목의 `{title, start_date, end_date}`(그 외
+  `sales_channel`/`info`/`promotion_type`(`자사`/`타사`) 등)를 각 스킬 빌더에 가공 없이 넘긴다.
+  (빌더는 구버전 필드명 `date_begin`/`date_end`도 받는다.)
+- ⚠️ 브랜드에 프로모션 캘린더가 켜져 있지 않으면 `Promotion calendar is not enabled for brand
+  '<name>'` ValueError가 난다 — **오류가 아니라 "프로모션 없음"**(`[]`)으로 처리하고 보고서를
+  계속 만든다.
 
 ## 공통 규칙
 
@@ -124,5 +149,6 @@ naver 전용 계열, v1 target_progress, 리포트 공유 계열)은 **서버에
 - Executive Summary류 분석 텍스트는 `df_dify` MCP를 호출하지 않고, 이미 수집한 수치 데이터를
   근거로 실행 LLM이 직접 작성한다 (근거 수치가 없으면 생성하지 않음).
 - 고카디널리티 응답(campaign/ad 차원)에 대한 대응은 `gpt-large-response-guardrail.md`가
-  단일 소스다 — ChatGPT Skills에는 PostToolUse 훅이 없으므로, 호출 자체를 좁혀 응답이
-  애초에 크게 나오지 않게 한다(응답을 받은 뒤에는 원본 재타이핑 없이 `json`에 그대로 넘긴다).
+  단일 소스다 — 캡처 훅이 도는 환경(Work 모드·Codex)에서는 스텁 경로를 `json_files`로, 훅이 없는
+  환경(웹 Chat)에서는 호출 자체를 좁혀 응답이 애초에 크게 나오지 않게 하고 원본을 `json`에 그대로
+  넘긴다(원본 재타이핑 금지).

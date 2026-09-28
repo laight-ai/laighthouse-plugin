@@ -13,6 +13,7 @@ __CHART_JS_INLINE__
   .card { background: white; border: 1px solid #e2e8f0; border-radius: 12px;
           padding: 20px; margin-bottom: 16px; }
   .section-title { font-size: 15px; font-weight: 700; color: #1e293b; margin-bottom: 16px; }
+  .legend { display:flex; justify-content:center; flex-wrap:wrap; gap:8px 20px; margin-bottom:16px; font-size:12px; color:#334155; }
   table { width: 100%; border-collapse: collapse; font-size: 13px; }
   th { background: #f1f5f9; color: #475569; font-weight: 600; padding: 8px 12px;
        text-align: left; border-bottom: 1px solid #e2e8f0; }
@@ -24,6 +25,7 @@ __CHART_JS_INLINE__
     canvas { max-width: 100%; }
     @page { margin: 15mm; size: A4; }
   }
+__REPORT_KIT_CSS__
 </style>
 </head>
 <body>
@@ -46,38 +48,11 @@ __CHART_JS_INLINE__
   </div>
 
 <!--SECTION:s1:BEGIN-->
-  <!-- MONTHLY SECTION 1: 목표 달성 현황 (TARGET ACHIEVEMENT) -->
+  <!-- MONTHLY SECTION 1: 목표 달성 현황 (TARGET ACHIEVEMENT) — 카드 3장은 report_kit.s1_grid_html -->
   <div class="card" style="margin-bottom:16px;">
     <div class="section-title">목표 달성 현황 (__S1_MM__월 1일~__S1_MM__월 __S1_DD__일)</div>
     <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:0; border:1px solid #e2e8f0; border-radius:8px; overflow:hidden;">
-
-      <div style="padding:20px; border-right:1px solid #e2e8f0; text-align:center;">
-        <div style="font-size:12px; color:#64748b; margin-bottom:8px;">기간 예산대비 소진율</div>
-        <div style="font-size:28px; font-weight:700; color:#1e293b; margin-bottom:12px;">__S1_소진율__</div>
-        <div style="display:flex; justify-content:center; gap:16px; font-size:12px;">
-          <div><div style="color:#94a3b8;">목표 예산</div><div style="font-weight:600;">__S1_목표_예산__</div></div>
-          <div style="width:1px; background:#e2e8f0;"></div>
-          <div><div style="color:#94a3b8;">소진액</div><div style="font-weight:600;">__S1_소진액__</div></div>
-        </div>
-      </div>
-
-      <div style="padding:20px; border-right:1px solid #e2e8f0; text-align:center;">
-        <div style="font-size:12px; color:#64748b; margin-bottom:8px;">기간 목표 매출 대비 달성률</div>
-        <div style="font-size:28px; font-weight:700; color:#1e293b; margin-bottom:12px;">__S1_매출_달성률__</div>
-        <div style="display:flex; justify-content:center; gap:16px; font-size:12px;">
-          <div><div style="color:#94a3b8;">목표 매출</div><div style="font-weight:600;">__S1_목표_매출__</div></div>
-          <div style="width:1px; background:#e2e8f0;"></div>
-          <div><div style="color:#94a3b8;">기간 매출</div><div style="font-weight:600;">__S1_기간_매출__</div></div>
-        </div>
-      </div>
-
-      <div style="padding:20px; text-align:center; display:flex; flex-direction:column; justify-content:center; align-items:center;">
-        <div style="font-size:12px; color:#64748b; margin-bottom:8px;">실제 ROAS</div>
-        <div style="font-size:28px; font-weight:700; color:#1e293b; margin-bottom:10px;">__S1_실제_ROAS__</div>
-        <div style="font-size:12px; color:#94a3b8;">목표 ROAS</div>
-        <div style="font-size:12px; font-weight:600; color:#64748b;">__S1_목표_ROAS__</div>
-      </div>
-
+      __S1_GRID_HTML__
     </div>
     __S1_FOOTNOTE_HTML__
   </div>
@@ -94,20 +69,15 @@ __CHART_JS_INLINE__
 <!--SECTION:s2:END-->
 
 <!--SECTION:s3:BEGIN-->
-  <!-- MONTHLY SECTION 3: 월별 광고 성과 (MONTHLY AD PERFORMANCE) -->
+  <!-- MONTHLY SECTION 3: 월별 광고 성과 — 매출 있음: 광고비·매출 막대 + ROAS / 매출 없음: 클릭 막대 + CTR -->
   <div class="card" style="margin-bottom:16px;">
     <div class="section-title">월별 광고 성과 (최근 6개월)</div>
-    <div style="display:flex; justify-content:center; flex-wrap:wrap; gap:20px; margin-bottom:16px; font-size:12px; color:#334155;">
-      <span style="display:flex; align-items:center; gap:6px;"><span style="width:12px; height:12px; background:#93c5fd; display:inline-block; border-radius:2px;"></span>광고비</span>
-      <span style="display:flex; align-items:center; gap:6px;"><span style="width:12px; height:12px; background:#94a3b8; display:inline-block; border-radius:2px;"></span>매출</span>
-      <span style="display:flex; align-items:center; gap:6px;"><span style="width:16px; height:2px; background:#ef4444; display:inline-block;"></span>ROAS</span>
-    </div>
+    <div class="legend" id="monthlyPerfLegend"></div>
     <div style="position:relative; height:320px;">
-      <canvas id="typeBMonthlyChart"></canvas>
+      <canvas id="monthlyPerfChart"></canvas>
     </div>
     <div style="font-size:12px; color:#64748b; margin-top:10px;">
-      <div>__S3_FOOTNOTE_CURRENT_MONTH__</div>
-      __S3_FOOTNOTE_ZERO_FILL_HTML__
+      __S3_FOOTNOTE_HTML__
     </div>
   </div>
 <!--SECTION:s3:END-->
@@ -122,7 +92,7 @@ __CHART_JS_INLINE__
           __S4_THEAD_HTML__
         </thead>
         <tbody>
-          <!-- 디스커버리된 매체(+Organic) 행, 빌더 입력 순서 그대로 -->
+          <!-- 디스커버리된 매체(+Organic(있을 때)) 행, 빌더 입력 순서 그대로 — 컬럼은 report_kit.compare_columns -->
           __S4_ROWS_HTML__
         </tbody>
       </table>
@@ -134,28 +104,10 @@ __CHART_JS_INLINE__
 <!--SECTION:s4:END-->
 
 <!--SECTION:s5:BEGIN-->
-  <!-- MONTHLY SECTION 5: 캠페인 성과 비교 및 전월 대비 증감율 (M-1 VS M0) -->
+  <!-- MONTHLY SECTION 5: 매체·캠페인·광고그룹·광고 계층 표 (M-1 VS M0) — LHKit.treeTable -->
   <div class="card" style="margin-bottom:16px;">
-    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
-      <div class="section-title">캠페인 성과 비교 (__M1_YY__년 __M1_MM__월 vs __M0_YY__년 __M0_MM__월) 및 전월 대비 증감율</div>
-      <input id="monthlyCampaignSearch" style="border:1px solid #e2e8f0; border-radius:8px; padding:6px 12px; font-size:12px; color:#374151; width:180px;" placeholder="검색" oninput="window.__monthlyCampaignSearch && window.__monthlyCampaignSearch(this.value)">
-    </div>
-    <div style="overflow-x:auto;">
-      <table style="table-layout:fixed; width:auto; border-collapse:collapse;">
-        <thead>
-          __S5_THEAD_HTML__
-        </thead>
-        <tbody id="monthlyCampaignTableBody"></tbody>
-      </table>
-    </div>
-    <!-- 페이지네이션: 10개씩, 페이지 크기 변경 드롭다운 없음. 버튼은 JS가 동적으로 그린다. -->
-    <div id="monthlyCampaignPager" style="display:flex; justify-content:center; align-items:center; gap:8px; margin-top:16px;"></div>
-    <p style="font-size:11px; color:#94a3b8; margin-top:8px;">
-      * __M0_YY__년 __M0_MM__월에 표시된 %는 전월 대비 변화율을 의미합니다.<br>
-      * __M0_YY__년 __M0_MM__월 광고비가 __THRESHOLD_LABEL__ 이하인 캠페인은 표에서 제외됩니다.<br>
-      * 지표를 비교할 수 없는 경우(전월 데이터 없음 등) (-)로 표시됩니다.<br>
-      * 데이터 수집 체계에 따라, 일부 캠페인이 데이터가 누락될 수 있습니다.
-    </p>
+    <div class="section-title">매체·캠페인·광고그룹·광고 성과 (__M1_YY__년 __M1_MM__월 vs __M0_YY__년 __M0_MM__월)</div>
+    <div id="monthlyTree"></div>
   </div>
 <!--SECTION:s5:END-->
 
@@ -167,10 +119,10 @@ __CHART_JS_INLINE__
 </div>
 
 <script>
-/* ── 공통 유틸 ── */
-function changeColor(v){ return v>0?'#16a34a':v<0?'#dc2626':'#6b7280'; }
-function changeLabel(v,s='%'){ return v>0?`▲ +${v.toFixed(1)}${s}`:v<0?`▼ ${v.toFixed(1)}${s}`:'-'; }
-function fmtUSD(v){ return '$'+Number(v).toLocaleString(); }
+__REPORT_KIT_JS__
+</script>
+<script>
+LHKit.configure({ currency: __CURRENCY_JSON__ });
 
 /* ── PDF 저장 (차트 렌더링 완료 후 인쇄) ── */
 function downloadReport(){
@@ -202,102 +154,14 @@ function downloadReport(){
 
 /* ── Section 3: 월별 광고 성과 혼합 차트 ── */
 (function(){
-  const ctx = document.getElementById('typeBMonthlyChart');
-  if(!ctx) return;
-  const d = __S3_CHART_DATA_JSON__; // { labels:[...], ad_cost:[...], revenue:[...], roas:[...] }
-  new Chart(ctx, {
-    data: {
-      labels: d.labels,
-      datasets: [
-        { type:'bar',  label:'광고비', data:d.ad_cost,  backgroundColor:'#93c5fd', yAxisID:'y', order:2 },
-        { type:'bar',  label:'매출',   data:d.revenue,  backgroundColor:'#94a3b8', yAxisID:'y', order:2 },
-        { type:'line', label:'ROAS',   data:d.roas,
-          borderColor:'#ef4444', backgroundColor:'transparent',
-          pointBackgroundColor:'#ef4444', tension:0.3, yAxisID:'y2', order:1 }
-      ]
-    },
-    options: {
-      responsive:true, maintainAspectRatio:false,
-      plugins:{
-        legend:{ display:false },
-        tooltip:{
-          callbacks:{
-            label: ctx => {
-              const v = ctx.parsed.y;
-              return ctx.dataset.label === 'ROAS'
-                ? `ROAS: ${Number(v).toLocaleString()}%`
-                : `${ctx.dataset.label}: __CURRENCY__${Number(v).toLocaleString()}`;
-            }
-          }
-        }
-      },
-      scales:{
-        y:  { position:'left',  ticks:{ callback: v => '__CURRENCY__' + Number(v).toLocaleString() } },
-        y2: { position:'right', grid:{ drawOnChartArea:false }, min:0,
-              ticks:{ callback: v => v+'%' } }
-      }
-    }
-  });
+  const spec = __S3_CHART_SPEC_JSON__;   // report_kit.perf_chart_spec
+  LHKit.mixedChart('monthlyPerfChart', 'monthlyPerfLegend', spec);
 })();
 
-/* ── Section 5: 캠페인 성과 비교 표 — 검색 + 페이지네이션 ── */
-// 정적 HTML 한 번에 생성되는 보고서라 "검색창 입력/페이지 버튼 클릭 → 서버에 다시 물어본다"
-// 방식은 동작하지 않는다. 전체 행을 미리 <tr>...</tr> HTML 문자열 + 검색용 텍스트로 만들어
-// 심어두고, 검색·페이지 전환 모두 이 스크립트가 클라이언트에서 직접 처리한다.
+/* ── Section 5: 계층 표 ── */
 (function(){
-  const rows = __S5_ROWS_JSON__;
-  // rows: [{ search: "매체명 캠페인명" (소문자), html: "<tr>...</tr>" }, ...]
-  // M0 광고비 내림차순 정렬, M0 광고비 ≤ threshold 제외가 이미 적용된 상태(monthly_campaign_rows.py 출력).
-
-  const pageSize = 10;
-  const tbody = document.getElementById('monthlyCampaignTableBody');
-  const pager = document.getElementById('monthlyCampaignPager');
-  if (!tbody || !pager) return;
-
-  let currentTerm = '';
-  let currentPage = 1;
-
-  function filteredRows() {
-    if (!currentTerm) return rows;
-    return rows.filter(r => r.search.includes(currentTerm));
-  }
-
-  function pagerButton(label, page, opts) {
-    opts = opts || {};
-    const disabled = opts.disabled ? 'disabled' : '';
-    const active = opts.active
-      ? 'background:#3b82f6; border-color:#3b82f6; color:white;'
-      : 'background:white; border-color:#e2e8f0; color:#64748b;';
-    return `<button ${disabled} style="border:1px solid #e2e8f0; border-radius:6px; width:28px; height:28px; font-size:12px; cursor:${opts.disabled?'default':'pointer'}; ${active}" onclick="window.__monthlyCampaignGoto && window.__monthlyCampaignGoto(${page})">${label}</button>`;
-  }
-
-  function render() {
-    const list = filteredRows();
-    const totalPages = Math.max(1, Math.ceil(list.length / pageSize));
-    currentPage = Math.min(Math.max(1, currentPage), totalPages);
-    const start = (currentPage - 1) * pageSize;
-    const pageRows = list.slice(start, start + pageSize);
-
-    tbody.innerHTML = pageRows.length
-      ? pageRows.map(r => r.html).join('')
-      : `<tr><td colspan="__S5_COLSPAN__" style="white-space:nowrap; text-align:center; color:#94a3b8; padding:20px;">검색 결과가 없습니다.</td></tr>`;
-
-    let html = pagerButton('‹', currentPage - 1, { disabled: currentPage === 1 });
-    for (let i = 1; i <= totalPages; i++) {
-      html += pagerButton(String(i), i, { active: i === currentPage });
-    }
-    html += pagerButton('›', currentPage + 1, { disabled: currentPage === totalPages });
-    pager.innerHTML = html;
-  }
-
-  window.__monthlyCampaignGoto = function(page){ currentPage = page; render(); };
-  window.__monthlyCampaignSearch = function(value){
-    currentTerm = (value || '').trim().toLowerCase();
-    currentPage = 1;
-    render();
-  };
-
-  render();
+  const tree = __S5_TREE_JSON__;         // report_kit.build_tree
+  LHKit.treeTable('monthlyTree', tree, { note: __S5_NOTE_JSON__ });
 })();
 </script>
 </body></html>

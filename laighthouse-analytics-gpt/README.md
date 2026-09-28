@@ -43,11 +43,13 @@ laighthouse-plugin/
     │   └── capture_ad_performance.py  # Claude Code판과 동일한 스크립트
     ├── build_skill_zips.ps1           # 웹 업로드용 스킬별 zip 생성 + 규격 검증
     ├── shared/
-    │   └── references/                # 스킬 간 공유 데이터 스펙 (스킬 루트 기준 경로로 참조됨)
-    │       ├── mcp-tools.md
-    │       ├── generic-report-pattern.md
-    │       ├── report-types.md
-    │       └── gpt-large-response-guardrail.md   # 훅 스텁 / 원본 분기 규칙
+    │   ├── references/                # 스킬 간 공유 데이터 스펙 (스킬 루트 기준 경로로 참조됨)
+    │   │   ├── mcp-tools.md
+    │   │   ├── generic-report-pattern.md
+    │   │   ├── target-achievement.md
+    │   │   ├── report-types.md
+    │   │   └── gpt-large-response-guardrail.md   # 훅 스텁 / 원본 분기 규칙
+    │   └── assets/                    # 공용 렌더링 킷 report_kit.py/.js/.css — 빌더가 <스킬>/shared/assets 에서 찾음
     └── skills/
         ├── daily-detailed/        # 데일리 보고서(HTML, 실무 상세)
         │   ├── SKILL.md

@@ -3,17 +3,18 @@
 이 플러그인이 렌더링하는 보고서 종류의 단일 소스다. 보고서 종류마다 **별도 스킬**이 있고,
 사용자가 report_type을 따로 지정하는 개념이 없다 — 스킬 자체가 종류를 고정한다. 모든 스킬은
 **브랜드 비종속**이다: 사용자가 말한 브랜드명을 그대로 쓰고, 매체 목록·지표 키는 실행 시작의
-디스커버리 호출로 알아낸다 (`shared/references/generic-report-pattern.md`).
+디스커버리 호출로 알아낸다 (`shared/references/generic-report-pattern.md`). 매출 지표가 없는
+브랜드는 매출 없음 모드(노출·클릭·CTR·CPC), Organic 데이터가 있는 브랜드만 Organic 표시.
 
 ## report_type 개요
 
 | report_type | 스킬 | 대상 | 섹션 수 |
 |---|---|---|---|
-| `daily` (실무 상세) | `daily-detailed` | 일자별 성과, D-1 vs D-0 비교 | 5 |
+| `daily` (실무 상세) | `daily-detailed` | 일자별 성과, 매체→광고 계층 표로 D-1 vs D-0 비교 | 4 |
 | `daily` (임원 요약) | `daily-summary` | 매체 단위 D-1 vs D-0 | 5 |
-| `mtd` (실무 상세) | `mtd-detailed` | 월초~기준일 누적 | 7 |
+| `mtd` (실무 상세) | `mtd-detailed` | 월초~기준일 누적, 계층 표로 전월 동기 비교 | 7 |
 | `mtd` (임원 요약) | `mtd-summary` | 월초~기준일 누적, 전월 동기 비교 | 5 |
-| `monthly` (실무 상세) | `monthly-detailed` | 월 단위, M-1 vs M0 | 5 |
+| `monthly` (실무 상세) | `monthly-detailed` | 월 단위, 계층 표로 M-1 vs M0 | 5 |
 | `monthly` (임원 요약) | `monthly-summary` | 월 단위, M-1 vs M0 + 분기 비교 | 5 |
 | `creative` (실무 상세) | `creative-detailed` | 소재 단위(디스커버리로 선택한 매체 1개), 최근 7일 | 5 |
 | `creative` (임원 요약) | `creative-summary` | 소재 단위(디스커버리로 선택한 매체 1개), 최근 7일 | 5 |

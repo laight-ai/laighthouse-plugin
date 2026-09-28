@@ -13,20 +13,22 @@
 2. **일별 시리즈용**: SKILL.md 3-b의 `get_ad_performance` day 응답
    (`time_grain:"day"`, 같은 `filters`, 같은 7일 — section-3/5와 공유).
 
-## 소재 선정 (단순 정렬 — 스크립트 불필요)
+## 소재 선정: `assets/rank_creatives.py` 출력 재사용 (손정렬 금지)
 
-1. section-1의 total 응답에서 소재별 7일 합산 cost 키 값을 그대로 읽는다 — day
-   응답에서 다시 합산하지 않는다.
-2. cost 내림차순 상위 5개를 뽑는다. **이 5개 목록·순서는 section-5도 동일하게 재사용한다**
-   (두 차트의 라인 색상·범례 순서 일치).
-3. **표시 이름**: 5개 중 `ad_name`이 중복되면 그 소재들만 `{ad_name} ({ad_group_name})`으로
-   구분하고, 유일하면 `ad_name`만 쓴다(불필요하게 전부 괄호를 붙이지 않는다).
+1. SKILL.md 5단계에서 실행한 `rank_creatives.py`의 출력 파일(`/tmp/creative_rank.json`)에 section-1의
+   total 응답 기준 **광고비(7일 합산 cost 키) 내림차순 상위 5개** 키(`top5_keys`)와 표시 이름
+   (`top5_names`)이 이미 들어 있다 — day 응답에서 다시 합산하지 않고, 모델이 다시 정렬하지 않는다.
+   이 5개 목록·순서는 section-5도 동일하게 재사용한다(두 차트의 라인 색상·범례 순서 일치).
+   상위 5개에는 최소 표본 기준(section-1)을 적용하지 않는다.
+2. **표시 이름 규칙**(스크립트가 적용): `ad_name`이 비었거나 `"-"`이면 `"<ad_group_name> (소재명
+   없음)"`, 5개 중 표시 이름이 겹치면 그 소재들만 `" (<ad_group_name>)"`(그래도 겹치면
+   `" (<campaign_name>)"`)을 덧붙인다 — 불필요하게 전부 괄호를 붙이지 않는다.
 
 ## 계산: `assets/creative_daily_series.py` (필수) — section-3 파일의 호출 절 참고
 
-section-3 파일에 적힌 **한 번의 heredoc 호출**에 위 5개 키(`campaign_name`/`ad_group_name`/
-`ad_name`)를 `top5_keys`로(위 선정 순서 그대로) 넣으면, 출력 `top5.ctr_series`(이 섹션용)와
-`top5.roas_series`(section-5용)가 함께 나온다 — 이 섹션에서 스크립트를 다시 호출하지 않는다.
+section-3 파일에 적힌 **한 번의 heredoc 호출**에 `rank_file`을 넣으면(스크립트가 거기서
+`top5_keys`를 읽는다), 출력 `top5.ctr_series`(이 섹션용)와
+`top5.roas_series`(section-5용, 매출 없음 모드는 `top5.click_series`)가 함께 나온다 — 이 섹션에서 스크립트를 다시 호출하지 않는다.
 CTR은 스크립트가 항상 click 키÷impression 키×100으로 직접 계산한다. 노출 0이거나 그 날짜 행이
 없으면 이미 `null`로 채워져 있다 — 추가 가공 불필요.
 
@@ -36,9 +38,11 @@ CTR은 스크립트가 항상 click 키÷impression 키×100으로 직접 계산
 ## 빌더 `s4` 필드
 
 ```json
-"s4": { "names": ["표시이름1", "표시이름2", "표시이름3", "표시이름4", "표시이름5"] }
+"rank_file": "/tmp/creative_rank.json",   // 최상위 — s1/s4/s5가 공유
+"s4": {}
 ```
 
-- `names`는 위 3에서 정한 표시 이름을 광고비 내림차순 그대로. 시리즈는 최상위 `series_file`
-  (section-3 파일 참고)의 `top5.ctr_series`에서 빌더가 읽는다. 데이터가 비어있으면 `s4` 키를
-  뺀다.
+- `s4`는 빈 객체로 둔다 — 빌더가 `rank_file`의 `top5_names`를 범례 이름으로, 최상위
+  `series_file`(section-3 파일 참고)의 `top5.ctr_series`를 시리즈로 쓴다. Y축은 0부터, 눈금은
+  반올림(소수 최대 2자리), 툴팁 CTR은 소수 2자리, X축 제목 없음(템플릿 고정). 데이터가
+  비어있으면 `s4` 키를 뺀다.

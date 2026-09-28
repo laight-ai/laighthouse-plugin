@@ -7,7 +7,7 @@ description: >
   `creative-detailed`/`creative-summary`는 다른 스킬들과 **레이아웃이 상당히
   다르다** — 톤앤매너(색상·카드 스타일·폰트)는 동일하게 유지한다.
 metadata:
-  version: "2.1.0"
+  version: "3.0.0"
 ---
 
 
@@ -24,10 +24,11 @@ MCP 데이터를 받아 **라이트하우스 스타일 Executive 소재 보고�
 안내하거나 미지원임을 알린다).
 
 **브랜드 비종속**: 사용자가 말한 브랜드명을 모든 MCP 호출의 `brand_name`과 제목·파일명에 그대로
-쓴다. 매체 목록과 지표 키(`metric_names` → 역할별 `metric_keys`)는 실행 시작의 **디스커버리
-호출**로 알아낸다 — 절차·역할 해석 규칙은 `shared/references/generic-report-pattern.md`가 단일
-소스다. 이 파일과 섹션 파일에서 "cost/impression/click/revenue 키"라 하면 그 맵의 값을 뜻한다.
-소재(ad) 단위 행에도 매출이 지표로 함께 들어온다(별도 조인 불필요).
+쓴다. 매체 목록과 지표 키(역할별 `metric_keys`)·통화는 실행 시작의 **디스커버리 호출 +
+`assets/discover.py`**로 알아낸다 — 절차·역할 해석 규칙은 `shared/references/generic-report-pattern.md`가 단일
+소스다. 이 파일과 섹션 파일에서 "cost/impression/click/revenue 키"라 하면 그 맵의 값을 뜻한다
+(revenue는 있을 때만 — 없으면 **매출 없음 모드**, 아래 **모드** 절). 소재(ad) 단위 행에도
+매출이 지표로 함께 들어온다(별도 조인 불필요).
 
 **단일 매체 분석**: 소재 보고서는 매체 하나를 대상으로 한다(매체마다 소재 체계가 달라 섞지
 않는다). 대상 매체(`chosen_media`)는 아래 **매체 선택** 규칙으로 실행마다 정하고, 모든 소재
@@ -43,6 +44,8 @@ MCP 데이터를 받아 **라이트하우스 스타일 Executive 소재 보고�
   키는 영문(`date`/`media`/`source`/`campaign_name`/`ad_group_name`/`ad_id`/`ad_name` 등),
   **지표 키는 테넌트별**이다. **응답의 `metrics` 목록이 유효한 지표 키의 유일한 진실이다** —
   키를 추측하지 않고, 디스커버리 응답에서 역할별 `metric_keys`를 한 번 정해 그 키만 쓴다.
+- ⚠️ 매출(revenue 키) 값이 `null`인 행은 **모든 합계·ROAS 계산에서 0으로 취급한다**(매출
+  귀속 없음 — asset 스크립트가 처리한다). 모델이 따로 보정하지 않는다.
 - ⚠️ 비율 지표(ROAS/CTR류)는 요청한 grain 기준으로 서버가 이미 % 값으로 계산해 준다 —
   ×100 불필요. **행별 비율 값을 합산해 상위 기간 비율을 만들지 않는다**(날짜별 합산은
   `creative_daily_series.py`가 원자 지표 합으로 계산한다).
@@ -55,32 +58,60 @@ MCP 데이터를 받아 **라이트하우스 스타일 Executive 소재 보고�
 
 ## 매체 선택 (실행당 1회, 디스커버리 직후)
 
-1. **디스커버리 호출** (`generic-report-pattern.md` 2절의 변형 — `source`를 함께 받는다):
+1. **디스커버리 호출** (`generic-report-pattern.md` 2절 그대로):
    ```json
    { "brand_name": "<brand>", "start_date": "기준일 6일 전", "end_date": "target_date",
-     "time_grain": "total", "group_by": ["media", "source"], "metrics": [] }
+     "time_grain": "total", "group_by": ["media"] }
    ```
-   - 응답 `rows`는 (media, source) 쌍당 한 행. `media_list` = `media`가 `null`이 아닌 값들
-     (응답 문자열 그대로, 중복 제거·순서 유지), `sources_of[media]` = 그 매체 행들의 `source`
-     값 목록(매체 하나가 소스 여럿에 대응할 수 있다), `metric_names` = 봉투 `metrics`.
-   - `metric_names`로 역할별 `metric_keys`(cost/impression/click/revenue; conversion은 이
-     스킬에서 쓰지 않는다)를 정한다 — 3절 규칙, 미해결이면 한 번에 질문.
-   - 브랜드에 `media` 차원이 없어 호출이 실패하면 `group_by: ["source"]`로 재호출하고,
-     `source` 값을 `media_list`로, 이후 필터 키도 `"source"`로, `sources_of[m] = [m]`으로 쓴다.
+   - **`metrics`는 생략한다**(전체 지표). ⚠️ `metrics: []`로 부르면 봉투 `metrics`가 빈 배열로
+     와서 지표 키를 알 수 없다.
+   - 응답 원문을 **가공 없이 그대로** `python3 assets/discover.py`에 넘긴다(캡처 스텁이면
+     `{"json_files": ["<경로>"]}`) → `media_list`/`metric_keys`/`has_revenue`/`currency`.
+     `has_organic`은 이 스킬에서 쓰지 않는다(소재에는 Organic 개념이 없다 — `media: null` 행은
+     소재 선택에서 전부 무시한다).
+   - 출력의 `missing`/`ambiguous`가 비어 있지 않을 때만 사용자에게 **한 번에** 묻는다.
+     **`revenue`가 없는 것은 질문 사유가 아니다** — 그대로 **매출 없음 모드**로 진행한다(아래
+     **모드** 절).
+   - 브랜드에 `media` 차원이 없어 호출이 실패하면 `group_by: ["source"]`로 재호출하고(여전히
+     `metrics` 생략), `discover.py`가 `source` 값을 `media_list`로 낸다. 이후 필터 키도
+     `"source"`로 쓴다.
 2. **사용자가 매체를 지정했으면** 그 값을 `media_list`에서 정확 일치로 찾아 `chosen_media`로
    쓴다(대소문자만 다른 경우는 `media_list`의 표기로 맞춘다). 없으면 `media_list`를 보여주며
    한 번 되묻는다.
 3. **지정하지 않았으면 소재 데이터 유무를 확인한다**: `media_list`의 각 매체에 대해
    `get_ad_performance`(`time_grain:"total"`, `group_by:["ad_name"]`, `metrics:[]`,
-   `filters:{"media":[m]}`, 같은 7일)를 **한 배치**로 발사하고, `rows`가 비어있지 않은 매체만
-   후보로 남긴다.
+   `filters:{"media":[m]}`, 같은 7일)를 **한 배치**로 발사하고(여기서는 지표가 필요 없어
+   `metrics:[]`가 맞다), 응답들을 **`assets/rank_creatives.py`의 후보 확인 모드**에 한 번에 넘긴다:
+   ```bash
+   python3 assets/rank_creatives.py <<'PYEOF'
+   {"candidates": {"<매체1>": "<캡처 스텁 경로 또는 응답 원문>", "<매체2>": "...", ...}}
+   PYEOF
+   ```
+   → `candidates`(후보 매체 목록)/`excluded`(제외 사유). ⚠️ **`ad_name`이 전부 `null`/빈 값/
+   `"-"`인 매체는 후보가 아니다** — `rows: [{"ad_name": null}]`처럼 행이 있어도 소재 단위
+   데이터가 없는 것이다(실측: 검색·쇼핑 계열 매체). 실제 소재명이 1개 이상 있어야 후보다
+   (판정은 스크립트가 한다 — 모델이 응답을 훑어보고 판단하지 않는다).
    - 후보가 정확히 1개 → 그 매체가 `chosen_media`(질문 없음).
    - 후보가 2개 이상 → 후보 목록을 보여주며 어느 매체를 분석할지 **한 번** 묻는다.
    - 후보가 0개 → 소재 단위 데이터가 있는 매체가 없다고 알리고 종료한다(보고서 생성 안 함).
-4. `get_ad_creative_info`의 `source`는 `sources_of[chosen_media]`에서 귀속/분석 전용 소스
-   (`airbridge`, `google_analytics_4`, `ga4`)를 제외한 값이다 — 제외 후 남은 소스마다 1회씩
-   호출한다(제외 후 0개면 원래 `sources_of[chosen_media]` 전체로 호출한다). 서버가 그 `source`
-   값을 거절하면(지원 소스 아님) 썸네일은 `null`로 두고 진행한다(오류 아님).
+4. **썸네일 조회(`get_ad_creative_info`)에는 `source`를 넣지 않는다.** ELT의 `source`는 닫힌
+   목록(`google_ads`/`kakao_keyword_ad`/`kakao_moment`/`meta_ads`/`naver_search_ads`/
+   `tiktok_ads`)이라 그 밖의 값은 400 에러이고, 마트 `source` 차원 값(예: `naver_gfa_display`)과도
+   일치하지 않는다. 대신 `name_query`(서버에서 대소문자 무시 부분 일치)로 소재명을 넘기고, 응답
+   항목 중 정확히 일치하는 것을 고른다(section-1 파일의 **썸네일 매칭 규칙**). 에러·빈 결과·
+   불일치는 전부 썸네일 `null`이다(오류로 취급하지 않는다).
+
+## 모드 (`generic-report-pattern.md` 7절, 판정·분기는 빌더가 한다)
+
+- **매출 있음** (`metric_keys`에 `revenue` 있음): section-1 = ROAS 1·2위 + CTR 1·2위,
+  section-3 = 전체 CTR + 전체 ROAS, section-5 = 상위 5개 일별 ROAS.
+- **매출 없음** (`revenue` 없음 — 묻지 않는다): section-1 = **클릭 1·2위 + CTR 1·2위**,
+  section-3 = 전체 CTR + **전체 클릭**, section-5 = 상위 5개 **일별 클릭**.
+  Executive Summary는 CTR·CPC·클릭만으로 쓰고 매출·ROAS를 언급하지 않는다. 스크립트는 매출이
+  없어도 멈추지 않는다(ROAS 계열만 생략).
+- 제목·각주·단위는 빌더가 `metric_keys`로 모드를 판정해 바꾼다 — 모델은 모드에 맞는 `s1`
+  배열(`roas` 또는 `click`)만 채우고, `metric_keys`를 빌더·시리즈 스크립트에 **같은 값으로**
+  넘긴다.
 
 ---
 
@@ -104,8 +135,16 @@ MCP 데이터를 받아 **라이트하우스 스타일 Executive 소재 보고�
 > `.py`/`.js` 스크립트 파일을 새로 만들거나, HTML을 직접 타이핑하거나, 소재별 합산·조인을
 > 프로즈로 손계산하는 것은 전부 금지다.
 >
-> - **`assets/creative_daily_series.py`** — section-3(전체 소재 날짜별 합산 CTR/ROAS)과
->   section-4/5(상위 5개 소재 exact-match 일별 시리즈)의 파싱·계산 전부. 응답이
+> - **`assets/discover.py`** — 디스커버리 응답 → `media_list`/`metric_keys`/`has_revenue`/
+>   `currency` (실행 순서 2단계, 1회).
+> - **`assets/rank_creatives.py`** — (a) 매체 후보 확인(`candidates` 모드, 매체 선택 3),
+>   (b) total 응답 → section-1 최우수 소재 랭킹(최소 표본 기준 적용)·광고비 상위 5개 키와 표시
+>   이름·썸네일 조회 대상(`lookups`)·Executive Summary 근거(`media_totals`/`top_by_cost`).
+>   결과는 `out` 파일(`/tmp/creative_rank.json`)에 저장되고 stdout에는 요약이 나온다. 시리즈
+>   스크립트와 빌더는 이 파일을 `rank_file`로 읽는다 — **모델은 소재 행을 손으로 정렬·필터링하거나
+>   키·이름을 옮겨 적지 않는다.** total 응답이 캡처 스텁이면 `json_files`에 경로만 넘긴다.
+> - **`assets/creative_daily_series.py`** — section-3(전체 소재 날짜별 합산 CTR + ROAS 또는
+>   클릭)과 section-4/5(상위 5개 소재 exact-match 일별 CTR/ROAS/클릭 시리즈)의 파싱·계산 전부. 응답이
 >   `[laighthouse-capture-hook] ... 저장됨: <경로>` 스텁으로 오면(캡처 훅 동작 호스트 — 이
 >   플러그인의 PostToolUse 훅이 대용량 응답을 파일로 저장한 것) `json_files`에 경로만,
 >   원본 JSON 봉투가 그대로 오면 `json`에 문자열 통째로 넘긴다(혼용 가능). 따옴표 있는 heredoc(`<<'PYEOF'`)으로
@@ -122,8 +161,9 @@ MCP 데이터를 받아 **라이트하우스 스타일 Executive 소재 보고�
 >   (`creative_daily_series > f && build_report`) — 왕복을 늘리지 않는다.
 > - MCP 응답을 스크래치 파일에 옮겨 적었다가 다시 읽는 왕복, 별도 파서/생성 스크립트 작성,
 >   응답 원본의 재타이핑은 전부 금지다.
-> - section-1의 랭킹(ROAS/CTR 1·2위)과 section-4의 상위 5개 선정은 total 응답(소재당
->   1행, 이미 합산됨)의 단순 정렬이라 스크립트가 필요 없다 — 모델이 직접 정렬한다.
+> - section-1의 랭킹과 section-4/5의 상위 5개 선정은 **`rank_creatives.py`가 한다** — total
+>   응답은 소재 수백 개가 캡처 스텁으로 오는 것이 정상이라 손 정렬은 불가능하고, 최소 표본
+>   기준·소재명 폴백·중복 이름 구분까지 규칙이 있어 모델이 직접 정렬하지 않는다.
 > - (최후 폴백) Bash/python3가 전혀 없는 호스트에서만, `assets/report-template.html`을 Read해서
 >   placeholder를 직접 치환한다 — 그 외 호스트에서는 절대 이 경로를 쓰지 않는다.
 
@@ -134,7 +174,7 @@ MCP 데이터를 받아 **라이트하우스 스타일 Executive 소재 보고�
 | 보고서 제목 | 보고서 상단 타이틀 (`{브랜드명} Executive 소재 보고서`) | acme Executive 소재 보고서 |
 | brand_name | 사용자가 말한 브랜드명 그대로 | acme |
 | 기준 일자 | 보고서 기준 날짜 (`target_date`) | 2026-05-15 |
-| 매체 | 선택 — 사용자가 지정한 분석 대상 매체(없으면 매체 선택 규칙으로 정한다) | Kakao |
+| 매체 | 선택 — 사용자가 지정한 분석 대상 매체(없으면 매체 선택 규칙으로 정한다) | `<media_list의 값>` |
 
 섹션 구성은 고정 5개(아래 표) — 사용자가 섹션을 고르는 개념이 없다.
 
@@ -143,8 +183,10 @@ MCP 데이터를 받아 **라이트하우스 스타일 Executive 소재 보고�
 ## 실행 순서
 
 1. 파라미터를 파싱한다. report_type은 `creative-summary` 고정.
-2. **디스커버리 + 매체 선택** (위 **매체 선택** 절): 디스커버리 1회 → `media_list`/
-   `sources_of`/`metric_keys` → (필요 시 소재 유무 확인 배치 1회) → `chosen_media` 확정.
+2. **디스커버리 + 매체 선택** (위 **매체 선택** 절): 디스커버리 1회(`metrics` 생략) →
+   `discover.py` → `media_list`/`metric_keys`/`currency` →
+   (필요 시 소재 유무 확인 배치 1회 + `rank_creatives.py` 후보 확인) → `chosen_media` 확정. `metric_keys`에 revenue가 없으면
+   매출 없음 모드.
 3. **소재 데이터 배치 (한 메시지에 동시 발사, 총 2회)** — 소재 데이터는 두 갈래다:
    - **3-a. section-1용 (7일 합산, 랭킹)**: `get_ad_performance` ×1
      (`time_grain:"total"`, `filters:{"media":["<chosen_media>"]}`,
@@ -161,19 +203,22 @@ MCP 데이터를 받아 **라이트하우스 스타일 Executive 소재 보고�
    준비 중" 골격을 만들고 게시한다(아래 9단계와 같은 출력 경로/Artifact — 이후 재게시로 교체).
    이 단계를 건너뛰고 끝에서 한꺼번에 내놓으려다 툴호출 예산이 바닥나면 사용자는 아무것도 못
    본다 — 자매 스킬의 실제 사고 사례가 있는 필수 단계다.
-5. **section-1 랭킹 + 상위 5개 선정**: 3-a 응답에서 ROAS/CTR 1·2위와 cost 키 상위 5개
-   소재(표시 이름 포함)를 정한다(각 섹션 파일의 선정 규칙). 선정된 유니크 최대 4개 소재
-   각각에 대해 `get_ad_creative_info`(`source:"<sources_of[chosen_media] 값>"`,
-   `name_query:"<ad_name>"`)를 호출해 `image_url`을 받는다(⚠️ IP 화이트리스트 뒤라 허용되지
-   않은 네트워크에서는 이미지가 안 뜰 수 있다 — onerror 폴백은 템플릿이 처리). **이 스킬의
-   MCP 데이터 호출은 디스커버리(+확인 배치) + 3단계 2회 + 이 최대 4회×소스 수로 끝난다.**
+5. **랭킹 (`assets/rank_creatives.py`, 1회)**: 3-a 응답(스텁 경로 또는 원본)과 `metric_keys`,
+   `chosen_media`를 넘겨 `/tmp/creative_rank.json`에 저장한다(호출 형식은 section-1 파일).
+   stdout 요약의 `lookups`(썸네일 조회 대상, 최대 4개)마다 `get_ad_creative_info`를
+   **`source` 없이** `{"brand_name": "<brand>", "name_query": "<lookups[i].ad_name>"}`로 호출하고
+   (한 배치로 동시 발사), section-1 파일의 **썸네일 매칭 규칙**으로 고른 `image_url`을
+   `thumbnails: {"L1": "<url>", ...}`로 빌더에 넘긴다(에러/불일치는 `null`)(⚠️ IP 화이트리스트
+   뒤라 허용되지 않은 네트워크에서는 이미지가 안 뜰 수 있다 — onerror 폴백은 템플릿이 처리).
+   **이 스킬의 MCP 데이터 호출은 디스커버리(+확인 배치) + 3단계 2회 + 이 최대 4회로 끝난다.**
 6. **시리즈 계산**: `assets/creative_daily_series.py`를 3-b 응답(스텁 경로 또는 원본)과
-   `top5_keys`, `metric_keys`로 1회 실행해 `> /tmp/creative_series.json`으로 저장한다 —
-   section-3(overall)과 section-4/5(top5)가 이 한 파일을 공유한다 (section-3 파일의 호출 절
-   참고).
+   `rank_file`(5단계 출력 — 상위 5개 키를 여기서 읽는다), `metric_keys`로 1회 실행해
+   `> /tmp/creative_series.json`으로 저장한다 — section-3(overall)과 section-4/5(top5)가 이 한
+   파일을 공유한다 (section-3 파일의 호출 절 참고).
 7. **section-2 Executive Summary 작성** — 신규 MCP 호출 없이 다른 섹션 데이터만 재사용해 AI가
    직접 작성 (`creative-summary-section-2-executive-summary.md`의 규칙, `df_dify` 호출 금지).
-8. **최종 빌드**: `assets/build_report.py`에 값 JSON을 heredoc으로 넘겨 최종 HTML을 생성한다.
+8. **최종 빌드**: `assets/build_report.py`에 값 JSON(`metric_keys`, `currency`, `series_file`,
+   `rank_file`, `thumbnails` 포함, `s1`/`s3`/`s4`/`s5`는 빈 객체 `{}`)을 heredoc으로 넘겨 최종 HTML을 생성한다.
    출력 경로(`out`)는 `~/Downloads/laighthouse-reports/{브랜드명}_creative-summary_{기준_일자}.html`
    (디렉터리는 빌더가 만든다).
 9. 완성된 HTML을 **두 곳에 동시에** 낸다 — 하나만 하고 끝내지 않는다:
@@ -193,7 +238,7 @@ MCP 데이터를 받아 **라이트하우스 스타일 Executive 소재 보고�
 > 호출은 한 메시지 안에서 동시에(병렬 tool call로) 발사한다.** 배치의 실제 효과는 "턴 오버헤드
 > 제거"다(네트워크 동시 실행 보장은 아님 — 실측 daily-summary 참고). 진짜 속도는 (a) 호출 총
 > 개수 고정(디스커버리 1회 + 소재 데이터 2회 + creative_info 최대 4회, section-3/4/5의 day
-> 응답 공유), (b) 캡처 훅(대용량 응답의 파일 우회), (c) asset 스크립트(재타이핑·손계산
+> 응답 공유), (b) 캡처 훅(대용량 응답의 파일 우회), (c) asset 스크립트(재타이핑·손계산·손정렬
 > 제거)에서 나온다.
 
 ---
@@ -219,17 +264,18 @@ MCP 데이터를 받아 **라이트하우스 스타일 Executive 소재 보고�
 
 | 순서 | 섹션 | 파일 | 빌더 키 |
 |-----|------|------|--------|
-| 1 | 최우수 소재 (ROAS / CTR, 최근 7일) | `creative-summary-section-1-top-creatives.md` | `s1` |
+| 1 | 최우수 소재 (ROAS — 매출 없음: 클릭 — / CTR, 최근 7일) | `creative-summary-section-1-top-creatives.md` | `s1` |
 | 2 | Executive Summary | `creative-summary-section-2-executive-summary.md` | `s2` |
-| 3 | 최근 7일 전체 소재 CTR 및 ROAS | `creative-summary-section-3-daily-creative-total-performance.md` | `s3` |
+| 3 | 최근 7일 전체 소재 CTR 및 ROAS (매출 없음: CTR 및 클릭) | `creative-summary-section-3-daily-creative-total-performance.md` | `s3` |
 | 4 | 최근 7일 일별 CTR (광고비 상위 5개 소재) | `creative-summary-section-4-daily-CTR.md` | `s4` |
-| 5 | 최근 7일 일별 ROAS (광고비 상위 5개 소재) | `creative-summary-section-5-daily-ROAS.md` | `s5` |
+| 5 | 최근 7일 일별 ROAS — 매출 없음: 일별 클릭 — (광고비 상위 5개 소재) | `creative-summary-section-5-daily-ROAS.md` | `s5` |
 
 - section-1/4/5는 `creative-detailed`의 section-1/3/4와 동일 내용이다(4/5는 번호만 하나씩
   밀림). section-3은 이 스킬 고유의 신규 섹션, section-2는 임원용 불릿 카드 골격(점 색상
   구분)을 쓴다. `creative-detailed`의 소재 전체 나열 표에 대응하는 섹션은 없다.
-- **데이터 흐름 요약**: 3-a(total ×1) → section-1 랭킹 + section-4의 상위 5개 선정.
-  3-b(day ×1) → `creative_daily_series.py` 1회 → section-3(overall)/4(top5 CTR)/
-  5(top5 ROAS) 공유. section-2는 신규 호출 없이 재사용만.
+- **데이터 흐름 요약**: 3-a(total ×1) → `rank_creatives.py` 1회(`/tmp/creative_rank.json`) →
+  section-1 랭킹 + section-4/5의 상위 5개 키·표시 이름. 3-b(day ×1) + `rank_file` →
+  `creative_daily_series.py` 1회 → section-3(overall)/4(top5 CTR)/
+  5(top5 ROAS — 매출 없음: top5 클릭) 공유. section-2는 신규 호출 없이 재사용만.
 - 섹션 데이터가 준비 안 되면 해당 `s*` 키를 빌더 입력에서 뺀다 → "데이터 준비 중" 카드로
   렌더링된다. 섹션을 임의로 생략하는 개념은 없다 — 항상 5개 전부.
