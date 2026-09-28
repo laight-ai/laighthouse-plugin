@@ -169,19 +169,15 @@
           const val = r.tot == null ? '-' : fmtMetric(r.tot, m.unit) + (grand ? ` · ${(r.tot / grand * 100).toFixed(1)}%` : '');
           return `<button type="button" data-media="${encodeURIComponent(r.s.label)}" style="display:flex;align-items:center;gap:8px;border:1px solid #e2e8f0;background:#fff;border-radius:8px;padding:6px 10px;font-size:12px;cursor:pointer;color:#1e293b;opacity:${off ? 0.35 : 1};">` +
             `<i style="width:14px;height:3px;border-radius:2px;background:${r.s.color};display:inline-block;"></i><b>${esc(r.s.label)}</b>` +
-            `<span style="color:#64748b;font-variant-numeric:tabular-nums;">${val}</span>` +
-            `<span data-only="${encodeURIComponent(r.s.label)}" style="font-size:11px;color:#2563eb;">만 보기</span></button>`;
+            `<span style="color:#64748b;font-variant-numeric:tabular-nums;">${val}</span></button>`;
         }).join('') + `<a data-reset="1" style="font-size:11.5px;color:#2563eb;cursor:pointer;margin-left:4px;">전체 보기</a></div>`;
     }
     if (box) {
       box.addEventListener('click', e => {
-        const t = e.target.closest('[data-metric],[data-only],[data-media],[data-reset]');
+        const t = e.target.closest('[data-metric],[data-media],[data-reset]');
         if (!t) return;
         if (t.dataset.metric) cur = decodeURIComponent(t.dataset.metric);
-        else if (t.dataset.only) {
-          const only = decodeURIComponent(t.dataset.only);
-          hidden.clear(); spec.series.forEach(s => { if (s.label !== only) hidden.add(s.label); });
-        } else if (t.dataset.media) {
+        else if (t.dataset.media) {
           const name = decodeURIComponent(t.dataset.media);
           if (hidden.has(name)) hidden.delete(name); else hidden.add(name);
         } else if (t.dataset.reset) hidden.clear();
