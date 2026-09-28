@@ -25,7 +25,7 @@
 - `generic-report-pattern.md` 5절 — 매체별 목표가 필요한 **유일한** 표라서 여기서만 매체마다
   부른다. `media`에는 `media_list`의 값을 **그대로** 넣는다(`.lower()`·표기 변환 금지 — 서버가
   대소문자 무시·한국어 별칭으로 매칭한다).
-- section-1의 호출들(전체 매체 목표 1회 + 당월 실적 1회)과 **같은 1차 배치**에서 동시에 발사한다.
+- section-1 목표 호출·section-3 공유 호출과 **같은 1차 배치**에서 동시에 발사한다.
 - 응답 처리 (아래는 전부 **목표 없음**, 오류 아님):
   - `No {media} budget/target available for {month}.` 한 줄
   - 마트 전제 미충족 안내 한 줄
@@ -36,9 +36,8 @@
 
 ## 실적 — 신규 호출 없음
 
-- `cost`/`revenue`/`impression`/`click`: section-1의 `get_ad_performance`(당월, month grain,
-  `group_by:["media"]`, `filters` 생략) 응답에서 그 매체 행(`media` = 그 매체 문자열)의 역할 키
-  값. **목표 유무와 무관하게 항상 이 값**이다 — 목표 도구의 `actual`은 쓰지 않는다.
+- `cost`/`revenue`/`impression`/`click`: section-3 공유 응답(6개월, month grain, `day_offset`)의
+  **당월 행** 중 그 매체 행(`media` = 그 매체 문자열)의 역할 키 값. **목표 유무와 무관하게 항상 이 값**이다 — 목표 도구의 `actual`은 쓰지 않는다.
   `metric_keys`에 revenue가 없으면 `revenue`는 넣지 않는다.
 
 ## 빌더 `s6.rows` (`media_list` 전 매체 — 목표 없는 매체도 행을 빼지 않는다)

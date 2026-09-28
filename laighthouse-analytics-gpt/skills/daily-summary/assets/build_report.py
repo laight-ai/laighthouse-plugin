@@ -169,7 +169,7 @@ def build_bullets(s2):
 
 
 def main():
-    payload = json.load(sys.stdin)
+    payload = kit.read_payload()
     target = date.fromisoformat(payload["target_date"])
     d1 = target - timedelta(days=1)
     skeleton = bool(payload.get("skeleton"))

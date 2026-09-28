@@ -353,7 +353,7 @@
           const tog = n.kids.length
             ? `<button type="button" class="lh-tog" data-id="${n.id}" aria-expanded="${open}">${open ? '▼' : '▶'}</button>`
             : '<span class="lh-tog-sp"></span>';
-          cells += `<td class="lh-lv lh-name" title="${esc(n.name)}">${tog}<span>${esc(n.name)}</span></td>`;
+          cells += `<td class="lh-lv lh-name"><div class="lh-namebox">${tog}<span>${esc(n.name).replace(/([_\-\/])/g, '$1<wbr>')}</span></div></td>`;  // _ - / 뒤에서 먼저 줄바꿈
         } else if (lv === n.depth + 1 && n.kids.length) cells += '<td class="lh-lv lh-all">전체</td>';
         else cells += '<td class="lh-lv"></td>';
       }

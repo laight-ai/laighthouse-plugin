@@ -154,7 +154,7 @@ def build_bullets(s2):
 
 
 def main():
-    payload = json.load(sys.stdin)
+    payload = kit.read_payload()
     target = date.fromisoformat(payload["target_date"])
     m1_y, m1_m = month_add(target.year, target.month, -1)
     skeleton = bool(payload.get("skeleton"))

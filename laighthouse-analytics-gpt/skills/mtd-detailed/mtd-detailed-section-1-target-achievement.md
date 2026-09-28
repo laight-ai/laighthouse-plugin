@@ -11,8 +11,12 @@
 | `{as_of}` | target_date |
 | `{start}` ~ `{end}` | 당월 1일 ~ target_date |
 
-- 실적 호출(`get_ad_performance`, 당월 month grain, `group_by:["media"]`) 응답은 section-6이
-  매체별 실적으로 그대로 재사용한다.
+- **실적 호출을 따로 하지 않는다** — section-3의 6개월 공유 응답(`time_grain:"month"`,
+  `group_by:["media"]`, `day_offset`=target_date.day)의 **당월(`month` = `{month}`) 행**이 정확히
+  `{start}`~`{end}` 실적이다(`target-achievement.md`의 재사용 규칙). 그 행들 중 광고 매체 행
+  (`media` non-null)의 역할 키 합을 `s1`에 넣는다.
+
+- 같은 당월 행이 section-6의 매체별 실적이다.
 - section-6용 **매체별** `get_target_progress_v2` 호출(`mtd-detailed-section-6-channel-budget.md`)도
-  이 섹션의 두 호출과 **같은 배치**에서 함께 발사한다 — section-1 카드는 매체별 응답을 합산하지
+  이 섹션의 목표 호출·section-3 공유 호출과 **같은 배치**에서 함께 발사한다 — section-1 카드는 매체별 응답을 합산하지
   않고 전체 매체(`media` 생략) 1회 응답만 쓴다.

@@ -282,7 +282,7 @@ def load_rows(section):
 
 
 def main():
-    payload = json.load(sys.stdin)
+    payload = kit.read_payload()
     target = date.fromisoformat(payload["target_date"])
     skeleton = bool(payload.get("skeleton"))
     modes = kit.Modes(payload.get("metric_keys") or {})
