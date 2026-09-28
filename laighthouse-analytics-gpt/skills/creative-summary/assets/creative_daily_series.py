@@ -208,7 +208,7 @@ def compute_top5(rows, dates, top5_keys, mk):
 
 
 def main():
-    payload = json.load(sys.stdin)
+    payload = _load_kit().read_payload()
 
     rows = list(payload.get("rows") or [])
     metrics = set()

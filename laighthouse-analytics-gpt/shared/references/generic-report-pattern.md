@@ -151,3 +151,16 @@
 - 비율(ROAS/CTR/CPC/CPA)은 넣지 않는다 — 빌더가 원자 값 합으로 계산한다.
 - 입력 규칙: `cost`·`impression`·`click`은 **항상**, `revenue`·`conversion`은 그 역할이 있을 때
   넣는다. 표시할 값은 빌더가 모드로 고른다.
+
+### 빌더·스크립트에 입력 넘기기
+
+모든 asset 스크립트(`build_report.py`, `discover.py`, `creative_daily_series.py`, `rank_creatives.py`)는
+입력 JSON을 **stdin 또는 인자로 준 파일 경로**에서 읽는다.
+
+- 입력이 짧으면 따옴표 있는 heredoc(`<<'PYEOF'`)으로 stdin에 넘긴다.
+- 입력이 길면(캡처 스텁 경로 여러 개 + 집계 값 등) **인라인 python으로 입력 JSON을 조립해
+  파이프**한다 — `python3 - <<'PY' ... PY | python3 assets/build_report.py`. 조립 코드는 캡처 파일을
+  경로로만 가리키고(`json_files`), 집계 값은 그 자리에서 계산한다. 조립한 JSON을 파일로 두고
+  `python3 assets/build_report.py <입력.json>`처럼 경로를 넘겨도 된다.
+- 어느 방식이든 응답 원문을 손으로 옮겨 적지 않는다. 캡처 스텁은 경로(`json_files`), 컨텍스트에 원문으로
+  온 작은 응답만 `json`에 문자열 그대로 넣는다.

@@ -99,6 +99,8 @@ generic 도구(`get_ad_performance`)와 `get_target_progress_v2`, `list_promotio
 >   응답 원본의 재타이핑은 전부 금지다. 이 스킬이 실행 중 만드는 파일은 최종 보고서 HTML
 >   섹션 입력값 집계(날짜·월·매체별 합)는 Bash 한 번의 **인라인 python**(파일 생성 없는 읽기 전용
 >   집계)으로 한다 — 손계산보다 이쪽이 원칙이다(`generic-report-pattern.md` 9절).
+>   빌더 입력이 길면 인라인 python으로 입력 JSON을 조립해 파이프하거나 파일 경로를 인자로 넘긴다
+>   (같은 9절 「빌더·스크립트에 입력 넘기기」).
 >   하나뿐이다(빌더가 저장한다).
 > - (최후 폴백) Bash/python3가 전혀 없는 호스트에서만, `assets/report-template.html`을 Read해서
 >   placeholder를 직접 치환한다 — 그 외 호스트에서는 절대 이 경로를 쓰지 않는다.
@@ -127,10 +129,9 @@ generic 도구(`get_ad_performance`)와 `get_target_progress_v2`, `list_promotio
 3. **데이터 호출 전체를 한 배치(한 메시지)로 동시 발사** — 조건부 2차 라운드 없음:
    - `get_target_progress_v2` ×1 (`media` 생략 = 전체 매체, `cost_metric`/`revenue_metric` = `metric_keys`; 한 줄 메시지/에러는 목표 없음)
      — section-1용.
-   - `get_ad_performance` ×1 (당월 1일~target_date, `time_grain:"month"`, `group_by:["media"]`,
-     `filters` 생략) — section-1의 실적(소진액·매출·노출·클릭).
    - `get_ad_performance` ×1 (5개월 전 1일~target_date, `time_grain:"month"`,
-     `group_by:["media"]`, `filters`·`metrics` 생략, `day_offset`=target_date.day) — section-3/4/5 공유.
+     `group_by:["media"]`, `filters`·`metrics` 생략, `day_offset`=target_date.day) — section-1/3/4/5 공유
+     (section-1 실적은 이 응답의 당월 행 — 별도 당월 호출 없음).
    - `list_promotions` ×1 (당월 1일 30일 전 ~ target_date) — section-2 전용.
 4. ⏱ **필수 체크포인트 — 스켈레톤 선(先) 게시.** 3단계 응답 수신 즉시, 계산을 시작하기 전에
    `python3 assets/build_report.py`를 `{"skeleton": true, ...}`로 1회 호출해 전 섹션 "데이터

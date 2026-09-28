@@ -191,10 +191,25 @@ def ratio(num, den, scale=100.0):
     return num / den * scale
 
 
+def read_payload(argv=None, stdin=None):
+    """asset 스크립트 입력 JSON — 인자로 파일 경로를 주면 그 파일, 없으면 stdin.
+
+    입력이 길 때(캡처 스텁 경로 여러 개 + 응답 원문 등) 모델은 heredoc 대신 인라인 python으로 입력
+    JSON을 조립해 파이프하거나(`python - <<'PY' ... | python assets/build_report.py`), 조립한 JSON 파일
+    경로를 인자로 넘긴다(`python assets/build_report.py <입력.json>`). generic-report-pattern.md 9절.
+    """
+    import sys as _sys
+    argv = _sys.argv if argv is None else argv
+    if len(argv) > 1 and argv[1] not in ("-", ""):
+        with open(os.path.expanduser(argv[1]), encoding="utf-8-sig") as f:
+            return json.load(f)
+    return json.load(stdin or _sys.stdin)
+
+
 def discover_main(stdin, stdout):
     """스킬 assets/discover.py 의 본체. stdin: 디스커버리 봉투 원문 JSON 그대로, 또는
     {"json_files": [...]} / {"json": "..."} (캡처 스텁 경로). stdout: resolve_roles 결과 JSON."""
-    payload = json.load(stdin)
+    payload = read_payload(stdin=stdin)
     if isinstance(payload, dict) and ("json_files" in payload or "json" in payload) and "rows" not in payload:
         envs = load_envelopes(payload)
         payload = envs[0] if envs else {}

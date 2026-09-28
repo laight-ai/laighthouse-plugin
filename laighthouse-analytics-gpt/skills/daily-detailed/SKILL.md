@@ -94,6 +94,8 @@ generic 도구(`get_ad_performance`)와 `get_target_progress_v2`, `list_promotio
 >   응답 원본의 재타이핑은 전부 금지다.
 >   섹션 입력값 집계(날짜·월·매체별 합)는 Bash 한 번의 **인라인 python**(파일 생성 없는 읽기 전용
 >   집계)으로 한다 — 손계산보다 이쪽이 원칙이다(`generic-report-pattern.md` 9절).
+>   빌더 입력이 길면 인라인 python으로 입력 JSON을 조립해 파이프하거나 파일 경로를 인자로 넘긴다
+>   (같은 9절 「빌더·스크립트에 입력 넘기기」).
 > - (최후 폴백) Bash/python3가 전혀 없는 호스트에서만, `assets/report-template.html`을 Read해서
 >   placeholder를 직접 치환한다 — 그 외 호스트에서는 절대 이 경로를 쓰지 않는다.
 

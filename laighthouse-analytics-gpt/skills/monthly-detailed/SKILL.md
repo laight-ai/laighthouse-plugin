@@ -102,6 +102,8 @@ generic 도구(`get_ad_performance`)와 `get_target_progress_v2`, `list_promotio
 >   응답 원본의 재타이핑은 전부 금지다.
 >   섹션 입력값 집계(날짜·월·매체별 합)는 Bash 한 번의 **인라인 python**(파일 생성 없는 읽기 전용
 >   집계)으로 한다 — 손계산보다 이쪽이 원칙이다(`generic-report-pattern.md` 9절).
+>   빌더 입력이 길면 인라인 python으로 입력 JSON을 조립해 파이프하거나 파일 경로를 인자로 넘긴다
+>   (같은 9절 「빌더·스크립트에 입력 넘기기」).
 > - (최후 폴백) Bash/python3가 전혀 없는 호스트에서만, `assets/report-template.html`을 Read해서
 >   placeholder를 직접 치환한다 — 그 외 호스트에서는 절대 이 경로를 쓰지 않는다.
 
@@ -127,15 +129,14 @@ generic 도구(`get_ad_performance`)와 `get_target_progress_v2`, `list_promotio
    받는다. 출력의 `missing`/`ambiguous`가 비어 있지 않을 때만 사용자에게 한 번에 묻는다(revenue가
    없는 것은 질문 사유가 아니다 — 매출 없음 모드).
 3. **1차 배치 (한 메시지에 동시 발사)**: `get_target_progress_v2` ×1(`media` 생략, `cost_metric`/`revenue_metric` = `metric_keys`) +
-   `get_ad_performance` ×1(당월 1일~target_date, `time_grain:"month"`, `group_by:["media"]`)
-   — section-1용 (`monthly-detailed-section-1-target-achievement.md`).
+   section-1/3/4/5(매체 레벨) 공유 응답 (5개월 전 1일~target_date, `time_grain:"month"`, `group_by:["media"]`, `metrics`·`filters` 생략, `day_offset`=target_date.day)
+   — section-1 실적은 이 응답의 당월 행(별도 당월 호출 없음, `monthly-detailed-section-1-target-achievement.md`).
 4. ⏱ **필수 체크포인트 — 스켈레톤 선(先) 게시.** 3단계 응답 수신 즉시, 다음 단계 전에
    `python3 assets/build_report.py`를 `{"skeleton": true, ...}`로 1회 호출해 전 섹션 "데이터
    준비 중" 골격을 만들고 게시한다(아래 9단계와 같은 출력 경로/Artifact — 이후 재게시로 교체).
    이 단계를 건너뛰고 끝에서 한꺼번에 내놓으려다 툴호출 예산이 바닥나면 사용자는 아무것도 못
    본다 — 자매 스킬의 실제 사고 사례가 있는 필수 단계다.
-5. **2차 배치 (한 메시지에 동시 발사)**: section-3/4/5(매체 레벨) 공유 응답(`time_grain:"month"`,
-   `group_by:["media"]`, 6개월, `filters`·`metrics` 생략, `day_offset` 1회) + section-5 계층 표
+5. **2차 배치 (한 메시지에 동시 발사)**: section-5 계층 표
    (전월 1일~target_date, `time_grain:"month"`, `day_offset`, `metrics` 생략 — 캠페인 레벨 1회 +
    광고그룹·광고 레벨 각각 `media_list`의 매체마다 1회) + `list_promotions` 1회(당월 1일 30일 전 ~
    target_date). 각 섹션 파일의 호출 명세를 그대로 따른다.
@@ -167,7 +168,7 @@ generic 도구(`get_ad_performance`)와 `get_target_progress_v2`, `list_promotio
 > 제거"다(네트워크 동시 실행 보장은 아님 — 실측 daily-summary 참고). 진짜 속도는 (a) 호출 총
 > 개수 축소(목표 1회 + section-3 응답을 section-4와 계층 표 매체 레벨로 재사용), (b) 캡처 훅
 > (대용량 응답의 파일 우회), (c) asset 스크립트(재타이핑·손계산 제거)에서 나온다. 데이터 호출은
-> 디스커버리 1회 + 1차 배치 2회 + 2차 배치(3 + 2×len(media_list)회)로 끝난다.
+> 디스커버리 1회 + 1차 배치 2회 + 2차 배치(2 + 2×len(media_list)회)로 끝난다.
 
 ---
 

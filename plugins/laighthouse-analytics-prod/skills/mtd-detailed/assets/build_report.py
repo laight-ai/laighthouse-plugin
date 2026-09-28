@@ -267,7 +267,7 @@ def tree_note(target, m1_m):
 # ── main ────────────────────────────────────────────────────────────────────
 
 def main():
-    payload = json.load(sys.stdin)
+    payload = kit.read_payload()
     target = date.fromisoformat(payload["target_date"])
     m1_y, m1_m = month_shift(target.year, target.month, -1)
     skeleton = bool(payload.get("skeleton"))

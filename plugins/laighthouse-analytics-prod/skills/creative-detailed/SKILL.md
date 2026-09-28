@@ -173,6 +173,8 @@ generic 도구(`get_ad_performance`)와 `get_ad_creative_info`만 쓴다 —
 > - MCP 응답을 스크래치 파일에 옮겨 적었다가 다시 읽는 왕복, 별도 파서/생성 스크립트 작성,
 >   응답 원본의 재타이핑은 전부 금지다. 이 스킬이 만드는 파일은 랭킹 출력 JSON 1개, 시리즈
 >   스크립트 출력 JSON 1개, 빌더가 저장하는 최종 보고서 HTML뿐이다.
+>   입력이 길면 인라인 python으로 입력 JSON을 조립해 파이프하거나 파일 경로를 인자로 넘긴다 — 모든 asset
+>   스크립트가 stdin과 파일 경로를 둘 다 받는다(`shared/references/generic-report-pattern.md` 9절).
 > - (최후 폴백) Bash/python3가 전혀 없는 호스트에서만, `assets/report-template.html`을 Read해서
 >   placeholder를 직접 치환한다 — 그 외 호스트에서는 절대 이 경로를 쓰지 않는다.
 
