@@ -167,6 +167,8 @@ MCP 데이터를 받아 **라이트하우스 스타일 Executive 소재 보고�
 >   (`creative_daily_series > f && build_report`) — 왕복을 늘리지 않는다.
 > - MCP 응답을 스크래치 파일에 옮겨 적었다가 다시 읽는 왕복, 별도 파서/생성 스크립트 작성,
 >   응답 원본의 재타이핑은 전부 금지다.
+>   입력이 길면 인라인 python으로 입력 JSON을 조립해 파이프하거나 파일 경로를 인자로 넘긴다 — 모든 asset
+>   스크립트가 stdin과 파일 경로를 둘 다 받는다(`shared/references/generic-report-pattern.md` 9절).
 > - section-1의 랭킹과 section-4/5의 상위 5개 선정은 **`rank_creatives.py`가 한다** — total
 >   응답은 소재 수백 개가 캡처 스텁으로 오는 것이 정상이라 손 정렬은 불가능하고, 최소 표본
 >   기준·소재명 폴백·중복 이름 구분까지 규칙이 있어 모델이 직접 정렬하지 않는다.

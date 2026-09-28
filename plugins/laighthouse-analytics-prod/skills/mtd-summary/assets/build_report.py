@@ -147,7 +147,7 @@ def has_zero_fill(section, arrays):
 
 
 def main():
-    payload = json.load(sys.stdin)
+    payload = kit.read_payload()
     target = date.fromisoformat(payload["target_date"])
     m1_y, m1_m = shift_month(target.year, target.month, -1)
     skeleton = bool(payload.get("skeleton"))

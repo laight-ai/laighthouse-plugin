@@ -12,3 +12,8 @@
 | `{month}` | target_date의 `YYYY-MM` |
 | `{as_of}` | target_date |
 | `{start}` ~ `{end}` | 당월 1일 ~ target_date |
+
+- **실적 호출을 따로 하지 않는다** — section-3의 6개월 공유 응답(`time_grain:"month"`,
+  `group_by:["media"]`, `day_offset`=target_date.day)의 **당월(`month` = `{month}`) 행**이 정확히
+  `{start}`~`{end}` 실적이다(`target-achievement.md`의 재사용 규칙). 그 행들 중 광고 매체 행
+  (`media` non-null)의 역할 키 합을 `s1`에 넣는다.

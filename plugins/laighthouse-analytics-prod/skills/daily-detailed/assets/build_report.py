@@ -131,7 +131,7 @@ def tree_note(d1, target):
 
 
 def main():
-    payload = json.load(sys.stdin)
+    payload = kit.read_payload()
     target = date.fromisoformat(payload["target_date"])
     d1 = target - timedelta(days=1)
     skeleton = bool(payload.get("skeleton"))

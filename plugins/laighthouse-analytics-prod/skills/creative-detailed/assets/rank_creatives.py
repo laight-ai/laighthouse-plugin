@@ -363,7 +363,12 @@ def rule_note_html(rank, money):
 
 
 def main():
-    payload = json.load(sys.stdin)
+    # 입력: 인자로 JSON 파일 경로를 주면 그 파일, 없으면 stdin (report_kit.read_payload 와 같은 규칙)
+    if len(sys.argv) > 1 and sys.argv[1] not in ("-", ""):
+        with open(os.path.expanduser(sys.argv[1]), encoding="utf-8-sig") as f:
+            payload = json.load(f)
+    else:
+        payload = json.load(sys.stdin)
     if "candidates" in payload:
         json.dump(candidates_main(payload["candidates"]), sys.stdout, ensure_ascii=False)
         return

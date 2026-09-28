@@ -95,6 +95,8 @@ generic 도구(`get_ad_performance`)와 `get_target_progress_v2`, `list_promotio
 >   응답 원본의 재타이핑은 전부 금지다. 응답이 `[laighthouse-capture-hook] ... 저장됨: <경로>`
 >   섹션 입력값 집계(날짜·월·매체별 합)는 Bash 한 번의 **인라인 python**(파일 생성 없는 읽기 전용
 >   집계)으로 한다 — 손계산보다 이쪽이 원칙이다(`generic-report-pattern.md` 9절).
+>   빌더 입력이 길면 인라인 python으로 입력 JSON을 조립해 파이프하거나 파일 경로를 인자로 넘긴다
+>   (같은 9절 「빌더·스크립트에 입력 넘기기」).
 >   스텁으로 오는 경우(현재 이 스킬의 도구는 캡처 대상이 아니라 드물다) 그 파일을 Read로 통째로
 >   컨텍스트에 올리지 말고, Bash에서 파일을 직접 파싱해 필요한 집계값만 추출한다.
 > - (최후 폴백) Bash/python3가 전혀 없는 호스트에서만, `assets/report-template.html`을 Read해서
@@ -121,21 +123,18 @@ generic 도구(`get_ad_performance`)와 `get_target_progress_v2`, `list_promotio
    출력의 `missing`/`ambiguous`가 비어 있지 않을 때만 사용자에게 한 번에 묻는다(revenue가 없는
    것은 질문 사유가 아니다 — 매출 없음 모드).
 3. **1차 배치 (한 메시지에 동시 발사)**: `get_target_progress_v2` ×1(`media` 생략 = 전체 매체, `cost_metric`/`revenue_metric` = `metric_keys`;
-   한 줄 메시지/에러는 목표 없음) + `get_ad_performance` ×1(당월 1일~target_date,
-   `time_grain:"month"`, `group_by:["media"]`, `filters` 생략)
-   — section-1용 (`mtd-summary-section-1-target-achievement.md` 참고).
+   한 줄 메시지/에러는 목표 없음) + `get_ad_performance` ×1(5개월 전 1일~target_date, `time_grain:"month"`, `group_by:["media"]`, `metrics`·`filters` 생략, `day_offset`=target_date.day)
+   — **section-1/3/4/5 공유**. section-1 실적은 이 응답의 당월 행을 쓴다(별도 당월 호출 없음,
+   `mtd-summary-section-1-target-achievement.md`).
 4. ⏱ **필수 체크포인트 — 스켈레톤 선(先) 게시.** 3단계 응답 수신 즉시, 다음 단계 전에
    `python3 assets/build_report.py`를 `{"skeleton": true, ...}`로 1회 호출해 전 섹션 "데이터
    준비 중" 골격을 만들고 게시한다(아래 9단계와 같은 출력 경로/Artifact — 이후 재게시로 교체).
    이 단계를 건너뛰고 끝에서 한꺼번에 내놓으려다 툴호출 예산이 바닥나면 사용자는 아무것도 못
    본다 — 자매 스킬에서 실제 사고 사례가 있는 필수 단계다.
-5. **2차 배치 (한 메시지에 동시 발사)**: `get_ad_performance` ×1(5개월 전 1일~target_date,
-   `time_grain:"month"`, `group_by:["media"]`, `filters` 생략, 5개월 전~당월 6개월,
-   `day_offset`=target_date.day — **section-3/4/5가 공유**) +
-   `list_promotions` ×1(당월 1일보다 30일 앞선 날짜 ~ target_date — section-2용).
+5. **2차 배치**: `list_promotions` ×1(당월 1일보다 30일 앞선 날짜 ~ target_date — section-2용).
    각 섹션 파일의 호출 명세를 그대로 따른다.
 6. **계산**: section-1 값(`target-achievement.md`), section-3 역할별 6개월 배열(광고 매체 행 합)·
-   section-5 매체별(디스커버리된 매체 + Organic(있을 때)) M-1/M0 역할 원본 수치를 5단계 공유
+   section-5 매체별(디스커버리된 매체 + Organic(있을 때)) M-1/M0 역할 원본 수치를 3단계 공유
    응답에서 산출한다 (각 섹션 파일의 빌더 입력 매핑 표 참고). section-4는 그 응답을 그대로 넘긴다.
 7. **section-2 Executive Summary 작성** — `list_promotions` 외 신규 MCP 호출 없이 다른 섹션
    응답만 재사용해 AI가 직접 작성 (`mtd-summary-section-2-executive-summary.md`의 규칙).
@@ -159,8 +158,8 @@ generic 도구(`get_ad_performance`)와 `get_target_progress_v2`, `list_promotio
 > ⚡ 서브에이전트 없이 오케스트레이터(본 대화)가 MCP를 직접 호출한다. **서로 의존성 없는 MCP
 > 호출은 한 메시지 안에서 동시에(병렬 tool call로) 발사한다.** 배치의 실제 효과는 "턴 오버헤드
 > 제거"다(네트워크 동시 실행 보장은 아님 — 실측 daily-summary 참고). 진짜 속도는 (a) 호출 총
-> 개수 축소 — 이 스킬은 `filters` 생략 통합 조회, 목표 1회(전체 매체), section-3 응답의 4/5
-> 공유로 데이터 호출이 디스커버리 1회 + 4회다, (b) asset 스크립트(재타이핑·손계산 제거)에서 나온다.
+> 개수 축소 — 이 스킬은 `filters` 생략 통합 조회, 목표 1회(전체 매체), section-3 응답의 1/4/5
+> 공유로 데이터 호출이 디스커버리 1회 + 3회다, (b) asset 스크립트(재타이핑·손계산 제거)에서 나온다.
 
 - section-1의 당월 1개월 호출을 section-3의 6개월 호출에 **의도적으로 합치지 않는다** —
   이론적으로 당월 데이터는 6개월 응답에도 있지만, 합치면 section-1(스켈레톤 직후 첫 렌더링)이
