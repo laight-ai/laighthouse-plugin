@@ -27,16 +27,23 @@
 .lh-tree-table th.lh-lv { text-align: left; }
 .lh-tree-table th.lh-lv:nth-child(4) { border-right: 1px solid #e2e8f0; }
 .lh-tree-table td { padding: 7px 10px; border-bottom: 1px solid #f1f5f9; color: #374151; vertical-align: middle; }
-.lh-tree-table td.lh-lv { max-width: 180px; min-width: 60px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* 이름 열: 자르지 않고 줄바꿈한다(긴 캠페인·광고명도 전부 보이게). 공백 없는 긴 이름은 아무 곳에서나 끊는다. */
+.lh-tree-table td.lh-lv { min-width: 110px; max-width: 240px; white-space: normal; word-break: keep-all;
+  overflow-wrap: anywhere; line-height: 1.45; vertical-align: top; }
+.lh-tree-table th.lh-lv { min-width: 110px; }
+.lh-tree-table th.lh-lv:nth-child(n+2), .lh-tree-table td.lh-lv:nth-child(n+2) { min-width: 180px; }
+.lh-tree-table td.lh-m { vertical-align: top; }
+.lh-namebox { display: flex; align-items: flex-start; gap: 2px; }
+.lh-namebox > span { min-width: 0; }
 .lh-tree-table td.lh-name { font-weight: 500; }
 .lh-tree-table td.lh-all { color: #94a3b8; }
 .lh-tree-table td.lh-m { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .lh-tree-table tr.lh-depth0 td { background: #f8fafc; }
 .lh-tree-table tr.lh-depth0 td.lh-name { font-weight: 700; color: #1e293b; }
 .lh-tree-table tr:hover td { background: #eff6ff; }
-.lh-tog { border: none; background: none; cursor: pointer; color: #64748b; font-size: 10px; width: 18px;
+.lh-tog { flex: none; line-height: 1.8; border: none; background: none; cursor: pointer; color: #64748b; font-size: 10px; width: 18px;
   padding: 0; margin-right: 4px; }
-.lh-tog-sp { display: inline-block; width: 22px; }
+.lh-tog-sp { flex: none; display: inline-block; width: 22px; }
 .lh-v { color: #1e293b; }
 .lh-d { font-size: 10.5px; margin-top: 2px; }
 .lh-up { color: #dc2626; }
