@@ -17,15 +17,21 @@ non-null) 역할 키 합이다 — Organic 매출은 넣지 않는다(ROAS는 �
 ## MCP 도구 호출: `get_target_progress_v2` × 1 (전체 매체)
 
 ```json
-{ "brand_name": "<brand>", "month": "{month}", "as_of_date": "{as_of}" }
+{ "brand_name": "<brand>", "month": "{month}", "as_of_date": "{as_of}",
+  "cost_metric": "<metric_keys.cost>", "revenue_metric": "<metric_keys.revenue — 있을 때만>" }
 ```
 
 - **`media`를 생략한다**(= 전체 매체, 응답 헤더 `media: all`). 매체 목록을 순회하지 않는다.
+- **`cost_metric`/`revenue_metric`에 `discover.py`가 정한 키를 넘긴다** — 서버는 이름을 추측하지
+  않고 이 키로 실적을 읽는다. 매출 없음 모드면 `revenue_metric`을 넣지 않는다(서버가 cost 행만
+  채우고 매출·ROAS 실적은 `-`로 돌려준다). 서버가 이 인자를 모르는 구버전이라 인자 에러가 나면
+  **두 인자를 빼고 1회만** 다시 호출한다.
 - 응답은 markdown 표(행 cost/revenue/roas × 열 target|actual|progress_ratio). 아래는 전부
   **목표 없음**으로 처리한다(오류 아님, "데이터 준비 중" 아님):
   - `No all budget/target available for {month}.` 한 줄
   - 마트 전제 미충족 안내 한 줄
   - 호출 에러(서버가 아직 `media` enum만 받는 구버전이면 스키마 에러가 난다)
+- 표의 `target` 열만 쓴다 — `revenue` 행 `target`이 `-`/0이면 목표 매출 없음.
 - `actual`/`progress_ratio` 열은 쓰지 않는다 — 목표는 목표가 저장된 매체만 합산되고 실적은 마트
   전체라 범위가 다르다. 실적은 아래 `get_ad_performance`에서만 가져온다.
 

@@ -86,6 +86,7 @@ __CHART_JS_INLINE__
       <p style="font-size:11px; color:#64748b; margin-top:12px; line-height:1.5;">*'클릭/노출수'로 계산되며, 높을수록 고객이 광고에 매력을 느껴 클릭하는 경우가 많았음을 의미합니다. 단, CTR이 높아도 전환율은 낮을 수 있으므로 주의가 필요합니다.</p>
     </div>
   </div>
+  __S1_RULE_NOTE_HTML__
 <!--SECTION:s1:END-->
 
 <!--SECTION:s2:BEGIN-->
@@ -152,6 +153,10 @@ __CHART_JS_INLINE__
 
 <script>
 /* ── 공통 유틸 ── */
+// 축 눈금 — 부동소수 오차(1.2000000000000002) 없이 소수 최대 2자리, 불필요한 0 제거
+function fmtTick(v){ return String(Number(Number(v).toFixed(2))); }
+// CTR 표시 — 항상 소수 2자리
+function fmtCtr(v){ return (v === null || v === undefined) ? '-' : Number(v).toFixed(2) + '%'; }
 // 두 번째 지표(매출 있음: ROAS %, 매출 없음: 클릭 수) 값 표시
 function fmtSecond(v, unit){
   if (v === null || v === undefined) return '-';
@@ -196,6 +201,7 @@ function downloadReport(){
   // 계산한다 — 그대로 자동 계산에 맡기면 눈금이 2개뿐인 부자연스러운 축이 나올 수 있다.
   function calcPaddedRange(values, minSpan, step) {
     const valid = values.filter(v => v !== null && v !== undefined);
+    if (!valid.length) return { min: 0, max: minSpan };
     const dataMin = Math.min(...valid);
     const dataMax = Math.max(...valid);
     let min = dataMin - minSpan * 0.375;
@@ -205,9 +211,15 @@ function downloadReport(){
       min = mid - minSpan / 2;
       max = mid + minSpan / 2;
     }
-    min = Math.floor(min / step) * step;
-    max = Math.ceil(max / step) * step;
-    return { min, max };
+    min = Math.max(0, min);                              // CTR은 음수가 될 수 없다 — 0 아래로 내려가지 않게
+    if (max - min < minSpan) max = min + minSpan;        // 0에서 잘린 만큼 위로 보충
+    // 눈금 간격: step 이상인 "보기 좋은" 값 중 눈금이 8칸 이하가 되는 가장 작은 값 →
+    // min/max를 그 간격의 배수로 맞춰 눈금이 고르게(1.2, 1.4, …) 찍히게 한다
+    const nice = [1, 2, 2.5, 5, 10].flatMap(m => [0.01, 0.1, 1, 10].map(e => m * e)).sort((a, b) => a - b);
+    const tick = nice.find(n => n >= step && (max - min) / n <= 8) || nice[nice.length - 1];
+    min = Math.max(0, Math.floor(min / tick) * tick);
+    max = Math.ceil(max / tick) * tick;
+    return { min: Number(min.toFixed(4)), max: Number(max.toFixed(4)), step: tick };
   }
 
   // CTR 차트
@@ -228,11 +240,11 @@ function downloadReport(){
         responsive: true, maintainAspectRatio: false,
         plugins: {
           legend: { display: false },
-          tooltip: { callbacks: { label: c => `전체 CTR: ${Number(c.parsed.y).toFixed(1)}%` } }
+          tooltip: { callbacks: { label: c => `전체 CTR: ${fmtCtr(c.parsed.y)}` } }
         },
         scales: {
           y: { min: range.min, max: range.max,
-               ticks: { stepSize: 0.1, callback: v => Number(v).toFixed(1) + '%' } },
+               ticks: { stepSize: range.step, callback: v => fmtTick(v) + '%' } },
           x: { ticks: { maxRotation: 0, minRotation: 0 } }
         }
       }
@@ -292,11 +304,11 @@ function downloadReport(){
       responsive:true, maintainAspectRatio:false,
       plugins:{
         legend:{ display:true, position:'bottom', labels:{ boxWidth:10, font:{size:11} } },
-        tooltip:{ callbacks:{ label: c => `${c.dataset.label}: ${c.parsed.y}%` } }
+        tooltip:{ callbacks:{ label: c => `${c.dataset.label}: ${fmtCtr(c.parsed.y)}` } }
       },
       scales:{
-        y:{ ticks:{ callback: v => v+'%' } },
-        x:{ title:{ display:true, text:'day' } }
+        y:{ min:0, ticks:{ callback: v => fmtTick(v) + '%' } },
+        x:{ ticks:{ maxRotation:0, minRotation:0 } }
       }
     }
   });
@@ -330,7 +342,7 @@ function downloadReport(){
       },
       scales:{
         y:{ min:0, ticks:{ callback: v => fmtSecond(v, cfg.unit) } },
-        x:{ title:{ display:true, text:'day' } }
+        x:{ ticks:{ maxRotation:0, minRotation:0 } }
       }
     }
   });

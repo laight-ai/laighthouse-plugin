@@ -28,7 +28,7 @@
   "s3": {                    # 최근 7일 — 배열 7개(기준일-6일 ~ 기준일), 광고 매체 행(media non-null) 합
     "cost": [..], "revenue": [..],           # 매출 있음
     "impression": [..], "click": [..],       # 매출 없음 (cost도 함께)
-    "promotions": [{"title": "여름 세일", "date_begin": "2026-08-01", "date_end": "2026-08-31"}]
+    "promotions": [{"title": "여름 세일", "start_date": "2026-08-01", "end_date": "2026-08-31"}]
   },
   "s4": {                    # 계층 표 — 레벨별 get_ad_performance 응답(D-1~D0 포함, metrics 생략)
     "json_files": ["<캡처 스텁 경로>", ...],   # 스텁으로 온 응답
@@ -86,7 +86,7 @@ def build_labels(target):
 
 
 def build_promotions(promos, target):
-    """list_promotions 원본(date_begin/date_end) 또는 사전 계산본을 받아
+    """list_promotions 원본(start_date/end_date — 구버전 date_begin/date_end도 허용) 또는 사전 계산본을 받아
     인덱스 계산·클램프·범위 밖 제외·range_label 생성까지 처리한다."""
     if not promos:
         return []
@@ -98,8 +98,8 @@ def build_promotions(promos, target):
                         "end_idx": max(0, min(6, p["end_idx"])),
                         "range_label": p.get("range_label", "")})
             continue
-        begin = date.fromisoformat(str(p["date_begin"])[:10])
-        end = date.fromisoformat(str(p["date_end"])[:10])
+        begin = date.fromisoformat(str(p.get("start_date") or p["date_begin"])[:10])
+        end = date.fromisoformat(str(p.get("end_date") or p["date_end"])[:10])
         raw_s = (begin - first).days
         raw_e = (end - first).days
         if raw_e < 0 or raw_s > 6:
@@ -187,7 +187,7 @@ def main():
     tree = None
     if s4 and (s4.get("json_files") or s4.get("json")):
         tree = kit.build_tree(kit.load_envelopes(s4), d1.isoformat(), target.isoformat(),
-                              metric_keys, has_organic=modes.has_organic)
+                              metric_keys, has_organic=modes.has_organic, currency=currency)
         if tree["nodes"]:
             status["s4"] = "ok"
 

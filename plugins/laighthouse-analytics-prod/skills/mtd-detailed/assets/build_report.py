@@ -35,7 +35,7 @@
     "series": [{"name": "<media 값 그대로>", "values": [...]}, ...,
                {"name": "Organic", "values": [...]}],  # 매출 있음: revenue 값 / 매출 없음: click 값
     "labels": [["5/1","(금)"], ...],         # 선택 — 생략하면 [M/D, (요일)] 자동 생성
-    "promotions": [{"title": "여름 세일", "date_begin": "2026-05-01", "date_end": "2026-05-11"}]
+    "promotions": [{"title": "여름 세일", "start_date": "2026-05-01", "end_date": "2026-05-11"}]
                                              # list_promotions 원본 그대로 — 인덱스·클램프·라벨은 빌더가
   },
   "s5": {"campaign_analysis": "인트로 문단\n\n캠페인명 (매체명)\n분석 문장..."},
@@ -130,7 +130,7 @@ def build_day_labels(target):
 
 
 def build_promotions(promos, target):
-    """list_promotions 원본(date_begin/date_end) 또는 사전 계산본을 받아
+    """list_promotions 원본(start_date/end_date — 구버전 date_begin/date_end도 허용) 또는 사전 계산본을 받아
     인덱스 계산·클램프·범위 밖 제외·range_label 생성까지 처리한다."""
     if not promos:
         return []
@@ -143,8 +143,8 @@ def build_promotions(promos, target):
                         "end_idx": max(0, min(n - 1, p["end_idx"])),
                         "range_label": p.get("range_label", "")})
             continue
-        begin = date.fromisoformat(str(p["date_begin"])[:10])
-        end = date.fromisoformat(str(p["date_end"])[:10])
+        begin = date.fromisoformat(str(p.get("start_date") or p["date_begin"])[:10])
+        end = date.fromisoformat(str(p.get("end_date") or p["date_end"])[:10])
         raw_s = (begin - first).days
         raw_e = (end - first).days
         if raw_e < 0 or raw_s > n - 1:
@@ -312,8 +312,8 @@ def main():
         status["s3"] = "ok"
         labels = s3.get("labels") or build_month_labels(target)
         s3_spec = kit.perf_chart_spec(labels, s3, modes)
-        notes = [f"* {target.year % 100}년 {target.month}월은 기준일({target.month}/{target.day})까지의 "
-                 "데이터만 포함합니다."]
+        notes = [f"* 모든 월은 각 월 1일~{target.day}일 동기간 수치입니다(이번달은 기준일 "
+                 f"{target.month}/{target.day}까지)."]
         zf = s3["zero_fill_note"] if "zero_fill_note" in s3 else zero_fill_note(labels, s3_spec)
         if zf:
             notes.append(zf)
@@ -367,7 +367,7 @@ def main():
     if s7 and (s7.get("json_files") or s7.get("json")):
         tree = kit.build_tree(kit.load_envelopes(s7), f"{m1_y:04d}-{m1_m:02d}",
                               f"{target.year:04d}-{target.month:02d}", metric_keys,
-                              has_organic=modes.has_organic)
+                              has_organic=modes.has_organic, currency=currency)
         if tree["nodes"]:
             status["s7"] = "ok"
 

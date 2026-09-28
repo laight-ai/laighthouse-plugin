@@ -163,8 +163,8 @@ def main():
     def section_data(key):
         return None if skeleton else payload.get(key)
 
-    mtd_footnote = (f"* 이번달({target.year % 100}년 {target.month}월)의 데이터는 1일부터 "
-                    f"기준일인 {target.month}월 {target.day}일까지의 수치입니다.")
+    mtd_footnote = (f"* 모든 월은 각 월 1일~{target.day}일 동기간 수치입니다(이번달"
+                    f"({target.year % 100}년 {target.month}월)은 기준일 {target.month}월 {target.day}일까지).")
 
     # ── section 1
     s1 = section_data("s1")

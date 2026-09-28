@@ -61,8 +61,7 @@ generic 도구(`get_ad_performance`)와 `get_target_progress_v2`, `list_promotio
 ## 데이터 처리 원칙 (절대 지침)
 
 > 🚫 **MCP 응답은 이미 정제가 끝난 최종 데이터다 — 그대로 스크립트에 넘기고, 값을 의심·보정·
-> 재계산·추정하지 않는다.** 예외는 각 섹션 파일에 명시된 표기 변환뿐이다(ROAS ×100, no-budget
-> fallback 소진액 등). 데이터가 비거나 갭이 있어도 채우거나 추정하지 않는다.
+> 재계산·추정하지 않는다.** 예외는 각 섹션 파일에 명시된 집계(날짜·매체별 합, 행 없음 → 0)뿐이다. 데이터가 비거나 갭이 있어도 채우거나 추정하지 않는다.
 >
 > 🚫 **응답이 크다고 느껴져도 선택지는 정확히 둘뿐이다**: (1) 원본을 가공 없이 전부 섹션
 > 규칙대로 집계해 빌더에 넘기거나, (2) 정말 처리 불가능하면 그 섹션을 "데이터 준비 중"으로
@@ -90,6 +89,8 @@ generic 도구(`get_ad_performance`)와 `get_target_progress_v2`, `list_promotio
 >   컨텍스트로 가져오지 말고 Bash(python)로 그 경로에서 필요한 집계값만 뽑아 쓴다.
 > - MCP 응답을 스크래치 파일에 옮겨 적었다가 다시 읽는 왕복, 별도 파서/생성 스크립트 작성,
 >   응답 원본의 재타이핑은 전부 금지다. 실행 중 만드는 파일은 빌더가 저장하는 최종 보고서
+>   섹션 입력값 집계(날짜·월·매체별 합)는 Bash 한 번의 **인라인 python**(파일 생성 없는 읽기 전용
+>   집계)으로 한다 — 손계산보다 이쪽이 원칙이다(`generic-report-pattern.md` 9절).
 >   HTML 하나뿐이다.
 > - (최후 폴백) Bash/python3가 전혀 없는 호스트에서만, `assets/report-template.html`을 Read해서
 >   placeholder를 직접 치환한다 — 그 외 호스트에서는 절대 이 경로를 쓰지 않는다.
@@ -115,10 +116,10 @@ generic 도구(`get_ad_performance`)와 `get_target_progress_v2`, `list_promotio
    출력의 `missing`/`ambiguous`가 비어 있지 않을 때만 사용자에게 한 번에 묻는다(revenue가 없는
    것은 질문 사유가 아니다 — 매출 없음 모드).
 3. **데이터 호출을 전부 한 메시지에 동시 발사한다** (조건부 3차 라운드 없음):
-   - `get_target_progress_v2` ×1 (`media` 생략 = 전체 매체; 한 줄 메시지/에러는 목표 없음)
+   - `get_target_progress_v2` ×1 (`media` 생략 = 전체 매체, `cost_metric`/`revenue_metric` = `metric_keys`; 한 줄 메시지/에러는 목표 없음)
      — section-1
    - `get_ad_performance` ×1 (당월 1일~target_date, `time_grain:"month"`, `group_by:["media"]`,
-     `filters` 생략) — section-1의 매출 실적 + fallback 소진액
+     `filters` 생략) — section-1의 실적(소진액·매출·노출·클릭)
    - `get_ad_performance` ×1 (기준일 6일 전~target_date, `time_grain:"day"`,
      `group_by:["media"]`, `filters` 생략) — section-3/4/5 공유
    - `list_promotions` ×1 (기준일 7일 전 ~ target_date) — section-2/3/4 공유

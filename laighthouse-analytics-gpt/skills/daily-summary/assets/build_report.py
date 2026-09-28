@@ -35,7 +35,7 @@
   "s3": {                    # 최근 7일 — 배열 7개(기준일-6일 ~ 기준일), 광고 매체 행(media non-null) 합
     "cost": [..], "revenue": [..],                  # 매출 있음
     "impression": [..], "click": [..],              # 매출 없음 (cost도 함께 — 툴팁·CPC용)
-    "promotions": [{"title": "여름 세일", "date_begin": "2026-05-09", "date_end": "2026-05-11"}]
+    "promotions": [{"title": "여름 세일", "start_date": "2026-05-09", "end_date": "2026-05-11"}]
   },
   "s4": {                    # 매체별 추이 — 매출 있음: revenue 값, 매출 없음: click 값 (배열 7개)
     "series": [{"name": "<media 값 그대로>", "values": [..7개..]}, ...,
@@ -126,7 +126,7 @@ def s4_range_label(begin, end):
 
 
 def build_promotions(promos, target, label_fn):
-    """list_promotions 원본(date_begin/date_end) 또는 사전 계산본을 받아
+    """list_promotions 원본(start_date/end_date — 구버전 date_begin/date_end도 허용) 또는 사전 계산본을 받아
     인덱스 계산·클램프·범위 밖 제외·range_label 생성까지 처리한다.
     range_label은 클램핑 전의 원래 날짜로 만든다."""
     if not promos:
@@ -139,8 +139,8 @@ def build_promotions(promos, target, label_fn):
                         "end_idx": max(0, min(6, p["end_idx"])),
                         "range_label": p.get("range_label", "")})
             continue
-        begin = date.fromisoformat(str(p["date_begin"])[:10])
-        end = date.fromisoformat(str(p["date_end"])[:10])
+        begin = date.fromisoformat(str(p.get("start_date") or p["date_begin"])[:10])
+        end = date.fromisoformat(str(p.get("end_date") or p["date_end"])[:10])
         raw_s = (begin - first).days
         raw_e = (end - first).days
         if raw_e < 0 or raw_s > 6:

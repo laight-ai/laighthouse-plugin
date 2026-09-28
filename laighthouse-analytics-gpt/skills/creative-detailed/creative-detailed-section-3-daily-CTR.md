@@ -24,13 +24,16 @@
   단일 매체 7일 응답 실측 13만 자+, 생략 시 76만 자+) 통합은 금지된 회귀다(실제 근사치 사고
   원인). 값은 디스커버리 응답의 `media` 문자열 그대로(정확 일치).
 
-## 소재 선정 (section-1의 total 응답 재사용 — 신규 계산 없음)
+## 소재 선정: `assets/rank_creatives.py` 출력 재사용 (손정렬 금지)
 
-1. section-1의 total 응답(소재당 7일 합산 cost 키)을 내림차순 정렬해 **상위 5개 소재의
-   키(`campaign_name`+`ad_group_name`+`ad_name`)**를 뽑는다 — 응답이 이미 작아 사소한 정렬이다.
-   이 5개 키·순서는 section-4와 공유한다(두 차트의 색상·범례 순서 일치).
-2. **표시 이름**: 5개 중 `ad_name`이 중복되면 그 소재들만 `{ad_name} ({ad_group_name})`으로
-   구분하고, 유일하면 `ad_name`만 쓴다(불필요하게 전부 괄호를 붙이지 않는다).
+1. SKILL.md 5단계에서 실행한 `rank_creatives.py`의 출력 파일(`/tmp/creative_rank.json`)에
+   section-1 total 응답 기준 **광고비(7일 합산 cost 키) 내림차순 상위 5개** 키(`top5_keys`)와
+   표시 이름(`top5_names`)이 이미 들어 있다 — 모델이 다시 정렬하지 않는다. 이 5개 키·순서는
+   section-4와 공유한다(두 차트의 색상·범례 순서 일치). 상위 5개에는 최소 표본 기준(section-1)을
+   적용하지 않는다.
+2. **표시 이름 규칙**(스크립트가 적용): `ad_name`이 비었거나 `"-"`이면 `"<ad_group_name> (소재명
+   없음)"`, 5개 중 표시 이름이 겹치면 그 소재들만 `" (<ad_group_name>)"`(그래도 겹치면
+   `" (<campaign_name>)"`)을 덧붙인다.
 
 ## 일별 시리즈 계산: `assets/creative_daily_series.py` (필수 — 손계산·즉석 Bash·새 스크립트 금지)
 
@@ -45,7 +48,7 @@ python3 assets/creative_daily_series.py <<'PYEOF' > /tmp/creative_series.json
 {"json_files": ["<day 응답 스텁 경로>"],
  "dates": ["기준일 6일 전", "...", "target_date"],
  "metric_keys": <discover.py 출력의 metric_keys 그대로 — revenue가 없으면 없는 채로>,
- "top5_keys": [ {"campaign_name": "...", "ad_group_name": "...", "ad_name": "..."}, ...위 선정 순서 5개... ]}
+ "rank_file": "/tmp/creative_rank.json"}
 PYEOF
 ```
 
@@ -65,10 +68,12 @@ PYEOF
 
 ```json
 "series_file": "/tmp/creative_series.json",   // 최상위 — s3/s4가 공유
-"s3": { "names": ["표시이름1", ...5개, 광고비 내림차순...] }
+"rank_file": "/tmp/creative_rank.json",       // 최상위 — s1/s3/s4/s5가 공유
+"s3": {}
 ```
 
-- `names`는 위 2에서 정한 표시 이름을 `top5_keys`와 같은 순서로. 시리즈는 빌더가
-  `series_file`의 `top5.ctr_series`에서 읽고, 라벨(`M/D` 7개)은 `dates`로 만든다.
-- 유효한 소재가 하나도 없으면 `s3` 키를 뺀다 → "데이터 준비 중" 카드. `s3`의 `names`는
-  section-4 차트도 공유한다 — `s3` 없이 `s4`만 넣으면 s4도 placeholder가 된다.
+- `s3`는 빈 객체로 둔다 — 빌더가 `rank_file`의 `top5_names`를 범례 이름으로, `series_file`의
+  `top5.ctr_series`를 시리즈로 쓰고, 라벨(`M/D` 7개)은 `dates`로 만든다. Y축은 0부터, 눈금은
+  반올림(소수 최대 2자리), 툴팁 CTR은 소수 2자리, X축 제목 없음(템플릿 고정).
+- 유효한 소재가 하나도 없으면 `s3` 키를 뺀다 → "데이터 준비 중" 카드. 범례 이름은 section-4
+  차트도 공유한다 — `s3` 없이 `s4`만 넣으면 s4도 placeholder가 된다.

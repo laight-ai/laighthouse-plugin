@@ -111,23 +111,7 @@ Executive Summary는 **임원이 딥다이브 없이도 "현재 전체적인 성
 
 ## HTML
 
-```html
-<!-- EXECUTIVE MTD SECTION 2: EXECUTIVE SUMMARY -->
-<div class="card" style="margin-bottom:16px;">
-  <div class="section-title">Executive Summary</div>
-  <div style="display:flex; flex-direction:column; gap:10px;">
-    <!-- executive_summary를 줄바꿈 기준으로 분리하여 아래 불릿 카드로 반복 렌더링 -->
-    <div style="border:1px solid #e2e8f0; border-radius:8px; padding:16px 18px; display:flex; gap:10px; align-items:flex-start;">
-      <span style="color:{DOT_COLOR}; font-size:14px; line-height:1.6;">●</span>
-      <span style="font-size:13px; color:#374151; line-height:1.6;">{BULLET_TEXT}</span>
-    </div>
-    <!-- 반복 끝 -->
-  </div>
-</div>
-```
-
-## Script
-없음 (정적 텍스트)
+마크업은 `assets/report-template.html`과 빌더가 만든다 — 모델은 `bullets`만 넘긴다.
 
 ## 렌더링 규칙
 - 각 불릿을 감싸는 카드는 흰 배경, 옅은 회색 테두리(`#e2e8f0`)의 **평범한 카드**로만 렌더링한다
@@ -139,4 +123,4 @@ Executive Summary는 **임원이 딥다이브 없이도 "현재 전체적인 성
   `#78716c`(회색-갈색). 프로모션 불릿은 효과가 뚜렷이 긍정적이면 초록, 부정적(예: 프로모션
   기간/직후에 매출이 하락)이면 빨강을 쓴다.
 - 강조 수치는 `<strong>` 태그 사용.
-- 불릿 개수가 5개를 초과하면 상위 5개(가장 임팩트가 큰 것)만 남긴다.
+- **불릿은 항상 4개다** — <작성 원칙> 3의 a)~d)에 하나씩 대응한다(프로모션은 해당 불릿 안에서 서술).

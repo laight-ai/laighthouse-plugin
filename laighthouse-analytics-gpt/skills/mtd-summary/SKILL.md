@@ -93,6 +93,8 @@ generic 도구(`get_ad_performance`)와 `get_target_progress_v2`, `list_promotio
 >   `currency` (실행 순서 2단계, 1회).
 > - MCP 응답을 스크래치 파일에 옮겨 적었다가 다시 읽는 왕복, 별도 파서/생성 스크립트 작성,
 >   응답 원본의 재타이핑은 전부 금지다. 응답이 `[laighthouse-capture-hook] ... 저장됨: <경로>`
+>   섹션 입력값 집계(날짜·월·매체별 합)는 Bash 한 번의 **인라인 python**(파일 생성 없는 읽기 전용
+>   집계)으로 한다 — 손계산보다 이쪽이 원칙이다(`generic-report-pattern.md` 9절).
 >   스텁으로 오는 경우(현재 이 스킬의 도구는 캡처 대상이 아니라 드물다) 그 파일을 Read로 통째로
 >   컨텍스트에 올리지 말고, Bash에서 파일을 직접 파싱해 필요한 집계값만 추출한다.
 > - (최후 폴백) Bash/python3가 전혀 없는 호스트에서만, `assets/report-template.html`을 Read해서
@@ -118,7 +120,7 @@ generic 도구(`get_ad_performance`)와 `get_target_progress_v2`, `list_promotio
    `python3 assets/discover.py`에 넘겨 `media_list`/`has_organic`/`metric_keys`/`currency`를 받는다.
    출력의 `missing`/`ambiguous`가 비어 있지 않을 때만 사용자에게 한 번에 묻는다(revenue가 없는
    것은 질문 사유가 아니다 — 매출 없음 모드).
-3. **1차 배치 (한 메시지에 동시 발사)**: `get_target_progress_v2` ×1(`media` 생략 = 전체 매체;
+3. **1차 배치 (한 메시지에 동시 발사)**: `get_target_progress_v2` ×1(`media` 생략 = 전체 매체, `cost_metric`/`revenue_metric` = `metric_keys`;
    한 줄 메시지/에러는 목표 없음) + `get_ad_performance` ×1(당월 1일~target_date,
    `time_grain:"month"`, `group_by:["media"]`, `filters` 생략)
    — section-1용 (`mtd-summary-section-1-target-achievement.md` 참고).

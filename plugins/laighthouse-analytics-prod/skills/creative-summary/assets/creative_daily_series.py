@@ -19,6 +19,8 @@ CTR/ROAS/클릭 시리즈를 계산한다. 실행 중 모델이 이 파일을 �
 ⚠️ 비율은 항상 원자 지표(역할 키 값) 합으로 직접 계산한다 — 응답에 서버 비율 지표(CTR/ROAS류)가
 있어도 행 단위 비율은 합칠 수 없다.
 
+⚠️ 매출(revenue 키) 값이 null인 행은 합계에서 0으로 취급한다(매출 귀속 없음).
+
 ⚠️ `media`가 `null`인 행(Organic — 소재 개념이 없다)은 무시한다. 소재 호출은 매체 필터를 걸어
 원래 오지 않지만, 행에 `media` 키가 있고 값이 null이면 건너뛴다.
 
@@ -34,7 +36,8 @@ CTR/ROAS/클릭 시리즈를 계산한다. 실행 중 모델이 이 파일을 �
     "revenue": "<revenue 키 — 있을 때만>"      # 없으면 매출 없음 모드 (ROAS 시리즈 생략)
   },                           # 생략하면 봉투 metrics에서 공용 킷(report_kit.resolve_roles)
                                # 규칙으로 해석한다. 필수 역할(cost/impression/click)을 못 정하면 에러.
-  "top5_keys": [               # 선택 — 생략하면 top5 시리즈를 계산하지 않는다
+  "rank_file": "/tmp/creative_rank.json",  # 권장 — rank_creatives.py 출력. top5_keys를 여기서 읽는다
+  "top5_keys": [               # (rank_file 대신 직접 줄 때만) 생략하면 top5 시리즈를 계산하지 않는다
     {"campaign_name": "...", "ad_group_name": "...", "ad_name": "..."}, ...
   ],
   "dates": ["YYYY-MM-DD", ...] # 선택(권장) — 기준일 포함 7일 전체. 행이 없는 날짜도 결측으로 채운다.
@@ -63,7 +66,7 @@ CTR/ROAS/클릭 시리즈를 계산한다. 실행 중 모델이 이 파일을 �
 
 사용 예 (한 번의 Bash 호출, 따옴표 있는 heredoc — echo나 파일 저장 후 재실행 금지):
   python3 assets/creative_daily_series.py <<'PYEOF' > /tmp/creative_series.json
-  {"json_files": ["<스텁 경로>"], "dates": [...], "metric_keys": {...}, "top5_keys": [...]}
+  {"json_files": ["<스텁 경로>"], "dates": [...], "metric_keys": {...}, "rank_file": "/tmp/creative_rank.json"}
   PYEOF
 """
 import io
@@ -136,7 +139,7 @@ def key_tuple(d):
 
 
 def _sum(rows, key):
-    return sum((r.get(key) or 0) for r in rows) if key else 0
+    return sum((r.get(key) or 0) for r in rows) if key else 0  # null(매출 없음 등) → 0
 
 
 def _ratio(num, den, scale=100.0):
@@ -231,8 +234,12 @@ def main():
 
     out = {"dates": dates, "has_revenue": bool(mk.get("revenue")),
            "overall": compute_overall(rows, dates, mk)}
-    if payload.get("top5_keys"):
-        out["top5"] = compute_top5(rows, dates, payload["top5_keys"], mk)
+    top5_keys = payload.get("top5_keys")
+    if not top5_keys and payload.get("rank_file"):
+        with open(os.path.expanduser(payload["rank_file"]), encoding="utf-8") as f:
+            top5_keys = json.load(f).get("top5_keys")
+    if top5_keys:
+        out["top5"] = compute_top5(rows, dates, top5_keys, mk)
 
     json.dump(out, sys.stdout, ensure_ascii=False)
 

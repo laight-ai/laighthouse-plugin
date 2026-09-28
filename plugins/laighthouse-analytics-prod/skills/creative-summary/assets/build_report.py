@@ -25,11 +25,18 @@
                                                # s3(overall)와 s4/5(top5)가 이 한 파일을 공유한다.
                                                # (파일 대신 "series": {...} 직접 전달도 허용)
 
-  "s1": {                    # 최우수 소재 — 각 배열 1·2위 순 (2위 없으면 1개만)
-    "roas":  [ {"name": "<ad_name>", "value": 388.1, "thumbnail_url": "https://..."} ],  # 매출 있음 모드
-    "click": [ {"name": "<ad_name>", "value": 5321, "thumbnail_url": null} ],          # 매출 없음 모드
-    "ctr":   [ {"name": "<ad_name>", "value": 2.4, "thumbnail_url": "https://..."} ]    # 두 모드 공통
-  },                         # value: ROAS/CTR은 % 스케일 숫자(소수 1자리 포맷), click은 7일 합 클릭 수
+  "rank_file": "/tmp/creative_rank.json",      # rank_creatives.py 출력 파일 경로 (표준 경로).
+                                               # s1: {} → 이 파일의 s1(최소 표본 기준 적용 랭킹),
+                                               # s4/s5 names → top5_names. section-1 하단 최소 표본
+                                               # 기준 각주도 이 파일로 만든다.
+  "thumbnails": {"L1": "https://...", "L2": null},  # rank 출력 lookups의 id → get_ad_creative_info
+                                               # 매칭 항목의 image_url (못 찾음/에러는 null 또는 생략)
+  "currency": "<discover.py 출력의 currency>",   # 선택 — 각주의 금액 표기 (기본 ₩)
+
+  "s1": {},                  # rank_file 사용 시 빈 객체. (직접 줄 때: 각 배열 1·2위 순)
+                             #   "roas":  [ {"name", "value": 388.1, "thumbnail_url"} ]  # 매출 있음 (소수 1자리)
+                             #   "click": [ {"name", "value": 5321, "thumbnail_url"} ]   # 매출 없음 (7일 합)
+                             #   "ctr":   [ {"name", "value": 2.41, "thumbnail_url"} ]   # 공통 (소수 2자리)
   "s2": {                    # Executive Summary — 불릿 배열. tone이 점(●) 색을 정한다:
     "bullets": [             #   "good"(평균 대비 뚜렷한 고성과)=초록, "bad"(비효율/액션 필요)=빨강,
       {"text": "문장... <strong>2.4%</strong> ...", "tone": "good"},                #   "neutral"=회색-갈색
@@ -37,7 +44,7 @@
     ]                        # (문자열 배열/"executive_summary" 문자열도 허용 — 전부 neutral 처리)
   },
   "s3": {},                  # 키가 존재하면 series의 overall(ctr_series + roas_series|click_series)로 렌더링
-  "s4": { "names": ["소재 표시이름1", ...] },  # 상위 5개 표시 이름(광고비 내림차순) — top5.ctr_series 사용
+  "s4": {},                  # rank_file의 top5_names 사용 (직접 줄 때: {"names": [...]}) — top5.ctr_series
   "s5": {}                   # names는 s4와 공유, top5.roas_series(매출 없음: top5.click_series) 사용
                              # (s3/s4/s5에 개별 "series_file"/"series"를 넣으면 그 섹션만 그걸 쓴다)
 }
@@ -77,6 +84,8 @@ def _load_kit():
 
 
 kit = _load_kit()
+sys.path.insert(0, ASSETS_DIR)
+import rank_creatives  # noqa: E402 — 같은 assets/의 랭킹 계산기 (rank_file 해석·썸네일·각주)
 
 WEEKDAY_KO = ["월", "화", "수", "목", "금", "토", "일"]
 PLACEHOLDER_CARD = '<div class="card"><p style="color:#94a3b8;font-size:13px;">데이터 준비 중</p></div>'
@@ -121,11 +130,14 @@ def esc(v):
 
 
 def fmt_value(v, kind):
-    """kind 'pct' → % 소수 1자리, 'count' → 콤마 정수. 문자열은 그대로, None은 '-'."""
+    """kind 'pct' → % 소수 1자리(ROAS), 'pct2' → % 소수 2자리(CTR), 'count' → 콤마 정수.
+    문자열은 그대로, None은 '-'."""
     if v is None:
         return "-"
     if isinstance(v, str):
         return esc(v)
+    if kind == "pct2":
+        return kit.fmt_pct(v, 2)
     return kit.fmt_pct(v) if kind == "pct" else kit.fmt_count(v)
 
 
@@ -230,16 +242,20 @@ def main():
         return None if skeleton else payload.get(key)
 
     # ── section 1: 최우수 소재 (왼쪽 카드: 매출 있음 ROAS / 매출 없음 클릭, 오른쪽: CTR)
-    s1 = section_data("s1")
+    rank = None if skeleton else rank_creatives.load_rank(payload)
+    currency = payload.get("currency") or "₩"
     a_key = "roas" if has_revenue else "click"
+    s1 = rank_creatives.resolve_s1(section_data("s1"), rank, payload.get("thumbnails"), a_key)
     if s1 and (s1.get(a_key) or s1.get("ctr")):
         status["s1"] = "ok"
+        html = html.replace("__S1_RULE_NOTE_HTML__",
+                            rank_creatives.rule_note_html(rank, lambda v: kit.fmt_money(v, currency)))
         html = html.replace("__S1_A_TITLE__", S1_A_TITLE[has_revenue])
         html = html.replace("__S1_A_NOTE__", S1_A_NOTE[has_revenue])
         html = s1_rank_tokens(html, "S1_A", s1.get(a_key),
                               "ROAS" if has_revenue else click_label,
                               "pct" if has_revenue else "count")
-        html = s1_rank_tokens(html, "S1_CTR", s1.get("ctr"), "CTR", "pct")
+        html = s1_rank_tokens(html, "S1_CTR", s1.get("ctr"), "CTR", "pct2")
     else:
         status["s1"] = "placeholder"
         html = swap_section(html, "s1", PLACEHOLDER_CARD)
@@ -289,7 +305,8 @@ def main():
     series5 = load_series(payload, s5) if s5 is not None else None
     top4 = (series4 or {}).get("top5") or {}
     top5_ = (series5 or {}).get("top5") or {}
-    names = (s4 or {}).get("names") or (s5 or {}).get("names") or []
+    names = ((s4 or {}).get("names") or (s5 or {}).get("names")
+             or ((rank or {}).get("top5_names") if (s4 is not None or s5 is not None) else None) or [])
 
     if s4 is not None and names and top4.get("ctr_series"):
         status["s4"] = "ok"

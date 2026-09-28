@@ -16,12 +16,16 @@
 재사용한다:
 
 - section-5의 소재 단위 7일 누적 성과(노출/클릭/CTR/광고비 + 매출 있음: 매출/ROAS, 매출 없음:
-  CPC + conversion 역할이 있을 때만 전환/CPA) 전체 목록 — 항목 1의 주 데이터 소스.
+  CPC + conversion 역할이 있을 때만 전환/CPA) — 항목 1의 주 데이터 소스(아래 `top_by_cost` 요약).
 - section-3/4의 광고비 상위 5개 소재 일별 CTR/ROAS(매출 없음: CTR/클릭) 시리즈(7일치)와
   `creative_daily_series.py` 출력의 `top5.totals`(소재별 7일 누적·CTR/CPC/ROAS) — 항목 2의 주
   데이터 소스.
   ⚠️ **항목 2에서 다룰 수 있는 소재는 이 5개로 제한된다** — section-5의 다른 소재는 일별
   시계열이 없어 추이 분석 대상이 될 수 없다.
+- `rank_creatives.py` stdout 요약의 `media_totals`(매체 7일 합과 CTR·ROAS — 매출 없음: CPC)와
+  `top_by_cost`(광고비 상위 10개 소재의 7일 누적 지표·표시 이름) — 항목 1의 요약 근거. section-5
+  전체 rows는 출력 파일에만 있다(출력 파일을 Read로 열어 수백 행을 컨텍스트에 넣지 않는다).
+  소재를 언급할 때는 표시 이름을 쓴다(소재명이 없는 소재는 `"<광고그룹> (소재명 없음)"`).
 - **`list_promotions`는 호출하지 않고 프로모션을 전혀 언급하지 않는다** — 소재 단위 분석이라
   캠페인/매체 차원의 프로모션과 결이 다르다 (다른 report_type의 section-2들과 다른 점).
 

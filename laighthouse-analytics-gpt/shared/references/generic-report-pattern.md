@@ -32,9 +32,8 @@
 | `has_organic` | `media: null` 행이 있으면 `true` (광고비 없이 매출만 귀속된 Organic) |
 | `metric_keys` | 역할 → 실제 지표 키 (3절). `revenue`/`conversion`은 찾았을 때만 들어 있다 |
 | `has_revenue` | `metric_keys`에 `revenue`가 있으면 `true` — 없으면 **매출 없음 모드**(7절) |
-| `currency` | 광고비 지표의 `metric_units` 값, 없으면 `"₩"` |
+| `currency` | 광고비 지표의 `metric_units` 값 → 없으면 매출 지표 단위(통화 기호일 때) → 없으면 `"₩"`. 금액 역할(광고비·매출·CPC·CPA)에 항상 붙는다 |
 | `missing` / `ambiguous` | 사용자에게 물어야 하는 역할 (3절) |
-| `sources_of` | 매체별 `source` 값 목록 — `group_by`에 `source`가 함께 있을 때만(소재 스킬) |
 
 - 브랜드에 `media` 차원이 없어 호출이 실패하면 `group_by: ["source"]`로 재호출한다
   (`discover.py`가 `source` 값을 `media_list`로 쓴다).
@@ -139,3 +138,16 @@
   `report_kit.build_tree`로 레벨을 판별하고(`group_by` 접두 길이), 기간(`date`/`month` 값)을
   기준·비교로 나누고, 트리를 만든다. 모델은 행을 고르거나 합치지 않는다.
 - 광고비 기준 제외(threshold) 규칙은 없다 — 전부 넣고 광고비 순으로 정렬한다.
+
+## 9. 섹션 입력값 집계
+
+차트·표 입력(날짜별·월별·매체별 역할 값 합, 두 기간 비교 행)은 받은 응답에서 **Bash 한 번의
+인라인 python**으로 집계해도 된다 — 캡처 스텁 파일이든 원본 응답이든 같다. 이것은 "새 스크립트
+작성 금지"의 예외가 아니라 허용된 방법이다: 파일로 저장하지 않는 **읽기 전용 집계**이고, 결과
+숫자는 빌더 입력에 그대로 넣는다. 금지되는 것은 (a) 손계산·손전사, (b) `.py`/`.js` 파일 생성,
+(c) HTML 직접 작성, (d) 응답을 옮겨 적었다 다시 읽는 왕복이다.
+
+- 행이 없는 날짜·월·매체는 0으로 채운다(추정·보간 금지). 역할 값이 `null`인 행도 0으로 합산한다.
+- 비율(ROAS/CTR/CPC/CPA)은 넣지 않는다 — 빌더가 원자 값 합으로 계산한다.
+- 입력 규칙: `cost`·`impression`·`click`은 **항상**, `revenue`·`conversion`은 그 역할이 있을 때
+  넣는다. 표시할 값은 빌더가 모드로 고른다.

@@ -29,14 +29,21 @@
                                                # 매출 없음: top5.click_series)가 공유한다.
                                                # (파일 대신 "series": {...} 직접 전달도 허용)
 
-  "s1": {                    # 최우수 소재 — 각 배열 1·2위 순 (2위 없으면 1개만)
-    "roas":  [ {"name": "<ad_name>", "value": 812.3, "thumbnail_url": "https://..."} ],  # 매출 있음 모드
-    "click": [ {"name": "<ad_name>", "value": 5321, "thumbnail_url": null} ],          # 매출 없음 모드
-    "ctr":   [ ...같은 형식, value는 % 스케일... ]                                       # 두 모드 공통
-  },
+  "rank_file": "/tmp/creative_rank.json",      # rank_creatives.py 출력 파일 경로 (표준 경로).
+                                               # s1: {} → 이 파일의 s1(최소 표본 기준 적용 랭킹),
+                                               # s3: {} → top5_names, s5: {} → s5_rows 를 쓴다.
+                                               # section-1 하단 최소 표본 기준 각주도 이 파일로 만든다.
+  "thumbnails": {"L1": "https://...", "L2": null},  # rank 출력 lookups의 id → get_ad_creative_info
+                                               # 매칭 항목의 image_url (못 찾음/에러는 null 또는 생략)
+
+  "s1": {},                  # rank_file 사용 시 빈 객체. (직접 줄 때: 각 배열 1·2위 순)
+                             #   "roas":  [ {"name", "value": 812.3, "thumbnail_url"} ]  # 매출 있음
+                             #   "click": [ {"name", "value": 5321, "thumbnail_url"} ]   # 매출 없음
+                             #   "ctr":   [ ...value는 % 스케일(소수 2자리 표시)... ]     # 공통
   "s2": { "executive_summary": "문장1\n문장2\n⚠ 주의 문장..." },  # \n 구분, ⚠ 시작 줄은 주황색
-  "s3": { "names": ["표시이름1", ...] },  # 광고비 상위 5개 표시 이름(광고비 내림차순) — s4와 공유
+  "s3": {},                  # rank_file의 top5_names 사용 (직접 줄 때: {"names": [...]}) — s4와 공유
   "s4": {},                  # 키가 존재하면 series의 top5.roas_series(매출 없음: click_series)로 렌더링
+  "s5": {},                  # rank_file 사용 시 빈 객체 → s5_rows. (아래는 직접 줄 때의 형식)
   "s5": {                    # 소재 단위 누적 성과 표 — total 응답 행의 원본 수치 (포맷 금지)
     "rows": [ { "media": "<chosen_media>", "campaign": "...", "asset_group": "...", "ad_name": "...",
                 "impression": 12345, "click": 67, "cost": 89012,
@@ -86,6 +93,8 @@ def _load_kit():
 
 
 kit = _load_kit()
+sys.path.insert(0, ASSETS_DIR)
+import rank_creatives  # noqa: E402 — 같은 assets/의 랭킹 계산기 (rank_file 해석·썸네일·각주)
 
 PLACEHOLDER_CARD = '<div class="card"><p style="color:#94a3b8;font-size:13px;">데이터 준비 중</p></div>'
 
@@ -119,7 +128,8 @@ S5_TH = ('<th style="border:1px solid #e2e8f0; padding:12px 14px; text-align:cen
          'white-space:nowrap; width:{width}px;">{label}</th>')
 S5_TH_TEXT = ('<th style="border:1px solid #e2e8f0; padding:12px 14px; text-align:center; background:#f8fafc; '
               'width:{width}px;">{label}</th>')
-S5_ID_HEADERS = [("매체", 90, S5_TH), ("캠페인", 260, S5_TH_TEXT), ("광고그룹", 200, S5_TH_TEXT), ("광고", 200, S5_TH_TEXT)]
+S5_ID_HEADERS = [("매체", 90, S5_TH), ("캠페인", 200, S5_TH_TEXT), ("광고그룹", 180, S5_TH_TEXT), ("광고", 200, S5_TH_TEXT)]
+S5_METRIC_WIDTH = 115
 
 
 def esc(v):
@@ -168,9 +178,9 @@ def build_summary_items(text):
     return "\n      ".join(items)
 
 
-def s1_slots(entries, label, kind):
+def s1_slots(entries, label, kind, digits=1):
     """랭킹 배열(최대 2개) → (name, metric, img_html) × 2. 2위 없으면 '-'와 빈 이미지 셀.
-    kind: 'pct'(ROAS/CTR, % 소수 1자리) | 'count'(클릭 수)."""
+    kind: 'pct'(ROAS 소수 1자리 / CTR 소수 2자리 — digits) | 'count'(클릭 수)."""
     out = []
     entries = entries or []
     for i in range(2):
@@ -185,7 +195,7 @@ def s1_slots(entries, label, kind):
         elif isinstance(v, str):
             metric = f"{esc(label)}: {esc(v)}"
         else:
-            metric = f"{esc(label)}: {kit.fmt_pct(v) if kind == 'pct' else kit.fmt_count(v)}"
+            metric = f"{esc(label)}: {kit.fmt_pct(v, digits) if kind == 'pct' else kit.fmt_count(v)}"
         url = e.get("thumbnail_url")
         img = S1_IMG_TMPL.format(url=esc(url), name=name) if url else ""
         out.append((name, metric, img))
@@ -230,7 +240,7 @@ def _s5_spec(modes, currency):
 
 def build_s5_thead(modes):
     ths = [tmpl.format(label=label, width=width) for label, width, tmpl in S5_ID_HEADERS]
-    ths += [S5_TH.format(label=esc(label), width=150) for label in s5_columns(modes)]
+    ths += [S5_TH.format(label=esc(label), width=S5_METRIC_WIDTH) for label in s5_columns(modes)]
     return "\n            ".join(ths)
 
 
@@ -288,21 +298,24 @@ def main():
         return None if skeleton else payload.get(key)
 
     series = None if skeleton else (load_series(payload) or {})
+    rank = None if skeleton else rank_creatives.load_rank(payload)
     top5 = (series or {}).get("top5") or {}
 
     # ── section 1 (최우수 소재 카드 ×2 — 왼쪽: 매출 있음 ROAS / 매출 없음 클릭, 오른쪽: CTR)
-    s1 = section_data("s1")
     a_key = "roas" if has_revenue else "click"
+    s1 = rank_creatives.resolve_s1(section_data("s1"), rank, payload.get("thumbnails"), a_key)
     if s1 and (s1.get(a_key) or s1.get("ctr")):
         status["s1"] = "ok"
         html = html.replace("__S1_A_TITLE__", S1_A_TITLE[has_revenue])
         html = html.replace("__S1_A_NOTE__", S1_A_NOTE[has_revenue])
-        for prefix_kind, entries, label, kind in (
+        html = html.replace("__S1_RULE_NOTE_HTML__",
+                            rank_creatives.rule_note_html(rank, lambda v: kit.fmt_money(v, currency)))
+        for prefix_kind, entries, label, kind, digits in (
                 ("A", s1.get(a_key), "ROAS" if has_revenue else modes.label("click"),
-                 "pct" if has_revenue else "count"),
-                ("CTR", s1.get("ctr"), "CTR", "pct")):
-            for rank, (name, metric, img) in enumerate(s1_slots(entries, label, kind), start=1):
-                prefix = f"__S1_{prefix_kind}_{rank}_"
+                 "pct" if has_revenue else "count", 1),
+                ("CTR", s1.get("ctr"), "CTR", "pct", 2)):
+            for pos, (name, metric, img) in enumerate(s1_slots(entries, label, kind, digits), start=1):
+                prefix = f"__S1_{prefix_kind}_{pos}_"
                 html = (html.replace(prefix + "NAME__", name)
                             .replace(prefix + "METRIC__", metric)
                             .replace(prefix + "IMG_HTML__", img))
@@ -323,7 +336,7 @@ def main():
     #    placeholder일 땐 canvas가 없어 스크립트가 스스로 no-op 한다)
     s3 = section_data("s3")
     s4 = section_data("s4")
-    names = (s3 or {}).get("names") or []
+    names = (s3 or {}).get("names") or ((rank or {}).get("top5_names") if s3 is not None else None) or []
     dates = (series or {}).get("dates")
     labels = (s3 or {}).get("labels") or (labels_from_dates(dates) if dates else build_labels(target))
     second_key = "roas_series" if has_revenue else "click_series"
@@ -357,6 +370,8 @@ def main():
 
     # ── section 5
     rows = load_rows(section_data("s5"))
+    if rows is None and section_data("s5") is not None and rank and "s5_rows" in rank:
+        rows = rank["s5_rows"]
     if rows is not None:
         status["s5"] = "ok"
         s5_rows = build_s5_rows(rows, modes, currency)

@@ -207,7 +207,7 @@ def main():
     if s5 and (s5.get("json_files") or s5.get("json")):
         tree = kit.build_tree(kit.load_envelopes(s5), f"{m1_y:04d}-{m1_m:02d}",
                               f"{target.year:04d}-{target.month:02d}",
-                              metric_keys, has_organic=modes.has_organic)
+                              metric_keys, has_organic=modes.has_organic, currency=currency)
         if tree["nodes"]:
             status["s5"] = "ok"
 

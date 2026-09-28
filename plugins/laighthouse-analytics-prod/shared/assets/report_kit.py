@@ -129,7 +129,11 @@ def resolve_roles(envelope):
     if conv:
         keys["conversion"] = conv
     units = envelope.get("metric_units") or {}
+    # 보고서 통화: 광고비 단위 → (없으면) 매출 단위가 통화 기호일 때 → 기본 "₩".
     currency = units.get(keys.get("cost")) if keys.get("cost") else None
+    if not is_currency_unit(currency):
+        rev_unit = units.get(keys.get("revenue")) if keys.get("revenue") else None
+        currency = rev_unit if is_currency_unit(rev_unit) else None
     out = {"media_list": media_list, "has_organic": has_organic, "metric_keys": keys,
             "metric_names": metrics, "currency": currency or "₩",
             "missing": [r for r in REQUIRED_ROLES if r not in keys and r not in ambiguous],
@@ -166,7 +170,7 @@ def fmt_count(v):
 
 
 def fmt_pct(v, digits=1):
-    return "-" if v is None else f"{v:.{digits}f}%"
+    return "-" if v is None else f"{v:,.{digits}f}%"
 
 
 def fmt_metric(v, unit, currency="₩"):
@@ -520,11 +524,12 @@ def _metric_order(metrics, metric_keys):
     return ordered + [m for m in metrics if m not in ordered]
 
 
-def build_tree(envelopes, base_period, cur_period, metric_keys, has_organic=True):
+def build_tree(envelopes, base_period, cur_period, metric_keys, has_organic=True, currency=None):
     """레벨별 get_ad_performance 봉투들(같은 두 기간, group_by가 LEVEL_DIMS의 접두)을
     트리 JSON으로 만든다. 각 레벨 값은 그 레벨 group_by로 서버가 계산한 값을 그대로 쓴다
     (비율 지표를 하위 행에서 합산하지 않기 위해 레벨마다 따로 조회한다).
 
+    currency: 단위가 null인 광고비·매출 역할 지표에 붙일 보고서 통화(discover.py의 currency).
     반환: {"levels": [...], "metrics": [{"key", "unit"}], "base": 기간, "cur": 기간,
            "nodes": [[name, cur_values, base_values, children], ...]}
     값 배열은 metrics 순서, 없으면 null. 하위 레벨 봉투가 없으면 그 레벨 이하는 비어 있다.
@@ -578,6 +583,8 @@ def build_tree(envelopes, base_period, cur_period, metric_keys, has_organic=True
             values.setdefault(path[:k], {"cur": {}, "base": {}})
 
     cost_key = (metric_keys or {}).get("cost")
+    # 단위가 비어 있는(null) 광고비·매출 지표는 보고서 통화를 붙인다 — 카드·표와 표기를 맞춘다.
+    money_keys = {k for k in ((metric_keys or {}).get("cost"), (metric_keys or {}).get("revenue")) if k}
 
     def arr(d):
         return [d.get(m) for m in metrics]
@@ -596,7 +603,8 @@ def build_tree(envelopes, base_period, cur_period, metric_keys, has_organic=True
 
     roots = sorted(children.get((), []), key=sort_key)
     return {"levels": LEVEL_LABELS[:depth],
-            "metrics": [{"key": m, "unit": units.get(m)} for m in metrics],
+            "metrics": [{"key": m, "unit": units.get(m) or (currency if m in money_keys else None)}
+                        for m in metrics],
             "cost": cost_key, "base": base_period, "cur": cur_period,
             "nodes": [node(p) for p in roots]}
 

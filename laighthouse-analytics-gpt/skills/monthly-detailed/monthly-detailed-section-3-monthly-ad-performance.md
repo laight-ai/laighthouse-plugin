@@ -31,10 +31,11 @@
 | 필드 | 값 |
 |---|---|
 | `cost` | 월별 cost 키 합 (두 모드 공통) |
-| `revenue` | 월별 revenue 키 합 — **매출 있음 모드만** |
-| `impression` / `click` | 월별 impression / click 키 합 — **매출 없음 모드만** |
+| `revenue` | 월별 revenue 키 합 — **revenue 역할이 있을 때** |
+| `impression` / `click` | 월별 impression / click 키 합 — **항상** (매출 없음 모드에서 차트에 쓰인다) |
 | `labels` | 생략 (빌더가 `{YY}년 {M}월` 자동 생성, 당월은 `(진행 중)` 접미사까지) |
 
+- 집계는 인라인 python으로 해도 된다(`generic-report-pattern.md` 9절).
 - ROAS/CTR/CPC는 넣지 않는다 — 빌더가 원자 값 합으로 계산한다(서버 비율 지표를 더하지 않는다).
 - **6개월 전부 넣는다** — 행이 없는 월(데이터 적재가 늦게 시작된 경우 포함)도 0으로 채운다
   (추정/보간 금지). 0이 채워진 월이 있으면 zero-fill 각주는 빌더가 자동으로 붙인다.

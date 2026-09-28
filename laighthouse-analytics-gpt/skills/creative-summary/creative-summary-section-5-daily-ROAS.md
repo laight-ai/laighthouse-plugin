@@ -33,5 +33,6 @@ SKILL.md 3-b의 day grain 응답(section-3/4와 공유)을 재사용한다 — �
 ```
 
 - `s5` 키를 존재시키기만 하면 된다 — 시리즈는 최상위 `series_file`의 `top5.roas_series`
-  (매출 없음: `top5.click_series`), 표시 이름은 `s4.names`를 빌더가 공유한다. 데이터가
+  (매출 없음: `top5.click_series`), 표시 이름은 `rank_file`의 `top5_names`(section-4와 동일)를
+  빌더가 공유한다. 매출 `null`은 0으로 계산된다. 데이터가
   비어있으면 `s5` 키를 뺀다.

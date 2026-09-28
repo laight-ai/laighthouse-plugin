@@ -18,7 +18,8 @@ SKILL.md 실행 순서 3-b에서 호출한 `get_ad_performance`(`time_grain:"day
 응답이 `[laighthouse-capture-hook] ... 저장됨: <경로>` 스텁으로 오면(캡처 훅 동작 호스트) 그
 경로를 `json_files`에, 원본 JSON 봉투가 그대로 오면 `json`에 문자열 통째로(혼용 가능, 손
 전사·행 선별 절대 금지). 스텁이 가리키는 캡처 파일을 Read로 열지 않는다(경로만 넘긴다).
-section-4/5용 `top5_keys`와 디스커버리에서 정한 `metric_keys`까지 같이 넘겨 **한 번의
+section-4/5용 상위 5개 키가 든 `rank_file`(SKILL.md 5단계의 `rank_creatives.py` 출력)과
+디스커버리에서 정한 `metric_keys`까지 같이 넘겨 **한 번의
 호출**로 끝내고, 출력은 빌더가 읽을 파일로 저장한다:
 
 ```bash
@@ -26,7 +27,7 @@ python3 assets/creative_daily_series.py <<'PYEOF' > /tmp/creative_series.json
 {"json_files": ["<day 응답 스텁 경로>"],
  "dates": ["기준일 6일 전", "...", "target_date"],
  "metric_keys": <discover.py 출력의 metric_keys 그대로 — revenue가 없으면 없는 채로>,
- "top5_keys": [ {"campaign_name": "...", "ad_group_name": "...", "ad_name": "..."}, ... ]}
+ "rank_file": "/tmp/creative_rank.json"}
 PYEOF
 ```
 
@@ -38,7 +39,7 @@ PYEOF
   `전체 ROAS` = 매출 합÷광고비 합×100(광고비 0이면 null — **매출 있음 모드만**, 매출 없음이면
   ROAS 계열을 생략하고 멈추지 않는다). 매출이 각 행에 지표로 들어있어 조인이 없다. 비율은 행의
   서버 계산 비율 지표를 합산하지 않고 항상 원자 지표 합으로 직접 계산한다. `media: null` 행은
-  무시한다. `metric_keys`를 생략하면 스크립트가 공용 킷(`report_kit.resolve_roles`) 규칙으로
+  무시한다. 매출 `null` 행은 합계에서 0으로 취급한다. `metric_keys`를 생략하면 스크립트가 공용 킷(`report_kit.resolve_roles`) 규칙으로
   응답 `metrics`에서 해석하고, 필수 역할을 못 정하면 명확한 에러를 낸다.
 
 > 🚫 **응답이 크다고 느껴져도 선택지는 둘뿐이다**: (1) 원본을 가공 없이 전부 스크립트에
@@ -54,4 +55,5 @@ PYEOF
 
 - 위 스크립트 출력 파일 경로를 빌더 입력 **최상위** `series_file`에 넣고, `s3` 키를
   존재시키기만 하면 된다(빌더가 `overall.ctr_series`와 `overall.roas_series` — 매출 없음:
-  `overall.click_series` — 그리고 `dates` 기반 라벨을 알아서 쓴다). 데이터가 비어있으면 `s3` 키를 빼면 "데이터 준비 중" 카드가 된다.
+  `overall.click_series` — 그리고 `dates` 기반 라벨을 알아서 쓴다). CTR Y축은 0 아래로 내려가지
+  않고, 눈금은 소수 최대 2자리로 반올림되며, CTR 툴팁은 소수 2자리다(템플릿 고정). 데이터가 비어있으면 `s3` 키를 빼면 "데이터 준비 중" 카드가 된다.

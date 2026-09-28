@@ -31,6 +31,10 @@
      CTR·CPC·ROAS** — 스크립트가 이미 계산, 매출·ROAS는 매출 있음 모드만)를 그대로 쓴다.
      `top5.ctr_series`/`roas_series`(매출 없음: `click_series`) 일별 시리즈로 **각 소재의 추이**(초반 대비 후반 상승/하향)도
      함께 볼 수 있다 — c) 항목에서 "성과 추이가 가장 크게 변한 소재"를 판단할 때 쓴다.
+   - `rank_creatives.py` stdout 요약(SKILL.md 5단계)의 `media_totals`(매체 7일 합과 CTR·ROAS —
+     매출 없음: CPC)와 `top_by_cost`(광고비 상위 10개 소재의 7일 누적 지표), `top5_names`
+     (`top5.totals`와 같은 순서의 소재 표시 이름)를 그대로 쓴다. 소재를 언급할 때는 이 표시
+     이름을 쓴다(소재명이 없는 소재는 `"<광고그룹> (소재명 없음)"`).
 2. dify 호출 없이, 위 수치를 근거로 AI가 executive_summary 텍스트를 직접 작성한다. 아래
    <작성 원칙>의 4단계 구조(판단→근거→원인가설→액션)를 그대로 따른다.
 

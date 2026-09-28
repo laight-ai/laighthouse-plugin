@@ -17,7 +17,7 @@
     return SUFFIX.includes(cur) ? body + cur : cur + body;
   }
   function count(v) { return Math.round(Number(v)).toLocaleString(); }
-  function pct(v, d) { return Number(v).toFixed(d == null ? 1 : d) + '%'; }
+  function pct(v, d) { d = d == null ? 1 : d; return Number(v).toLocaleString(undefined, { minimumFractionDigits: d, maximumFractionDigits: d }) + '%'; }
   function compact(v, unit) {
     // 축 눈금용 — 큰 수는 만/억 단위로 줄인다.
     const a = Math.abs(v);
@@ -26,7 +26,7 @@
     else if (a >= 1e4) s = (v / 1e4).toFixed(a >= 1e5 ? 0 : 1) + '만';
     else s = Number(v).toLocaleString();
     if (unit === 'money') return SUFFIX.includes(CURRENCY) ? s + CURRENCY : CURRENCY + s;
-    if (unit === 'pct') return v + '%';
+    if (unit === 'pct') return Number(Number(v).toFixed(2)) + '%';
     return s;
   }
   K.fmt = function (v, unit) {
@@ -40,7 +40,7 @@
   // ELT metric_units 기반 임의 지표 포맷
   function fmtMetric(v, unit) {
     if (v == null) return '—';
-    if (unit === '%') return Number(v).toFixed(2) + '%';
+    if (unit === '%') return pct(v, 2);
     if (CURRENCY_UNITS.includes(unit)) return money(v, unit);
     const body = Number.isInteger(v) ? Number(v).toLocaleString()
       : Number(v).toLocaleString(undefined, { maximumFractionDigits: 2 });
@@ -100,7 +100,7 @@
         scales: {
           y: { position: 'left', beginAtZero: true, ticks: { callback: v => compact(v, spec.left) } },
           y2: { position: 'right', beginAtZero: true, grid: { drawOnChartArea: false },
-                ticks: { callback: v => v + '%' } },
+                ticks: { callback: v => Number(Number(v).toFixed(2)) + '%' } },
         },
       },
     });

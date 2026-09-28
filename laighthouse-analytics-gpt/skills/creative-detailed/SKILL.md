@@ -44,6 +44,9 @@ generic 도구(`get_ad_performance`)와 `get_ad_creative_info`만 쓴다 —
   키는 영문(`date`/`media`/`source`/`campaign_name`/`ad_group_name`/`ad_id`/`ad_name` 등),
   **지표 키는 테넌트별**이다. **응답의 `metrics` 목록이 유효한 지표 키의 유일한 진실이다** —
   키를 추측하지 않고, 디스커버리 응답에서 역할별 `metric_keys`를 한 번 정해 그 키만 쓴다.
+- ⚠️ 매출(revenue 키) 값이 `null`인 행은 **합계·랭킹(ROAS) 계산에서 0으로 취급한다**(매출
+  귀속 없음 — asset 스크립트가 처리한다). section-5 표의 해당 소재 매출·ROAS 칸은 값이 없음을
+  뜻하는 `-`로 표시된다.
 - ⚠️ 비율 지표(ROAS/CTR류)는 요청한 grain 기준으로 서버가 이미 % 값으로 계산해 준다 —
   ×100 불필요. **행별 비율 값을 합산해 상위 기간 비율을 만들지 않는다**(날짜별 합산이
   필요하면 원자 지표 합으로 다시 계산).
@@ -65,40 +68,48 @@ generic 도구(`get_ad_performance`)와 `get_ad_creative_info`만 쓴다 —
 
 ## 매체 선택 (실행당 1회, 디스커버리 직후)
 
-1. **디스커버리 호출** (`generic-report-pattern.md` 2절의 변형 — `source`를 함께 받는다):
+1. **디스커버리 호출** (`generic-report-pattern.md` 2절 그대로):
    ```json
    { "brand_name": "<brand>", "start_date": "기준일 6일 전", "end_date": "target_date",
-     "time_grain": "total", "group_by": ["media", "source"] }
+     "time_grain": "total", "group_by": ["media"] }
    ```
    - **`metrics`는 생략한다**(전체 지표). ⚠️ `metrics: []`로 부르면 봉투 `metrics`가 빈 배열로
      와서 지표 키를 알 수 없다.
    - 응답 원문을 **가공 없이 그대로** `python3 assets/discover.py`에 넘긴다(캡처 스텁이면
      `{"json_files": ["<경로>"]}`) → `media_list`/`metric_keys`/`has_revenue`/`currency`(section-5 금액 표기).
-     `group_by`에 `source`가 섞여 있어도 `discover.py`는 `media` 차원 기준으로 매체를 중복
-     제거해 낸다. `has_organic`은 이 스킬에서 쓰지 않는다(소재에는 Organic 개념이 없다 —
-     `media: null` 행은 소재 선택·`sources_of`에서 전부 무시한다).
+     `has_organic`은 이 스킬에서 쓰지 않는다(소재에는 Organic 개념이 없다 — `media: null` 행은
+     소재 선택에서 전부 무시한다).
    - 출력의 `missing`/`ambiguous`가 비어 있지 않을 때만 사용자에게 **한 번에** 묻는다.
      **`revenue`가 없는 것은 질문 사유가 아니다** — 그대로 **매출 없음 모드**로 진행한다(아래
      **모드** 절).
-   - **`sources_of`**: `discover.py` 출력에 함께 나온다 — 매체별 `source` 값 목록(null 제외, 중복
-     제거, 응답 순서). `group_by`에 `source`가 있을 때만 출력된다.
    - 브랜드에 `media` 차원이 없어 호출이 실패하면 `group_by: ["source"]`로 재호출하고(여전히
      `metrics` 생략), `discover.py`가 `source` 값을 `media_list`로 낸다. 이후 필터 키도
-     `"source"`로, `sources_of[m] = [m]`으로 쓴다.
+     `"source"`로 쓴다.
 2. **사용자가 매체를 지정했으면** 그 값을 `media_list`에서 정확 일치로 찾아 `chosen_media`로
    쓴다(대소문자만 다른 경우는 `media_list`의 표기로 맞춘다). 없으면 `media_list`를 보여주며
    한 번 되묻는다.
 3. **지정하지 않았으면 소재 데이터 유무를 확인한다**: `media_list`의 각 매체에 대해
    `get_ad_performance`(`time_grain:"total"`, `group_by:["ad_name"]`, `metrics:[]`,
-   `filters:{"media":[m]}`, 같은 7일)를 **한 배치**로 발사하고, `rows`가 비어있지 않은 매체만
-   후보로 남긴다(여기서는 지표가 필요 없어 `metrics:[]`가 맞다 — 행 유무만 본다).
+   `filters:{"media":[m]}`, 같은 7일)를 **한 배치**로 발사하고(여기서는 지표가 필요 없어
+   `metrics:[]`가 맞다), 응답들을 **`assets/rank_creatives.py`의 후보 확인 모드**에 한 번에 넘긴다:
+   ```bash
+   python3 assets/rank_creatives.py <<'PYEOF'
+   {"candidates": {"<매체1>": "<캡처 스텁 경로 또는 응답 원문>", "<매체2>": "...", ...}}
+   PYEOF
+   ```
+   → `candidates`(후보 매체 목록)/`excluded`(제외 사유). ⚠️ **`ad_name`이 전부 `null`/빈 값/
+   `"-"`인 매체는 후보가 아니다** — `rows: [{"ad_name": null}]`처럼 행이 있어도 소재 단위
+   데이터가 없는 것이다(실측: 검색·쇼핑 계열 매체). 실제 소재명이 1개 이상 있어야 후보다
+   (판정은 스크립트가 한다 — 모델이 응답을 훑어보고 판단하지 않는다).
    - 후보가 정확히 1개 → 그 매체가 `chosen_media`(질문 없음).
    - 후보가 2개 이상 → 후보 목록을 보여주며 어느 매체를 분석할지 **한 번** 묻는다.
    - 후보가 0개 → 소재 단위 데이터가 있는 매체가 없다고 알리고 종료한다(보고서 생성 안 함).
-4. `get_ad_creative_info`의 `source`는 `sources_of[chosen_media]`의 값을 **전부** 그대로 쓴다 —
-   소스마다 1회씩 호출한다. 마트에 없는(소재 메타데이터가 없는) 소스는 에러가 아니라
-   `items: []`가 돌아오므로, 빈 결과는 건너뛰고 이름이 일치하는 항목이 있는 결과만 쓴다. 어느
-   소스에서도 못 찾으면 썸네일은 `null`(오류 아님). 소스를 이름으로 골라내거나 제외하지 않는다.
+4. **썸네일 조회(`get_ad_creative_info`)에는 `source`를 넣지 않는다.** ELT의 `source`는 닫힌
+   목록(`google_ads`/`kakao_keyword_ad`/`kakao_moment`/`meta_ads`/`naver_search_ads`/
+   `tiktok_ads`)이라 그 밖의 값은 400 에러이고, 마트 `source` 차원 값(예: `naver_gfa_display`)과도
+   일치하지 않는다. 대신 `name_query`(서버에서 대소문자 무시 부분 일치)로 소재명을 넘기고, 응답
+   항목 중 정확히 일치하는 것을 고른다(section-1 파일의 **썸네일 매칭 규칙**). 에러·빈 결과·
+   불일치는 전부 썸네일 `null`이다(오류로 취급하지 않는다).
 
 ## 모드 (`generic-report-pattern.md` 7절, 판정·분기는 빌더가 한다)
 
@@ -145,26 +156,29 @@ generic 도구(`get_ad_performance`)와 `get_ad_creative_info`만 쓴다 —
 >   section-1의 썸네일 카드 HTML도 빌더가 만든다. 모델은 소량 값 JSON(`metric_keys`,
 >   `currency` 포함)만 따옴표 있는 heredoc(`<<'PYEOF'`)으로 stdin에 넘긴다 — 입력 스키마는
 >   스크립트 상단 docstring 참고.
-> - **total 응답(section-1/5)은 이미 작다(소재당 한 행) — 받은 그 자리에서 바로
->   정렬 결과를 낸다.** Bash도 스크립트도 스크래치 파일(`meta.tsv` 등)도
->   쓰지 않고, 각 행을 자연어로 하나씩 서술하지도 않는다 — 실제 실행(2026-07-08)에서 이
->   작은 응답을 3중 중복 처리(자연어 서술 → 파일 재입력 → heredoc 스크립트)해 수 분을
->   소모한 사고가 있었다. "응답이 이미 작으면 바로 결과"가 규칙이다.
+> - **`assets/rank_creatives.py`** — (a) 매체 후보 확인(`candidates` 모드, 매체 선택 3),
+>   (b) total 응답(section-1/5) → section-1 최우수 소재 랭킹(최소 표본 기준 적용)·광고비 상위
+>   5개 키와 표시 이름·썸네일 조회 대상(`lookups`)·**section-5 rows 전체**(`"s5": true`)·
+>   Executive Summary 근거(`media_totals`/`top_by_cost`). 결과는 `out` 파일
+>   (`/tmp/creative_rank.json`)에 저장되고 stdout에는 요약(s5 rows 제외)이 나온다. 시리즈
+>   스크립트와 빌더는 이 파일을 `rank_file`로 읽는다. total 응답은 소재 수백 개가 캡처 스텁으로
+>   오는 것이 정상이다 — **모델은 소재 행을 손으로 정렬·필터링하거나 rows를 옮겨 적지 않는다**
+>   (실측: 461행 응답을 손으로 다루다 수 분 소모 + 소재명 `"-"` 소재가 그대로 순위에 오른 사고).
 > - **`assets/discover.py`** — 디스커버리 응답 → `media_list`/`metric_keys`/`has_revenue`/
 >   `currency` (실행 순서 3단계, 1회).
 > - **`assets/creative_daily_series.py`** — section-3/4(상위 5개 소재 exact-match 일별 CTR/
 >   ROAS/클릭 시리즈)의 파싱·계산 전부(`creative-summary`와 같은 파일). day 응답이
 >   `[laighthouse-capture-hook] ... 저장됨: <경로>` 스텁으로 오면(캡처 훅 동작 호스트 — 이
 >   플러그인의 PostToolUse 훅이 대용량 응답을 파일로 저장한 것) `json_files`에 경로만, 원본
->   JSON 봉투가 그대로 오면 `json`에 문자열 통째로 넘긴다. `top5_keys`(total 응답 정렬로 정한
->   5개 키)·`dates`(7일)·`metric_keys`를 함께 넘기고, 출력은 `> /tmp/creative_series.json`처럼
+>   JSON 봉투가 그대로 오면 `json`에 문자열 통째로 넘긴다. `rank_file`(상위 5개 키를 여기서
+>   읽는다)·`dates`(7일)·`metric_keys`를 함께 넘기고, 출력은 `> /tmp/creative_series.json`처럼
 >   빌더가 읽을 파일로 바로 저장한다(호출 형식은 section-3 파일). 스텁이 가리키는 파일을
 >   Read로 열거나 원본을 재타이핑하지 않고, 즉석 `grep/awk`/python으로 행을 거르지 않는다.
 > - 시리즈 스크립트 실행과 빌더 실행은 **한 번의 Bash 호출 안에 이어서** 담을 수 있다
 >   (`creative_daily_series > f && build_report`) — 왕복을 늘리지 않는다.
 > - MCP 응답을 스크래치 파일에 옮겨 적었다가 다시 읽는 왕복, 별도 파서/생성 스크립트 작성,
->   응답 원본의 재타이핑은 전부 금지다. 이 스킬이 만드는 파일은 시리즈 스크립트 출력 JSON 1개,
->   빌더가 저장하는 최종 보고서 HTML(과 s5 rows를 파일로 넘길 때의 rows JSON 1개)뿐이다.
+>   응답 원본의 재타이핑은 전부 금지다. 이 스킬이 만드는 파일은 랭킹 출력 JSON 1개, 시리즈
+>   스크립트 출력 JSON 1개, 빌더가 저장하는 최종 보고서 HTML뿐이다.
 > - (최후 폴백) Bash/python3가 전혀 없는 호스트에서만, `assets/report-template.html`을 Read해서
 >   placeholder를 직접 치환한다 — 그 외 호스트에서는 절대 이 경로를 쓰지 않는다.
 
@@ -192,8 +206,8 @@ generic 도구(`get_ad_performance`)와 `get_ad_creative_info`만 쓴다 —
    이 단계를 건너뛰고 끝에서 한꺼번에 내놓으려다 예산이 바닥나면 사용자는 아무것도 못 본다 —
    실제 사고 사례가 있는 필수 단계다.
 3. **디스커버리 + 매체 선택** (위 **매체 선택** 절): 디스커버리 1회(`metrics` 생략) →
-   `discover.py` → `media_list`/`metric_keys`/`currency`/`sources_of` →
-   (필요 시 소재 유무 확인 배치 1회) → `chosen_media` 확정. `metric_keys`에 revenue가 없으면
+   `discover.py` → `media_list`/`metric_keys`/`currency` →
+   (필요 시 소재 유무 확인 배치 1회 + `rank_creatives.py` 후보 확인) → `chosen_media` 확정. `metric_keys`에 revenue가 없으면
    매출 없음 모드.
 4. **데이터 배치 (한 메시지에 동시 발사, 총 2회)**: `get_ad_performance` ×1
    (`time_grain:"total"` — section-1/5용) + `get_ad_performance` ×1 (`time_grain:"day"` —
@@ -202,22 +216,24 @@ generic 도구(`get_ad_performance`)와 `get_ad_creative_info`만 쓴다 —
    각 섹션 파일의 호출 명세를 그대로 따른다. (day 호출은 total 응답에 의존하지 않는다 —
    "5개 키로 거른다"는 가공 시점에만 필요하다.) total 응답의 `rows`가 비어있으면 이 매체에
    소재 단위 데이터가 없다 — 사용자에게 알리고 `media_list`에서 다른 매체를 고르게 한다.
-5. **계산**: total 응답 정렬 → section-1 랭킹(ROAS — 매출 없음: 클릭 — 1·2위 + CTR 1·2위)과
-   section-5 rows(매출/전환이 행에 이미 있어 조인 불필요), cost 키 내림차순 → 상위 5개 소재
-   키·표시 이름. 그다음 `assets/creative_daily_series.py`를 day 응답(스텁 경로 또는 원본)과
-   `top5_keys`/`dates`/`metric_keys`로 1회 실행 → section-3 CTR 시리즈(`null` 규칙)와
-   section-4 ROAS 시리즈(매출 없음: 클릭 시리즈, 0-채움 규칙)가 한 파일로 나온다.
-   섹션 데이터가 준비되는 대로 골격의 placeholder를 교체·재게시해도 된다.
-6. **`get_ad_creative_info` (순차 의존, 소재 최대 4개 × 소스 수)**: 5단계에서 확정된
-   ROAS(매출 없음: 클릭)/CTR 1·2위 소재(유니크 최대 4개) 각각에 대해 `{ "brand_name": "<brand>",
-   "source": "<sources_of[chosen_media] 값>", "name_query": "<ad_name>" }`로 소스마다 호출 →
-   `items: []`는 건너뛰고, 이름이 정확히 일치하는 항목의 `image_url` (section-1 참고. 4단계 배치와
-   함께 낼 수 없다 — 랭킹이 먼저 필요. ⚠️ `image_url`은 IP 화이트리스트 뒤에 있어 허용되지
-   않은 네트워크에서는 이미지가 안 뜰 수 있다 — 렌더링 실패 시 onerror 폴백은 템플릿이
-   처리한다).
+5. **계산**: `assets/rank_creatives.py`를 total 응답(스텁 경로 또는 원본)·`metric_keys`·
+   `chosen_media`·`"s5": true`로 1회 실행해 `/tmp/creative_rank.json`에 저장한다(section-1 파일의
+   호출 형식) → section-1 랭킹(최소 표본 기준 적용)·section-5 rows·광고비 상위 5개 키와 표시
+   이름이 한 파일에 나온다. 그다음 `assets/creative_daily_series.py`를 day 응답(스텁 경로 또는
+   원본)과 `rank_file`/`dates`/`metric_keys`로 1회 실행 → section-3 CTR 시리즈(`null` 규칙)와
+   section-4 ROAS 시리즈(매출 없음: 클릭 시리즈, 0-채움 규칙)가 한 파일로 나온다. 두 스크립트는
+   한 번의 Bash 호출에 이어서 실행해도 된다. 섹션 데이터가 준비되는 대로 골격의 placeholder를
+   교체·재게시해도 된다.
+6. **`get_ad_creative_info` (순차 의존, 최대 4회)**: 5단계 stdout 요약의 `lookups`(유니크 최대
+   4개, 소재명 없는 소재 제외)마다 **`source` 없이** `{ "brand_name": "<brand>", "name_query":
+   "<lookups[i].ad_name>" }`로 호출(한 배치로 동시 발사) → section-1 파일의 **썸네일 매칭 규칙**으로
+   고른 `image_url`을 `thumbnails: {"L1": "<url>", ...}`로 빌더에 넘긴다(에러·불일치는 `null`).
+   4단계 배치와 함께 낼 수 없다 — 랭킹이 먼저 필요. ⚠️ `image_url`은 IP 화이트리스트 뒤에 있어
+   허용되지 않은 네트워크에서는 이미지가 안 뜰 수 있다 — onerror 폴백은 템플릿이 처리한다.
 7. **section-2 Executive Summary 작성** — 신규 MCP 호출 없이 다른 섹션 결과만 재사용해 AI가
    직접 작성 (`creative-detailed-section-2-executive-summary.md`의 규칙).
-8. **최종 빌드**: `assets/build_report.py`에 값 JSON(`metric_keys`, `currency`, `series_file` 포함)을
+8. **최종 빌드**: `assets/build_report.py`에 값 JSON(`metric_keys`, `currency`, `series_file`,
+   `rank_file`, `thumbnails` 포함, `s1`/`s3`/`s4`/`s5`는 빈 객체 `{}`)을
    heredoc으로 넘겨 최종 HTML을 생성한다. 출력 경로(`out`)는
    `~/Downloads/laighthouse-reports/{브랜드명}_creative-detailed_{기준_일자}.html`
    (디렉터리는 빌더가 만든다).
@@ -276,7 +292,7 @@ generic 도구(`get_ad_performance`)와 `get_ad_creative_info`만 쓴다 —
   `CTR`/`ROAS` 대소문자도 정확히.
 - section-1/5는 같은 total 응답 공유(랭킹 카드 vs 전체 표), section-3/4는 같은 day 응답과
   5개 소재 키·색상·범례 순서, 그리고 `creative_daily_series.py` 출력 파일 하나를 공유한다
-  (빌더가 `s3`의 `names`를 `s4`에도 주입).
+  (빌더가 `rank_file`의 `top5_names`를 `s3`/`s4` 범례에 쓴다).
   section-2만 신규 호출 없이 전부 재사용. **이 섹션은 프로모션을 언급하지 않는다**
   (`list_promotions` 호출 없음 — 다른 report_type의 section-2들과 다른 점).
 - 섹션 데이터가 준비 안 되면 해당 `s*` 키를 빌더 입력에서 뺀다 → "데이터 준비 중" 카드로

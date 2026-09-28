@@ -30,11 +30,12 @@
 | 필드 | 값 |
 |---|---|
 | `cost` | 날짜별 cost 키 합 (두 모드 공통) |
-| `revenue` | 날짜별 revenue 키 합 — **매출 있음 모드만** |
-| `impression` / `click` | 날짜별 impression / click 키 합 — **매출 없음 모드만** |
-| `promotions` | `list_promotions` 응답 `items[]`의 `{title, date_begin, date_end}`를 **가공 없이 그대로** 담은 배열 (없으면 `[]`) |
+| `revenue` | 날짜별 revenue 키 합 — **revenue 역할이 있을 때** |
+| `impression` / `click` | 날짜별 impression / click 키 합 — **항상** (매출 없음 모드에서 차트에 쓰인다) |
+| `promotions` | `list_promotions` 응답 배열 각 항목의 `{title, start_date, end_date}`를 **가공 없이 그대로** 담은 배열 (없으면 `[]`) |
 | `labels` | 생략 (빌더가 `M/D(요일)` 자동 생성) |
 
+- 집계는 인라인 python으로 해도 된다(`generic-report-pattern.md` 9절).
 - ROAS/CTR/CPC는 넣지 않는다 — 빌더가 원자 값 합으로 계산한다(서버 비율 지표를 더하지 않는다).
 - 7일 전부 넣는다 — 행이 없는 날도 0으로 채우고 추정/보간하지 않는다.
 - 응답의 `metrics` 목록에 `metric_keys`의 키가 없으면 조용히 0을 만들지 말고 Executive

@@ -29,11 +29,12 @@
 | 필드 | 값 |
 |---|---|
 | `cost` | 월별: 매체 행(`media` non-null)의 cost 키 합 (두 모드 공통) |
-| `revenue` | 월별: 매체 행의 revenue 키 합 — **매출 있음 모드만** |
-| `impression` / `click` | 월별: 매체 행의 impression / click 키 합 — **매출 없음 모드만** |
+| `revenue` | 월별: 매체 행의 revenue 키 합 — **revenue 역할이 있을 때** |
+| `impression` / `click` | 월별: 매체 행의 impression / click 키 합 — **항상** (매출 없음 모드에서 차트에 쓰인다) |
 | `labels` | 생략 (빌더가 `YY년 M월` + 당월 `(진행 중)` 자동 생성) |
 | `zero_fill` | 생략 (막대 배열에 0이 있으면 빌더가 고정 각주를 자동 표시 — 강제하려면 true/false 명시) |
 
+- 집계는 인라인 python으로 해도 된다(`generic-report-pattern.md` 9절).
 - ROAS/CTR/CPC는 넣지 않는다 — 빌더가 원자 값 합으로 계산한다(서버 비율 지표를 더하지 않는다).
 - **6개월 전부 넣는다** — 행이 없는 월도 0으로 채워 labels에서 제외하지 않는다. 추정/보간 금지.
 - MTD 기준 각주("이번달 데이터는 1일부터 기준일까지")와 zero-fill 고정 각주는 빌더가 넣는다.

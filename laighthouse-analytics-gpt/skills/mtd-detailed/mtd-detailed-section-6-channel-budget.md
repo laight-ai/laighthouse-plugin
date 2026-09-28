@@ -15,8 +15,12 @@
 ## MCP 도구 호출: `get_target_progress_v2` × len(media_list) (매체별 — 이 스킬에서 유일)
 
 ```json
-{ "brand_name": "<brand>", "month": "YYYY-MM", "media": "<media_list 값 그대로>", "as_of_date": "target_date" }
+{ "brand_name": "<brand>", "month": "YYYY-MM", "media": "<media_list 값 그대로>", "as_of_date": "target_date",
+  "cost_metric": "<metric_keys.cost>", "revenue_metric": "<metric_keys.revenue — 있을 때만>" }
 ```
+
+- `cost_metric`/`revenue_metric`은 section-1과 같은 규칙(`target-achievement.md`) — 구버전 서버가
+  인자를 거절하면 두 인자를 빼고 1회 재호출한다.
 
 - `generic-report-pattern.md` 5절 — 매체별 목표가 필요한 **유일한** 표라서 여기서만 매체마다
   부른다. `media`에는 `media_list`의 값을 **그대로** 넣는다(`.lower()`·표기 변환 금지 — 서버가
