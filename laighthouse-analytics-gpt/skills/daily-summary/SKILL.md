@@ -128,14 +128,17 @@ generic 도구(`get_ad_performance`)와 `get_target_progress_v2`, `list_promotio
      `filters` 생략) — section-1의 실적(소진액·매출·노출·클릭)
    - `get_ad_performance` ×1 (기준일 6일 전~target_date, `time_grain:"day"`,
      `group_by:["media"]`, `filters` 생략) — section-3/4/5 공유
+   - `get_ad_performance` ×1 (같은 7일, `time_grain:"total"`, `group_by:["media"]`) — section-4 범례의
+     기간 전체 값
    - `list_promotions` ×1 (기준일 7일 전 ~ target_date) — section-2/3/4 공유
 4. ⏱ **필수 체크포인트 — 스켈레톤 선(先) 게시.** 응답 수신 즉시, 다음 단계 전에
    `python3 assets/build_report.py`를 `{"skeleton": true, ...}`로 1회 호출해 전 섹션 "데이터
    준비 중" 골격을 만들고 게시한다(아래 7단계와 같은 출력 경로/Artifact — 이후 재게시로 교체).
    이 단계를 건너뛰고 끝에서 한꺼번에 내놓으려다 툴호출 예산이 바닥나면 사용자는 아무것도 못
    본다 — 자매 스킬의 실제 사고 사례가 있는 필수 단계다.
-5. **계산**: 각 섹션 파일의 규칙대로 section-1 값 판정, section-3 역할별 7일 배열, section-4
-   매체별 7일 배열, section-5 매체별 D-1/D-0 원본 수치(마지막 이틀 행만)를 산출한다.
+5. **계산**: 각 섹션 파일의 규칙대로 section-1 값 판정, section-3 역할별 7일 배열, section-5
+   매체별 D-1/D-0 원본 수치(마지막 이틀 행만)를 산출한다. section-4는 계산하지 않는다 — 응답을
+   그대로 넘긴다.
 6. **section-2 Executive Summary 작성** — 신규 MCP 호출 없이 section-4/5 데이터와 공유
    `list_promotions` 응답을 재사용해 AI가 직접 작성
    (`daily-summary-section-2-executive-summary.md`의 규칙).
@@ -189,14 +192,14 @@ generic 도구(`get_ad_performance`)와 `get_target_progress_v2`, `list_promotio
 | 1 | 목표 달성 현황 (당월 MTD) | `daily-summary-section-1-target-achievement.md` | `s1` |
 | 2 | Executive Summary | `daily-summary-section-2-executive-summary.md` | `s2` |
 | 3 | 최근 7일 성과 (혼합 차트) | `daily-summary-section-3-daily-performance-7days.md` | `s3` |
-| 4 | 매체별 매출 추이 (최근 7일, 누적 막대 — 매출 없음: 매체별 클릭) | `daily-summary-section-4-daily-revenue-7days.md` | `s4` |
+| 4 | 매체별 성과 추이 (최근 7일, 라인 — 지표 선택·매체 켜기/끄기) | `daily-summary-section-4-media-trend.md` | `s4` |
 | 5 | 매체별 성과 (D-1 vs D-0, 디스커버리된 매체 + Organic(있을 때)) | `daily-summary-section-5-channel-performance.md` | `s5` |
 
 - 응답 공유 관계: `get_ad_performance`(day grain) 1회 응답을 section-3/4/5가,
   `list_promotions` 1회 응답을 section-2/3/4가 공유한다. section-2는 신규 데이터 호출 없이
   section-3/5 데이터를 재사용해 텍스트만 쓴다.
-- section-3은 `daily-detailed`의 section-3과 동일한 차트, section-4는 매체 구성을 보여주는
-  누적 막대, section-5는 캠페인이 아니라 **매체 단위**(디스커버리된 매체 + Organic(있을 때))
+- section-3은 `daily-detailed`의 section-3과 동일한 차트, section-4는 매체별 흐름을 보여주는
+  라인 차트(지표는 데이터에 있는 것 전체, `shared/references/media-trend.md`), section-5는 캠페인이 아니라 **매체 단위**(디스커버리된 매체 + Organic(있을 때))
   비교표(모든 지표 증가=빨강·감소=파랑)다.
 - 섹션 데이터가 준비 안 되면 해당 `s*` 키를 빌더 입력에서 뺀다 → "데이터 준비 중" 카드로
   렌더링된다. 섹션을 임의로 생략하는 개념은 없다 — 항상 5개 전부.

@@ -30,7 +30,7 @@ impression/click/revenue/conversion 키"라 하면 그 맵의 값을 뜻한다. 
 
 **모드** (`generic-report-pattern.md` 7절, 판정·분기는 빌더의 공용 킷이 한다):
 - **매출 없음 모드** — `metric_keys`에 `revenue`가 없으면. 목표 카드·월별 차트·매체 표의 매출·
-  ROAS 자리에 노출·클릭·CTR·CPC가 나오고, 매체별 추이는 매체별 클릭이 된다. 모델은 섹션 파일
+  ROAS 자리에 노출·클릭·CTR·CPC가 나오고, 매체별 추이의 기본 지표는 클릭이 된다. 모델은 섹션 파일
   규칙대로 역할 원본 수치를 넣기만 한다(revenue 값은 생략).
 - **Organic 있음/없음** — `has_organic`. 없으면 Organic 행·계열·서술이 전부 빠진다.
 
@@ -137,9 +137,9 @@ generic 도구(`get_ad_performance`)와 `get_target_progress_v2`, `list_promotio
    준비 중" 골격을 만들고 게시한다(아래 7단계와 같은 출력 경로/Artifact — 이후 재게시로 교체).
    이 단계를 건너뛰고 끝에서 한꺼번에 내놓으려다 툴호출 예산이 바닥나면 사용자는 아무것도 못
    본다 — sibling 스킬의 실제 사고 사례가 있는 필수 단계다.
-5. **계산**: section-1 값(`target-achievement.md`), section-3 역할별 6개월 배열, section-4 매체별
-   6개월 배열, section-5 매체별(디스커버리된 매체 + Organic(있을 때)) M-1/M0 역할 원본 수치 — 각
-   섹션 파일의 매핑 규칙대로 빌더 입력 JSON 값을 만든다 (포맷팅·파생지표는 빌더 몫이다).
+5. **계산**: section-1 값(`target-achievement.md`), section-3 역할별 6개월 배열, section-5 매체별(디스커버리된 매체 + Organic(있을 때)) M-1/M0 역할 원본 수치 — 각
+   섹션 파일의 매핑 규칙대로 빌더 입력 JSON 값을 만든다 (포맷팅·파생지표는 빌더 몫이다). section-4는
+   공유 응답을 그대로 넘긴다.
 6. **section-2 Executive Summary 작성** — 신규 MCP 호출 없이(3단계의 `list_promotions` 포함)
    다른 섹션 데이터를 재사용해 AI가 직접 작성
    (`monthly-summary-section-2-executive-summary.md`의 규칙, 분기 비교 포함).
@@ -193,7 +193,7 @@ generic 도구(`get_ad_performance`)와 `get_target_progress_v2`, `list_promotio
 | 1 | 목표 달성 현황 | `monthly-summary-section-1-target-achievement.md` | `s1` |
 | 2 | Executive Summary | `monthly-summary-section-2-executive-summary.md` | `s2` |
 | 3 | 월별 광고 성과 (혼합 차트, 6개월) | `monthly-summary-section-3-monthly-ad-performance.md` | `s3` |
-| 4 | 매체별 매출 추이 (누적 막대, 6개월 — 매출 없음: 매체별 클릭) | `monthly-summary-section-4-media-trend.md` | `s4` |
+| 4 | 매체별 성과 추이 (6개월 라인 — 지표 선택·매체 켜기/끄기) | `monthly-summary-section-4-media-trend.md` | `s4` |
 | 5 | 매체 성과 비교 (M-1 vs M0, 디스커버리된 매체 + Organic(있을 때)) | `monthly-summary-section-5-channel-performance.md` | `s5` |
 
 - section-3의 6개월 공유 응답을 section-4(월별·매체별 값)와 section-5(M-1/M0 두 달치)가

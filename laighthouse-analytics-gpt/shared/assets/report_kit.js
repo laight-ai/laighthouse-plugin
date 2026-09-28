@@ -1,5 +1,5 @@
 /* 보고서 공용 킷 JS — report_kit.py 가 만든 스펙을 그린다. 빌더가 템플릿에 인라인한다.
- * 전역: window.LHKit = { configure, fmt, mixedChart, stackChart, promoBrackets, treeTable }
+ * 전역: window.LHKit = { configure, fmt, mixedChart, trendChart(=stackChart), promoBrackets, treeTable }
  */
 (function () {
   const K = {};
@@ -22,8 +22,9 @@
     // 축 눈금용 — 큰 수는 만/억 단위로 줄인다.
     const a = Math.abs(v);
     let s;
-    if (a >= 1e8) s = (v / 1e8).toFixed(a >= 1e9 ? 0 : 1) + '억';
-    else if (a >= 1e4) s = (v / 1e4).toFixed(a >= 1e5 ? 0 : 1) + '만';
+    const loc = (x, d) => Number(x).toLocaleString(undefined, { maximumFractionDigits: d });
+    if (a >= 1e8) s = loc(v / 1e8, a >= 1e9 ? 0 : 1) + '억';
+    else if (a >= 1e4) s = loc(v / 1e4, a >= 1e5 ? 0 : 1) + '만';
     else s = Number(v).toLocaleString();
     if (unit === 'money') return SUFFIX.includes(CURRENCY) ? s + CURRENCY : CURRENCY + s;
     if (unit === 'pct') return Number(Number(v).toFixed(2)) + '%';
@@ -106,40 +107,91 @@
     });
   };
 
-  /* 누적 막대: 매체별 추이. spec = report_kit.media_trend_spec() */
-  K.stackChart = function (canvasId, legendId, spec) {
+  /* 매체별 추이: 라인 + 지표 선택(데이터에 있는 지표 전체) + 매체 켜기/끄기 범례.
+   * spec = report_kit.media_trend_from_envelopes() (또는 media_trend_spec) —
+   *   {labels, default, total_label, metrics:[{key,label,unit,share}], series:[{label,color,values:{지표:[]},total:{지표:값}}]}
+   * legendId 컨테이너 안에 지표 선택 줄 + 매체 범례 줄을 그린다(인라인 스타일 — 킷 CSS 불필요). */
+  K.trendChart = function (canvasId, legendId, spec) {
     const ctx = document.getElementById(canvasId);
-    if (!ctx || !spec || !spec.series || !spec.series.length) return null;
-    const datasets = spec.series.map(s => ({
-      type: 'bar', label: s.label, data: s.data, backgroundColor: s.color,
-      borderColor: '#ffffff', borderWidth: { top: 2, bottom: 0, left: 0, right: 0 }, borderSkipped: false,
-      stack: 'total',
-    }));
-    legend(legendId, spec.series.map(s => ({ label: s.label, color: s.color })));
-    return new Chart(ctx, {
-      data: { labels: spec.labels, datasets },
+    if (!ctx || !spec || !spec.series || !spec.series.length || !spec.metrics || !spec.metrics.length) return null;
+    const box = document.getElementById(legendId);
+    const byKey = {}; spec.metrics.forEach(m => { byKey[m.key] = m; });
+    let cur = byKey[spec.default] ? spec.default : spec.metrics[0].key;
+    const hidden = new Set();
+    const isMoney = u => CURRENCY_UNITS.includes(u);
+    const tick = u => v => (u === '%' ? Number(Number(v).toFixed(2)) + '%'
+      : isMoney(u) ? (SUFFIX.includes(u) ? compact(v, 'count') + u : u + compact(v, 'count'))
+      : compact(v, 'count') + (u || ''));
+    const total = (s, m) => {
+      if (s.total && s.total[m.key] != null) return s.total[m.key];
+      const a = s.values && s.values[m.key];
+      if (!a) return null;
+      for (let k = a.length - 1; k >= 0; k--) if (a[k] != null) return a[k];
+      return null;
+    };
+    const chart = new Chart(ctx, {
+      type: 'line',
+      data: { labels: spec.labels, datasets: [] },
       options: {
         responsive: true, maintainAspectRatio: false,
         interaction: { mode: 'index', intersect: false },
         plugins: {
           legend: { display: false },
-          tooltip: {
-            callbacks: {
-              label: c => `${c.dataset.label}: ${K.fmt(c.parsed.y, spec.unit)}`,
-              footer: items => {
-                const t = items.reduce((a, it) => a + (it.parsed.y || 0), 0);
-                return `합계 ${spec.metric}: ${K.fmt(t, spec.unit)}`;
-              },
-            },
-          },
+          tooltip: { callbacks: { label: c => `${c.dataset.label}: ${fmtMetric(c.parsed.y, byKey[cur].unit)}` } },
         },
         scales: {
-          x: { stacked: true, ticks: { maxRotation: 0, minRotation: 0, autoSkip: true } },
-          y: { stacked: true, beginAtZero: true, ticks: { callback: v => compact(v, spec.unit) } },
+          x: { ticks: { maxRotation: 0, minRotation: 0, autoSkip: true } },
+          y: { beginAtZero: true, ticks: { callback: v => tick(byKey[cur].unit)(v) } },
         },
       },
     });
+    const pill = (on, attr, text) => `<button type="button" ${attr} style="border:1px solid ${on ? '#1e293b' : '#e2e8f0'};background:${on ? '#1e293b' : '#fff'};color:${on ? '#fff' : '#1e293b'};border-radius:8px;padding:5px 10px;font-size:12px;cursor:pointer;">${text}</button>`;
+    const esc = t => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+    function render() {
+      const m = byKey[cur];
+      const rows = spec.series.map(s => ({ s, data: s.values ? s.values[m.key] : null, tot: total(s, m) }))
+        .filter(r => r.data && r.data.some(v => v != null && v !== 0));   // 이 지표에 값이 있는 매체만
+      chart.data.datasets = rows.map(r => ({
+        label: r.s.label, data: r.data, borderColor: r.s.color, backgroundColor: r.s.color,
+        borderWidth: 2, pointRadius: 3, tension: 0.25, spanGaps: true, hidden: hidden.has(r.s.label),
+      }));
+      chart.update();
+      if (!box) return;
+      const grand = m.share ? rows.reduce((a, r) => a + (r.tot || 0), 0) : 0;
+      const sorted = rows.slice().sort((a, b) => (b.tot || 0) - (a.tot || 0));
+      box.style.cssText = 'display:block;margin-bottom:12px;';
+      box.innerHTML =
+        `<div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:8px;font-size:12px;color:#64748b;">지표 ` +
+        spec.metrics.map(x => pill(x.key === cur, `data-metric="${encodeURIComponent(x.key)}"`, esc(x.label))).join('') + `</div>` +
+        `<div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;"><span style="font-size:11.5px;color:#64748b;">${esc(spec.total_label || '')}</span>` +
+        sorted.map(r => {
+          const off = hidden.has(r.s.label);
+          const val = r.tot == null ? '-' : fmtMetric(r.tot, m.unit) + (grand ? ` · ${(r.tot / grand * 100).toFixed(1)}%` : '');
+          return `<button type="button" data-media="${encodeURIComponent(r.s.label)}" style="display:flex;align-items:center;gap:8px;border:1px solid #e2e8f0;background:#fff;border-radius:8px;padding:6px 10px;font-size:12px;cursor:pointer;color:#1e293b;opacity:${off ? 0.35 : 1};">` +
+            `<i style="width:14px;height:3px;border-radius:2px;background:${r.s.color};display:inline-block;"></i><b>${esc(r.s.label)}</b>` +
+            `<span style="color:#64748b;font-variant-numeric:tabular-nums;">${val}</span>` +
+            `<span data-only="${encodeURIComponent(r.s.label)}" style="font-size:11px;color:#2563eb;">만 보기</span></button>`;
+        }).join('') + `<a data-reset="1" style="font-size:11.5px;color:#2563eb;cursor:pointer;margin-left:4px;">전체 보기</a></div>`;
+    }
+    if (box) {
+      box.addEventListener('click', e => {
+        const t = e.target.closest('[data-metric],[data-only],[data-media],[data-reset]');
+        if (!t) return;
+        if (t.dataset.metric) cur = decodeURIComponent(t.dataset.metric);
+        else if (t.dataset.only) {
+          const only = decodeURIComponent(t.dataset.only);
+          hidden.clear(); spec.series.forEach(s => { if (s.label !== only) hidden.add(s.label); });
+        } else if (t.dataset.media) {
+          const name = decodeURIComponent(t.dataset.media);
+          if (hidden.has(name)) hidden.delete(name); else hidden.add(name);
+        } else if (t.dataset.reset) hidden.clear();
+        render();
+      });
+    }
+    render();
+    return chart;
   };
+  K.stackChart = K.trendChart;  // 예전 템플릿 호출 이름 호환
 
   /* 프로모션 브래킷: wrap은 캔버스와 폭이 같은 형제 div. band=true면 막대 차트(칸 경계 정렬). */
   K.promoBrackets = function (wrapId, chart, promos, band) {
@@ -151,7 +203,7 @@
     const xScale = chart.scales.x;
     const chartWidth = xScale.right - xScale.left;
     const n = chart.data.labels.length;
-    const half = band ? chartWidth / n / 2 : 0;
+    const half = band && chart.config.type !== 'line' ? chartWidth / n / 2 : 0;  // 라인 차트는 점 위치 기준
     promos.forEach((p, row) => {
       const s = Math.max(0, Math.min(n - 1, p.start_idx));
       const e = Math.max(0, Math.min(n - 1, p.end_idx));

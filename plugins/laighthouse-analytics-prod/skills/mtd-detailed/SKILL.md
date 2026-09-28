@@ -125,13 +125,13 @@ generic 도구(`get_ad_performance`)와 `get_target_progress_v2`, `list_promotio
    이 단계를 건너뛰고 끝에서 한꺼번에 내놓으려다 툴호출 예산이 바닥나면 사용자는 아무것도 못
    본다 — 자매 스킬의 실제 사고 사례가 있는 필수 단계다.
 5. **2차 배치 (한 메시지에 동시 발사)**: section-3(`time_grain:"month"` 6개월, `group_by:["media"]`,
-   `day_offset`, `metrics`·`filters` 생략) 1회 + section-4(`time_grain:"day"`, 월초~target_date,
-   `group_by:["media"]` 1회 + `list_promotions` 1회) + section-7(전월 1일~target_date,
+   `day_offset`, `metrics`·`filters` 생략) 1회 + section-4(월초~target_date, `group_by:["media"]`,
+   `time_grain:"day"` 1회 + `time_grain:"total"` 1회 + `list_promotions` 1회) + section-7(전월 1일~target_date,
    `time_grain:"month"`, `day_offset`, `metrics` 생략 — 캠페인 레벨 1회 + 광고그룹·광고 레벨 각각
    `media_list`의 매체마다 1회). 각 섹션 파일의 호출 명세를 그대로 따른다.
 6. **계산**: section-1 값(`target-achievement.md`), section-3 역할별 6개월 배열(광고 매체 행 합),
-   section-4 매체별 일별 배열, section-6 매체별 목표 원본 + 실적. section-7은 계산하지 않는다 —
-   응답을 그대로 넘긴다(매체 레벨은 section-3 응답 재사용).
+   section-6 매체별 목표 원본 + 실적. section-4·section-7은 계산하지 않는다 — 응답을 그대로
+   넘긴다(section-7 매체 레벨은 section-3 응답 재사용).
 7. **section-2 Executive Summary + section-5 캠페인 분석 작성** — 추가 MCP 호출 없이 다른
    섹션 응답을 재사용해 AI가 직접 작성 (각 섹션 파일의 규칙).
 8. **최종 빌드**: `assets/build_report.py`에 값 JSON(`metric_keys`, `has_organic`, `currency` 포함)
@@ -187,7 +187,7 @@ generic 도구(`get_ad_performance`)와 `get_target_progress_v2`, `list_promotio
 | 1 | 목표 달성 현황 | `mtd-detailed-section-1-target-achievement.md` | `s1` |
 | 2 | Executive Summary | `mtd-detailed-section-2-executive-summary.md` | `s2` |
 | 3 | 월별 광고 성과 (6개월 혼합 차트) | `mtd-detailed-section-3-monthly-ad-performance.md` | `s3` |
-| 4 | 매체별 일별 추이 (누적 막대 — 매출 없음: 매체별 클릭) | `mtd-detailed-section-4-daily-revenue.md` | `s4` |
+| 4 | 매체별 일별 성과 추이 (라인 — 지표 선택·매체 켜기/끄기) | `mtd-detailed-section-4-media-trend.md` | `s4` |
 | 5 | 캠페인 분석 (서술형) | `mtd-detailed-section-5-campaign-analysis.md` | `s5` |
 | 6 | 광고 매체별 현황 (매체별 예산·소진) | `mtd-detailed-section-6-channel-budget.md` | `s6` |
 | 7 | 매체·캠페인·광고그룹·광고 성과 (전월 동기 vs 당월, 계층 표) | `mtd-detailed-section-7-hierarchy-performance.md` | `s7` |

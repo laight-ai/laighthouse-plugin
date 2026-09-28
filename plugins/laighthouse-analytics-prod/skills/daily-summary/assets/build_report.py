@@ -37,11 +37,11 @@
     "impression": [..], "click": [..],              # 매출 없음 (cost도 함께 — 툴팁·CPC용)
     "promotions": [{"title": "여름 세일", "start_date": "2026-05-09", "end_date": "2026-05-11"}]
   },
-  "s4": {                    # 매체별 추이 — 매출 있음: revenue 값, 매출 없음: click 값 (배열 7개)
-    "series": [{"name": "<media 값 그대로>", "values": [..7개..]}, ...,
-               {"name": "Organic", "values": [..]}],   # Organic은 has_organic일 때만
+  "s4": {                    # 매체별 성과 추이 — 응답을 그대로 (shared/references/media-trend.md)
+    "json": ["<차트 기간 응답 원문>"],       # 또는 "json_files": [캡처 스텁 경로] — group_by ["media"], metrics 생략
+    "total_json": ["<같은 기간 total 응답>"],  # 선택(범례 = 기간 전체 값) — 또는 "total_json_files",
     "promotions": [...]
-  },
+  },                         # (예전 입력 "series": [{"name", "values": {역할: [...]}}]도 받는다)
   "s5": {                    # 매체별 성과 (D-1 vs D-0) — 역할별 원본 수치
     "rows": [{"name": "<media 값>", "d1": {"cost":..,"impression":..,"click":..,"revenue":..,"conversion":..},
                                     "d0": {...}},
@@ -221,12 +221,13 @@ def main():
 
     # ── section 4
     s4 = section_data("s4")
-    if s4 and s4.get("series"):
+    if kit.trend_has_input(s4):
         status["s4"] = "ok"
-        s4_spec = kit.media_trend_spec(s4.get("labels") or build_s4_labels(target), s4["series"], modes)
+        s4_spec = kit.trend_section_spec(s4, s4.get("labels") or build_s4_labels(target),
+                                         [d.isoformat() for d in week_dates(target)], modes, currency)
         s4_promos = build_promotions(s4.get("promotions"), target, s4_range_label)
         html = html.replace("__S4_TITLE__", kit.media_trend_title(modes))
-        html = html.replace("__S4_FOOTNOTE_HTML__", kit.media_trend_footnote(modes))
+        html = html.replace("__S4_FOOTNOTE_HTML__", kit.media_trend_footnote(modes, s4_spec["total_label"]))
     else:
         status["s4"] = "placeholder"
         html = swap_section(html, "s4", PLACEHOLDER_CARD)

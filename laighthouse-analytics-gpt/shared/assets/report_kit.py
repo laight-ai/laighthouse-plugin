@@ -11,7 +11,7 @@
                              매출 없음: 소진율/노출·클릭/CTR·CPC)
 - `perf_chart_spec`       — 광고 성과 혼합 차트 스펙 (매출 있음: 광고비·매출 막대 + ROAS 선,
                              매출 없음: 클릭 막대 + CTR 선, 광고비·노출·CPC는 툴팁)
-- `media_trend_spec`      — 매체별 매출(없으면 클릭) 누적 막대 스펙 (Organic은 있을 때만)
+- `media_trend_spec`      — 매체별 추이 라인 스펙 (지표 선택·매체 켜기/끄기, Organic은 있을 때만)
 - `compare_thead_html`/`compare_rows_html` — 매체 성과 비교 표(기준 기간 vs 비교 기간) <thead>/<tbody>
 - `build_tree`            — 매체→캠페인→광고그룹→광고 계층 표 데이터 (ELT 봉투 → 트리 JSON)
 - `inline_assets`         — 템플릿의 __REPORT_KIT_JS__ / __REPORT_KIT_CSS__ 치환
@@ -330,13 +330,48 @@ def perf_chart_spec(labels, s, modes):
                       {"label": "CPC", "data": cpc, "unit": "money"}]}
 
 
-def media_trend_spec(labels, series, modes, max_series=8):
-    """매체별 추이 누적 막대 스펙.
+ROLE_ORDER = ("cost", "impression", "click", "revenue", "conversion")
 
-    series: [{"name": <media 값 그대로 또는 "Organic">, "values": [...]}] — 매출 있음이면
-    revenue 역할 값, 매출 없음이면 click 역할 값. 입력 순서(디스커버리 순서)로 색을 고정 배정한다.
-    Organic은 has_organic일 때만 남기고 회색으로 맨 위에 쌓는다. 광고 매체가 max_series를 넘으면
-    넘친 매체를 "그 외 매체" 하나로 묶는다(차트 전용 — 표에는 매체가 전부 나온다).
+
+def _series_values(item, modes, n):
+    """series 항목의 values → {역할: 배열}. 예전 형식(배열 하나)은 기본 지표 역할로 본다."""
+    vals = item.get("values")
+    if isinstance(vals, dict):
+        return {r: list(vals[r])[:n] for r in ROLE_ORDER if isinstance(vals.get(r), list)}
+    default_role = "revenue" if modes.has_revenue else "click"
+    return {default_role: list(vals or [])[:n]}
+
+
+def trend_metrics(modes):
+    """추이 차트에서 고를 수 있는 지표 — 역할 합계(sum)와 역할로 계산하는 비율(ratio).
+
+    num/den/scale: 기간·매체별 비율 = sum(num) / sum(den) × scale. 브랜드에 없는 역할은 빠진다.
+    """
+    lab = modes.label
+    out = []
+    if modes.has_revenue:
+        out.append({"key": "revenue", "label": lab("revenue"), "unit": "money", "kind": "sum"})
+    out.append({"key": "cost", "label": lab("cost"), "unit": "money", "kind": "sum"})
+    if modes.has_conversion:
+        out.append({"key": "conversion", "label": lab("conversion"), "unit": "count", "kind": "sum"})
+    out += [{"key": "click", "label": lab("click"), "unit": "count", "kind": "sum"},
+            {"key": "impression", "label": lab("impression"), "unit": "count", "kind": "sum"}]
+    if modes.has_revenue:
+        out.append({"key": "roas", "label": "ROAS", "unit": "pct", "kind": "ratio",
+                    "num": "revenue", "den": "cost", "scale": 100})
+    out += [{"key": "ctr", "label": "CTR", "unit": "pct2", "kind": "ratio", "num": "click", "den": "impression", "scale": 100},
+            {"key": "cpc", "label": "CPC", "unit": "money", "kind": "ratio", "num": "cost", "den": "click", "scale": 1}]
+    if modes.has_conversion:
+        out.append({"key": "cpa", "label": "CPA", "unit": "money", "kind": "ratio",
+                    "num": "cost", "den": "conversion", "scale": 1})
+    return out
+
+
+def media_trend_spec(labels, series, modes, max_series=8, currency="₩"):
+    """(예전 입력 호환) 역할별 배열 series → LHKit.trendChart 스펙. 새 입력은 media_trend_from_envelopes.
+
+    series: [{"name": <media 값 또는 "Organic">, "values": {"cost": [...], "click": [...], ...}}]
+      (또는 "values": [...] — 기본 지표 하나). 비율 지표는 역할 합으로 계산한다.
     """
     n = len(labels)
     media, organic = [], None
@@ -345,35 +380,172 @@ def media_trend_spec(labels, series, modes, max_series=8):
             organic = item
         else:
             media.append(item)
-    out = []
-    head, tail = media[:max_series], media[max_series:]
+    head, tail = media, []
+    if len(media) > max_series:
+        head, tail = media[:max_series - 1], media[max_series - 1:]
+    rows = [(item["name"], SERIES_COLORS[i], _series_values(item, modes, n)) for i, item in enumerate(head)]
     if tail:
-        head = media[:max_series - 1]
-        tail = media[max_series - 1:]
-    for i, item in enumerate(head):
-        out.append({"label": item["name"], "data": list(item.get("values") or [])[:n],
-                    "color": SERIES_COLORS[i]})
-    if tail:
-        out.append({"label": f"그 외 매체 {len(tail)}개",
-                    "data": _sum_arrays([t.get("values") or [] for t in tail], n),
-                    "color": OTHER_COLOR})
+        vals = [_series_values(t, modes, n) for t in tail]
+        rows.append((f"그 외 매체 {len(tail)}개", OTHER_COLOR,
+                     {r: _sum_arrays([v[r] for v in vals if r in v], n) for r in ROLE_ORDER if any(r in v for v in vals)}))
     if organic is not None and modes.has_organic:
-        out.append({"label": "Organic", "data": list(organic.get("values") or [])[:n],
-                    "color": ORGANIC_COLOR})
-    unit = "money" if modes.has_revenue else "count"
-    metric = modes.label("revenue") if modes.has_revenue else modes.label("click")
-    return {"labels": labels, "unit": unit, "metric": metric, "series": out}
+        rows.append(("Organic", ORGANIC_COLOR, _series_values(organic, modes, n)))
+    unit_sym = {"money": currency, "count": None, "pct": "%", "pct2": "%"}
+    metrics = trend_metrics(modes)
+    out_series = []
+    for label, color, v in rows:
+        values, total = {}, {}
+        for m in metrics:
+            if m["kind"] == "sum":
+                if m["key"] in v:
+                    values[m["key"]] = v[m["key"]]
+                    total[m["key"]] = sum(x or 0 for x in v[m["key"]])
+            elif m["num"] in v and m["den"] in v:
+                values[m["key"]] = [ratio(a, b, m["scale"]) for a, b in zip(v[m["num"]], v[m["den"]])]
+                total[m["key"]] = ratio(sum(x or 0 for x in v[m["num"]]), sum(x or 0 for x in v[m["den"]]), m["scale"])
+        out_series.append({"label": label, "color": color, "values": values, "total": total})
+    return {"labels": labels, "default": "revenue" if modes.has_revenue else "click", "total_label": "기간 합계",
+            "metrics": [{"key": m["key"], "label": m["label"], "unit": unit_sym[m["unit"]], "share": m["kind"] == "sum"}
+                        for m in metrics],
+            "series": out_series}
+
+
+def media_trend_from_envelopes(labels, period_keys, envelopes, metric_keys, has_organic=False, currency="₩",
+                               total_envelopes=None, max_series=8):
+    """ELT 응답 봉투에서 매체별 추이 스펙을 바로 만든다 — 지표는 봉투의 metrics 전체(동적).
+
+    envelopes: 차트 기간의 get_ad_performance 응답(group_by ["media"], time_grain day|month, metrics 생략).
+      각 점의 값은 그 grain으로 서버가 계산한 값을 그대로 쓴다(비율 지표도 합산하지 않는다).
+    period_keys: labels와 같은 순서의 기간 키(day grain은 "YYYY-MM-DD", month grain은 "YYYY-MM").
+    total_envelopes: 같은 기간 time_grain "total" 응답(선택) — 범례의 기간 전체 값. 없으면 범례는 마지막 기간 값.
+    반환 spec(LHKit.trendChart): {labels, default, total_label, metrics:[{key,label,unit,share}],
+                                   series:[{label,color,values:{지표:[...]},total:{지표:값}}]}
+    - 지표 순서: 역할 지표(광고비→노출→클릭→전환→매출) 먼저, 나머지는 봉투 순서. 단위는 metric_units,
+      단위가 없는 광고비·매출에는 보고서 통화. share(비중 표시)는 역할 지표에만 켠다(합산 가능성이 확실한 지표).
+    - 행이 없는 기간: 단위가 "%"인 지표는 null(선 끊김 없이 건너뜀), 그 외는 0.
+    """
+    metric_keys = metric_keys or {}
+    metrics, units = [], {}
+    for env in envelopes:
+        for m in env.get("metrics") or []:
+            if m not in metrics:
+                metrics.append(m)
+        for k, v in (env.get("metric_units") or {}).items():
+            if v or k not in units:
+                units[k] = v
+    metrics = _metric_order(metrics, metric_keys)
+    money = {metric_keys.get("cost"), metric_keys.get("revenue")} - {None}
+    unit_of = {m: units.get(m) or (currency if m in money else None) for m in metrics}
+    roles = {v for k, v in metric_keys.items() if k in ROLE_ORDER and v}
+
+    keys = [str(k) for k in period_keys]
+    idx = {k: i for i, k in enumerate(keys)}
+    by_media = {}
+    for env in envelopes:
+        for row in env.get("rows") or []:
+            period = str(row.get("date") or row.get("month") or "")[:len(keys[0])] if keys else ""
+            if period not in idx:
+                continue
+            name = "Organic" if row.get("media") is None else str(row["media"])
+            slot = by_media.setdefault(name, {m: [None] * len(keys) for m in metrics})
+            for m in metrics:
+                v = row.get(m)
+                if isinstance(v, (int, float)):
+                    slot[m][idx[period]] = v
+    for vals in by_media.values():
+        for m in metrics:
+            if unit_of[m] != "%":
+                vals[m] = [0 if v is None else v for v in vals[m]]
+
+    totals = {}
+    for env in total_envelopes or []:
+        for row in env.get("rows") or []:
+            name = "Organic" if row.get("media") is None else str(row["media"])
+            totals[name] = {m: row.get(m) for m in metrics if isinstance(row.get(m), (int, float))}
+
+    names = [n for n in by_media if n != "Organic"]
+    cost_key = metric_keys.get("cost")
+    names.sort(key=lambda n: -(sum(by_media[n].get(cost_key) or [0]) if cost_key else 0))
+    head, tail = names, []
+    if len(names) > max_series:
+        head, tail = names[:max_series - 1], names[max_series - 1:]
+    series = []
+    for i, n in enumerate(head):
+        series.append({"label": n, "color": SERIES_COLORS[i], "values": by_media[n], "total": totals.get(n)})
+    if tail:
+        merged = {m: _sum_arrays([by_media[n][m] for n in tail], len(keys)) if unit_of[m] != "%" else [None] * len(keys)
+                  for m in metrics}
+        series.append({"label": f"그 외 매체 {len(tail)}개", "color": OTHER_COLOR, "values": merged, "total": None})
+    if "Organic" in by_media and has_organic and metric_keys.get("revenue"):
+        series.append({"label": "Organic", "color": ORGANIC_COLOR, "values": by_media["Organic"],
+                       "total": totals.get("Organic")})
+    default = metric_keys.get("revenue") or metric_keys.get("click") or (metrics[0] if metrics else None)
+    return {"labels": labels, "default": default,
+            "total_label": "기간 합계" if total_envelopes else "마지막 기간",
+            "metrics": [{"key": m, "label": m, "unit": unit_of[m], "share": m in roles} for m in metrics],
+            "series": series}
+
+
+def trend_section_spec(s4, labels, period_keys, modes, currency="₩"):
+    """매체별 추이 섹션 입력(s4) → 스펙. 새 입력(응답 봉투)과 예전 입력(series)을 모두 받는다.
+
+    새 입력: {"json"/"json_files": [차트 기간 응답], "total_json"/"total_json_files": [같은 기간 total 응답(선택)]}
+    예전 입력: {"series": [{"name", "values": {역할: [...]}}]}
+    """
+    if s4.get("json") or s4.get("json_files"):
+        envs = load_envelopes(s4)
+        tot = load_envelopes({"json": s4.get("total_json"), "json_files": s4.get("total_json_files")})
+        return media_trend_from_envelopes(labels, period_keys, envs, modes.metric_keys, modes.has_organic,
+                                          currency, tot or None)
+    return media_trend_spec(labels, s4.get("series") or [], modes, currency=currency)
+
+
+def trend_has_input(s4):
+    return bool(s4 and (s4.get("series") or s4.get("json") or s4.get("json_files")))
+
+
+def trend_default_totals(spec):
+    """기본 지표의 기간별 매체 합(0 채움 판정용)."""
+    key = spec.get("default")
+    n = len(spec.get("labels") or [])
+    out = [0] * n
+    for sr in spec.get("series") or []:
+        for i, v in enumerate((sr.get("values") or {}).get(key) or []):
+            if i < n:
+                out[i] += v or 0
+    return out
+
+
+def month_keys(target, n=6):
+    """target 이 속한 달까지 n 개월 "YYYY-MM" (오래된 순)."""
+    out = []
+    y, m = target.year, target.month
+    for _ in range(n):
+        out.append(f"{y:04d}-{m:02d}")
+        m -= 1
+        if m == 0:
+            y, m = y - 1, 12
+    return out[::-1]
+
+
+def day_keys(first, last):
+    """first~last "YYYY-MM-DD" (하루도 빠짐없이)."""
+    from datetime import timedelta
+    return [(first + timedelta(days=i)).isoformat() for i in range((last - first).days + 1)]
 
 
 def media_trend_title(modes):
-    return f"매체별 {modes.label('revenue') if modes.has_revenue else modes.label('click')} 추이"
+    return "매체별 성과 추이"
 
 
-def media_trend_footnote(modes):
+def media_trend_footnote(modes, total_label="기간 합계"):
+    basis = ("기간 전체 값(서버 집계 — 비율 지표도 정확)" if total_label == "기간 합계"
+             else "마지막 기간(이번 달·기준일) 값")
+    note = ("* 지표를 바꿔 볼 수 있고(데이터에 있는 지표 전체), 범례에서 매체를 눌러 끄고 켤 수 있습니다"
+            f"(축은 보이는 매체에 맞춰 다시 잡힘). 범례의 값은 {basis}이며, 비중(%)은 합산이 가능한 기본 지표에만 표시됩니다.")
     if modes.has_organic:
-        return ('<p style="font-size:11px; color:#64748b; margin-top:8px;">'
-                "* 'Organic'은 광고비 없이 귀속된 매출이며, 막대 전체 높이는 광고 매체와 Organic을 합친 매출입니다.</p>")
-    return ""
+        note += " 'Organic'은 광고비 없이 귀속된 매출·전환이라 해당 지표에서만 표시됩니다."
+    return f'<p style="font-size:11px; color:#64748b; margin-top:8px;">{note}</p>'
 
 
 # ── 매체 성과 비교 표 ──────────────────────────────────────────────────────────

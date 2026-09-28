@@ -39,11 +39,10 @@
     "labels": [...],         # 선택 — 생략하면 "YY년 M월"(당월은 " (진행 중)") 자동 생성
     "zero_fill": true        # 선택 — 생략하면 막대 배열에 0이 있는지로 자동 판정(고정 각주)
   },
-  "s4": {                    # 매체별 추이 — 매출 있음: revenue 값, 매출 없음: click 값 (배열 6개)
-    "series": [{"name": "<media 값 그대로>", "values": [..6개..]}, ...,
-               {"name": "Organic", "values": [..]}],   # Organic은 has_organic일 때만
-    "labels": [...]          # 선택
-  },
+  "s4": {                    # 매체별 성과 추이 — 응답을 그대로 (shared/references/media-trend.md)
+    "json": ["<차트 기간 응답 원문>"],       # 또는 "json_files": [캡처 스텁 경로] — group_by ["media"], metrics 생략
+    "total_json": ["<같은 기간 total 응답>"],  # 선택(6개월 day_offset 차트는 넘기지 않는다 — 범례 = 이번 달) — 또는 "total_json_files"
+  },                         # (예전 입력 "series": [{"name", "values": {역할: [...]}}]도 받는다)
   "s5": {                    # 매체 성과 비교 (M-1 동기 vs M0) — 역할별 원본 수치
     "rows": [{"name": "<media 값>", "m1": {"cost":..,"impression":..,"click":..,"revenue":..,"conversion":..},
                                     "m0": {...}},
@@ -206,15 +205,16 @@ def main():
 
     # ── section 4 (매체별 추이 누적 막대 — 6개월)
     s4 = section_data("s4")
-    if s4 and s4.get("series"):
+    if kit.trend_has_input(s4):
         status["s4"] = "ok"
-        s4_spec = kit.media_trend_spec(s4.get("labels") or build_month_labels(target), s4["series"], modes)
+        s4_spec = kit.trend_section_spec(s4, s4.get("labels") or build_month_labels(target),
+                                         kit.month_keys(target), modes, currency)
         notes = [f"<div>{mtd_footnote}</div>"]
-        if has_zero_fill(s4, [sr["data"] for sr in s4_spec["series"]]):
+        if has_zero_fill(s4, [kit.trend_default_totals(s4_spec)]):
             notes.append(f"<div>{S4_ZERO_FILL}</div>")
         html = html.replace("__S4_TITLE__", kit.media_trend_title(modes))
         html = html.replace("__S4_NOTES_HTML__", "\n      ".join(notes))
-        html = html.replace("__S4_FOOTNOTE_HTML__", kit.media_trend_footnote(modes))
+        html = html.replace("__S4_FOOTNOTE_HTML__", kit.media_trend_footnote(modes, s4_spec["total_label"]))
     else:
         status["s4"] = "placeholder"
         html = swap_section(html, "s4", PLACEHOLDER_CARD)

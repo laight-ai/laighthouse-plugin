@@ -42,10 +42,10 @@
     "impression": [..], "click": [..],              # 매출 없음 (cost도 함께 — 툴팁·CPC용)
     "labels": [...]          # 선택 — 생략하면 "{YY}년 {M}월"(당월 "(진행 중)") 자동 생성
   },
-  "s4": {                    # 매체별 추이 — 매출 있음: revenue 값, 매출 없음: click 값 (배열 6개)
-    "series": [{"name": "<media 값 그대로>", "values": [..6개..]}, ...,
-               {"name": "Organic", "values": [..]}]    # Organic은 has_organic일 때만
-  },
+  "s4": {                    # 매체별 성과 추이 — 응답을 그대로 (shared/references/media-trend.md)
+    "json": ["<차트 기간 응답 원문>"],       # 또는 "json_files": [캡처 스텁 경로] — group_by ["media"], metrics 생략
+    "total_json": ["<같은 기간 total 응답>"],  # 선택(6개월 day_offset 차트는 넘기지 않는다 — 범례 = 이번 달) — 또는 "total_json_files"
+  },                         # (예전 입력 "series": [{"name", "values": {역할: [...]}}]도 받는다)
   "s5": {                    # 매체 성과 비교 (M-1 vs M0) — 역할별 원본 수치
     "rows": [{"name": "<media 값>", "m1": {"cost":..,"impression":..,"click":..,"revenue":..,"conversion":..},
                                     "m0": {...}},
@@ -214,14 +214,13 @@ def main():
 
     # ── section 4 (매체별 추이 누적 막대)
     s4 = section_data("s4")
-    if s4 and s4.get("series"):
+    if kit.trend_has_input(s4):
         status["s4"] = "ok"
         s4_labels = s4.get("labels") or labels or build_month_labels(target)
-        s4_spec = kit.media_trend_spec(s4_labels, s4["series"], modes)
-        totals = [sum((s["data"][i] or 0) for s in s4_spec["series"] if i < len(s["data"]))
-                  for i in range(len(s4_labels))]
+        s4_spec = kit.trend_section_spec(s4, s4_labels, kit.month_keys(target), modes, currency)
+        totals = kit.trend_default_totals(s4_spec)
         notes = [mtd_footnote(target)]
-        trend_note = kit.media_trend_footnote(modes)
+        trend_note = kit.media_trend_footnote(modes, s4_spec["total_label"])
         if trend_note:
             notes.append(trend_note)
         if has_zero_fill(totals):

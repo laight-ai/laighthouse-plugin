@@ -129,8 +129,8 @@ generic 도구(`get_ad_performance`)와 `get_target_progress_v2`, `list_promotio
    `list_promotions` ×1(당월 1일보다 30일 앞선 날짜 ~ target_date — section-2용).
    각 섹션 파일의 호출 명세를 그대로 따른다.
 6. **계산**: section-1 값(`target-achievement.md`), section-3 역할별 6개월 배열(광고 매체 행 합)·
-   section-4 매체별 6개월 배열·section-5 매체별(디스커버리된 매체 + Organic(있을 때)) M-1/M0 역할
-   원본 수치를 5단계 공유 응답에서 산출한다 (각 섹션 파일의 빌더 입력 매핑 표 참고).
+   section-5 매체별(디스커버리된 매체 + Organic(있을 때)) M-1/M0 역할 원본 수치를 5단계 공유
+   응답에서 산출한다 (각 섹션 파일의 빌더 입력 매핑 표 참고). section-4는 그 응답을 그대로 넘긴다.
 7. **section-2 Executive Summary 작성** — `list_promotions` 외 신규 MCP 호출 없이 다른 섹션
    응답만 재사용해 AI가 직접 작성 (`mtd-summary-section-2-executive-summary.md`의 규칙).
 8. **최종 빌드**: `assets/build_report.py`에 값 JSON(`metric_keys`, `has_organic`, `currency` 포함)을 heredoc
@@ -188,7 +188,7 @@ generic 도구(`get_ad_performance`)와 `get_target_progress_v2`, `list_promotio
 | 1 | 목표 달성 현황 | `mtd-summary-section-1-target-achievement.md` | `s1` |
 | 2 | Executive Summary | `mtd-summary-section-2-executive-summary.md` | `s2` |
 | 3 | 월별 광고 성과 (6개월 혼합 차트) | `mtd-summary-section-3-monthly-ad-performance.md` | `s3` |
-| 4 | 매체별 매출 추이 (6개월 누적 막대 — 매출 없음: 매체별 클릭) | `mtd-summary-section-4-revenue-trend.md` | `s4` |
+| 4 | 매체별 성과 추이 (6개월 라인 — 지표 선택·매체 켜기/끄기) | `mtd-summary-section-4-media-trend.md` | `s4` |
 | 5 | 매체 성과 비교 (전월 동기 vs 당월, 디스커버리된 매체 + Organic(있을 때)) | `mtd-summary-section-5-channel-comparison.md` | `s5` |
 
 - section-3의 6개월 공유 응답을 section-4(매체별 월 값)/section-5(마지막 2개월)가 재사용한다
