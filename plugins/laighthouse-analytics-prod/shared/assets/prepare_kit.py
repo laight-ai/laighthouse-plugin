@@ -934,8 +934,9 @@ def main(skill, argv=None, assets_dir=None):
     result["missing"] = store.missing
     result["errors"] = store.errors
     if not store.records:
-        result["note"] = (f"저장된 응답이 없다({ROOT}). 플러그인 저장 훅이 꺼져 있으면 응답이 남지 않는다 — "
-                          "SKILL.md의 '훅이 없을 때' 절차를 따른다.")
+        # 훅이 없는 호스트 — 큰 호출을 더 보내지 않도록 missing은 비우고 폴백 절차로 보낸다.
+        result = {"note": (f"저장된 응답이 없다({ROOT}) — 저장 훅이 동작하지 않는 환경이다. 큰 호출(계층 표·소재 단위)을 "
+                           "보내지 말고 references/legacy-flow.md 절차로 진행한다(이미 받은 응답은 재사용).")}
     # 소재 스크립트 import가 sys.stdout을 다시 감쌀 수 있어 fd 1에 바로 쓴다(Windows cp949 콘솔에서도 UTF-8).
     sys.stdout.flush()
     os.write(1, json.dumps(result, ensure_ascii=False).encode("utf-8"))
