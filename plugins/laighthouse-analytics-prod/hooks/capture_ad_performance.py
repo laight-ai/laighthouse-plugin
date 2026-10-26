@@ -49,6 +49,7 @@ CAPTURE_DIMENSIONS = {
     "ad_name",
 }
 MIN_CHARS = 1500  # 이보다 작은 응답은 스텁으로 바꿀 실익이 없다 — 원본 그대로 통과
+SPILL_MAX = 5000  # 호스트의 "Output has been saved to …" 안내문으로 볼 최대 길이
 STALE_SECS = 3 * 24 * 3600  # 3일 지난 세션 캡처 디렉터리는 정리
 
 CAPTURE_ROOT = os.path.join(tempfile.gettempdir(), "laighthouse_mcp_capture")
@@ -94,6 +95,17 @@ def rebuild_like(resp, new_text):
     if isinstance(resp, list):
         return [{"type": "text", "text": new_text}]
     return new_text
+
+
+def block_text(text):
+    """호스트 저장 파일이 [{"type":"text","text":…}] 블록 리스트면 본문만 꺼낸다."""
+    try:
+        obj = json.loads(text)
+    except (json.JSONDecodeError, ValueError):
+        return text
+    if isinstance(obj, list) and obj and all(isinstance(b, dict) and isinstance(b.get("text"), str) for b in obj):
+        return "\n".join(b["text"] for b in obj)
+    return text
 
 
 def unwrap_json_result(text):
@@ -201,12 +213,13 @@ def main():
     # Cowork는 초대형 응답을 스스로 파일로 빼고 "Output has been saved to <경로>" 안내만 넘긴다
     # (실측: 마크다운 시절 naver ad 단위 101,905자 → 1,325자 안내문). 그 파일을 직접 읽어 정상
     # 캡처로 전환한다 — 모델이 offset/limit으로 원본을 더듬는 경로를 원천 차단.
-    saved_match = re.search(r"saved to (\S+?\.txt)", text)
-    if len(text) <= MIN_CHARS and saved_match:
+    # 안내문 길이는 호스트마다 다르다(실측 1,325자·1,925자) — SPILL_MAX 미만이면 안내문으로 보고 따라간다.
+    saved_match = re.search(r"saved to (\S+?\.(?:txt|json))", text)
+    if len(text) < SPILL_MAX and saved_match:
         saved_path = saved_match.group(1)
         try:
             with open(saved_path, encoding="utf-8") as f:
-                redirected = unwrap_json_result(f.read())
+                redirected = unwrap_json_result(block_text(f.read()))
         except OSError:
             _breadcrumb(f"skip: oversized notice but cannot read {saved_path} — pass-through")
             return

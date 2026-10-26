@@ -6,6 +6,12 @@
 (`shared/assets/report_kit.py`/`.js`/`.css`)에 있고, 각 스킬의 `assets/build_report.py`가
 그것을 불러 쓴다 — 스킬마다 따로 구현하지 않는다.
 
+> ℹ️ **3.1.0부터 기본 흐름은 `assets/prepare.py`다** — 스킬의 MCP 호출을 한 번에 보내면 저장 훅이 응답을 남기고,
+> prepare.py(본체 `shared/assets/prepare_kit.py`)가 아래 2·3절(디스커버리·역할 해석), 5절(매체별 목표 — 이제 `media`
+> 생략 응답의 두 번째 표), 8절(계층 표 — 이제 레벨마다 필터 없이 1회, 5만 행 초과 시에만 매체별)을 응답에서 처리한다.
+> 별도 디스커버리 호출과 `discover.py`는 저장 훅이 없는 호스트의 폴백 절차(`references/legacy-flow.md`)에서만 쓴다.
+> 아래 규칙(역할 후보·모드·표시명)은 prepare.py와 빌더가 그대로 따른다.
+
 ## 1. 브랜드
 
 사용자가 말한 브랜드명을 모든 호출의 `brand_name`과 제목·파일명에 **그대로** 쓴다.

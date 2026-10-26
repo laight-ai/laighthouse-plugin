@@ -24,11 +24,22 @@
 | 플러그인 매니페스트 | `.claude-plugin/plugin.json` + 레포 루트 `.claude-plugin/marketplace.json` | `.codex-plugin/plugin.json` + 레포 루트 `.agents/plugins/marketplace.json` (로컬 마켓플레이스) |
 | 스킬 메타데이터 | SKILL.md frontmatter만 | 추가로 스킬별 `agents/openai.yaml` (표시 이름·색·MCP 도구 의존성) |
 | MCP 연동 | `.mcp.json` (`"type": "http"`) | `.mcp.json` (`"type": "streamable-http"`, Agent Plugins 스키마). 웹 스킬 zip 경로에서는 ChatGPT 설정에서 커넥터로 별도 연결 |
-| 대용량 응답 처리 | PostToolUse 훅(`hooks/capture_ad_performance.py`) | **같은 훅 스크립트**를 `hooks/`에 포함 (`${PLUGIN_ROOT}` 기준). Codex 런타임(Work 모드·Codex)에서만 실행되며 웹 Chat에서는 사전 예방 규칙으로 대체 — [`shared/references/gpt-large-response-guardrail.md`](shared/references/gpt-large-response-guardrail.md) |
+| 대용량 응답 처리 | PostToolUse 훅(`hooks/capture_ad_performance.py`, `hooks/save_responses.py`) | **같은 훅 스크립트**를 `hooks/`에 포함 (`${PLUGIN_ROOT}` 기준). Codex 런타임(Work 모드·Codex)에서만 실행되며 웹 Chat에서는 사전 예방 규칙으로 대체 — [`shared/references/gpt-large-response-guardrail.md`](shared/references/gpt-large-response-guardrail.md) |
 | 스킬 본문(SKILL.md)·섹션 파일·asset 스크립트 | 원본 | Claude 고유 표현·훅 분기 서술만 수정, 나머지 보고서 로직(계산·렌더링 규칙)은 **동일** |
 
 MCP 서버(`laighthouse`) 자체는 수정하지 않았습니다 — 이 레포는 클라이언트(스킬) 측 지침만
 플랫폼에 맞게 바꿉니다.
+
+## 실행 흐름 (3.1.0~)
+
+Claude Code판과 같은 저장 훅 + `assets/prepare.py` 흐름을 쓴다. 다만 웹 Chat에는 훅이 없으므로 MCP를 두 라운드로 나눈다.
+
+1. **라운드 A** — 응답이 작은 호출(매체 단위·목표·프로모션)을 한 메시지에서 동시에 보낸다.
+2. `prepare.py` — 저장 훅(`hooks/save_responses.py`)이 남긴 응답이 있으면 빌더 입력(`base.json`)과 요약 근거(`facts`)를
+   만들고, 아직 받지 않은 큰 호출(계층 표·소재 단위)을 `missing`으로 알린다.
+3. **라운드 B** — 훅이 동작하는 것이 확인됐을 때만 큰 호출을 보내고 prepare.py를 재실행한다.
+4. 저장된 응답이 하나도 없으면(`note`) 훅이 없는 환경이다 — 각 스킬의 `references/legacy-flow.md`(기존 절차, 대용량
+   응답 사전 예방 규칙 포함)로 진행하고, 이미 받은 라운드 A 응답은 재사용한다.
 
 ## 구조
 
@@ -148,7 +159,8 @@ MCP 도구(`get_ad_performance` 등)는 ChatGPT 설정에서 `laighthouse` MCP �
 1. 대용량 응답 처리: 훅 스텁이 오면 `json_files`, 원본이 오면 `json` — 두 경로를 모두 서술하고
    판별 규칙은 `gpt-large-response-guardrail.md`에 둡니다. "이 환경에는 훅이 없다"고 단정하는
    문구를 쓰지 않습니다(Work 모드/Codex에서는 훅이 돕니다).
-2. 훅 스크립트: `hooks/capture_ad_performance.py`는 Claude Code판과 동일 파일을 복사한 것입니다.
+2. 훅·공용 스크립트: `hooks/capture_ad_performance.py`·`hooks/save_responses.py`·`shared/assets/report_kit.py`·
+   `shared/assets/prepare_kit.py`와 스킬별 `assets/prepare.py`는 Claude Code판과 동일 파일을 복사한 것입니다.
    원본이 바뀌면 그대로 다시 복사합니다. `hooks.json`만 `${PLUGIN_ROOT}` 기준으로 다릅니다.
 3. 매니페스트: `.codex-plugin/plugin.json`(플러그인)과 스킬별 `agents/openai.yaml`(스킬 메타)을
    함께 유지합니다. 버전은 Claude Code판 `plugin.json`과 맞춥니다.
