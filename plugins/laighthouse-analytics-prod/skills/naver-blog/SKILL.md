@@ -31,7 +31,7 @@ metadata:
    - `missing`이 나오면 2의 인자가 다른 것이다 — 그 인자 그대로 다시 호출하고 재실행한다.
    - 종료 코드 2(stderr 메시지)는 사용자에게 그대로 전한다(예: 검색량은 매일 10시 수집 뒤에 어제 값이 들어온다).
    - 도구가 "is not collected for external context"로 거절하면 외부 데이터 수집 대상이 아닌 브랜드라고 알린다.
-4. `references/rules.md`대로 `facts`만 근거로 **요약 3파트(수정본 양식: 회색 칩 `언급량` · `광고성과 영향` · `평판 리스크` + 굵은 결론 + 근거)**을 쓰고 빌더를 1회 호출한다:
+4. `references/rules.md`대로 `facts`만 근거로 **요약 3파트(화면 양식: 회색 칩 `언급량` · `광고성과 영향` · `평판 리스크` + 굵은 결론 + 근거)**을 쓰고 빌더를 1회 호출한다:
    ```
    python3 assets/build_report.py --json <prepare가 준 json> <<'EOF'
    [{"head": "<굵은 결론>", "body": "<근거>"}, …]

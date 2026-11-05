@@ -43,7 +43,7 @@
 
 입력은 브랜드와 날짜 범위(기본 어제까지 14일)다. 스킬은 MCP 도구 `get_external_context`(report-backend가 laighthouse-elt의
 외부 맥락 데이터를 중계)를 1회 부르고(날씨는 `get_ad_performance`와 함께 2회), 저장 훅이 남긴 응답을 `assets/prepare.py`가
-읽어 집계한다. 집계·HTML은 공통 킷 `shared/assets/external_context/`(external-context-poc의 external-trend skill을 옮긴 것)가
+읽어 집계한다. 집계·HTML은 공통 킷 `shared/assets/external_context/`가
 한다. 이 폴더와 스킬 4개는 laighthouse-plugin-agency(`laighthouse-agency`)와 같은 파일이다 — 고칠 때는 양쪽을 함께 고친다.
 외부 데이터 수집 대상이 아닌 브랜드는 도구가 "is not collected for external context"로 거절한다.
 수치 회귀 비교: `python3 tests/regress_external_context.py --responses <응답 폴더> --baseline <기준 폴더>`(기준은 같은 명령에 `--write`로 먼저 만든다),
