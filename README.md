@@ -49,6 +49,7 @@ laighthouse-plugin/
 | `monthly-summary` |  Executive 월간 보고서(HTML, 임원용 핵심 요약) 렌더링 |
 | `creative-detailed` |  소재 보고서(HTML, 실무 상세) 렌더링 |
 | `creative-summary` |  Executive 소재 보고서(HTML, 임원용 핵심 요약) 렌더링 |
+| `skill-catalog` |  라이트하우스 스킬 목록(이름·명령어·설명·요청 예시)을 채팅에 표로 보여 준다 — "스킬 목록", "어떤 스킬 있어" |
 
 자세한 사용법은 [플러그인 README](plugins/laighthouse-analytics-prod/README.md)를 참고하세요.
 
