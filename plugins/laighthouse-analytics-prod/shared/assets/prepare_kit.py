@@ -245,38 +245,23 @@ def _target_payload(resp):
     return obj if isinstance(obj, dict) and "status" in obj else text
 
 
-def _targets_from_json(obj):
-    """JSON 객체 → parse_targets와 같은 모양. status가 "ok"가 아니면 목표 없음."""
-    out = {"all": {"cost": None, "revenue": None}, "by_media": {}}
-    if obj.get("status") != "ok":
-        return out
-    for row in obj.get("summary") or []:
-        if row.get("metric") in ("cost", "revenue"):
-            out["all"][row["metric"]] = _num(row.get("target"))
-    for row in obj.get("scopes") or []:
-        if row.get("campaign_name") not in (None, "") or row.get("metric") not in ("cost", "revenue"):
-            continue
-        slot = out["by_media"].setdefault(row.get("media"), {"cost": None, "revenue": None})
-        slot[row["metric"]] = _num(row.get("target"))
-    return out
-
-
 def parse_targets(resp):
     """get_target_progress_v2 응답 → {"all": {"cost", "revenue"}, "by_media": {media: {"cost", "revenue"}}}.
     JSON 객체(`summary`·`scopes`의 매체 행)와 예전 서버의 markdown 표(첫 표·두 번째 표의 매체 행)를 같은 결과로 읽는다.
     status ≠ "ok"·한 줄 메시지·에러·target 0은 목표 없음(None). actual은 쓰지 않는다."""
     payload = _target_payload(resp)
     if isinstance(payload, dict):
-        return _targets_from_json(payload)
+        summary, scopes = ((payload.get("summary") or [], payload.get("scopes") or [])
+                           if payload.get("status") == "ok" else ([], []))
+    else:
+        tables = _md_tables(payload) + [[], []]
+        summary, scopes = tables[0], tables[1]
     out = {"all": {"cost": None, "revenue": None}, "by_media": {}}
-    tables = _md_tables(payload)
-    if not tables:
-        return out
-    for row in tables[0]:
+    for row in summary:
         if row.get("metric") in ("cost", "revenue"):
             out["all"][row["metric"]] = _num(row.get("target"))
-    for row in (tables[1] if len(tables) > 1 else []):
-        if row.get("campaign_name", "-") not in ("-", "") or row.get("metric") not in ("cost", "revenue"):
+    for row in scopes:
+        if row.get("campaign_name") not in (None, "", "-") or row.get("metric") not in ("cost", "revenue"):
             continue
         slot = out["by_media"].setdefault(row.get("media"), {"cost": None, "revenue": None})
         slot[row["metric"]] = _num(row.get("target"))

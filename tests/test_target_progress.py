@@ -203,20 +203,14 @@ def _shapes(md, obj):
     ]
 
 
-def test_markdown_and_json_read_the_same_targets():
-    for label, (kit, _) in COPIES.items():
-        for md, obj, expected in ((MD_ALL, JSON_ALL, EXPECTED_ALL), (MD_GOOGLE, JSON_GOOGLE, EXPECTED_GOOGLE)):
-            got_md, got_json = kit.parse_targets(md), kit.parse_targets(obj)
-            assert got_md == expected, (label, got_md)
-            assert got_json == expected, (label, got_json)
-            assert list(got_md["by_media"]) == list(got_json["by_media"]) == list(expected["by_media"]), label
-
-
 def test_every_wrapped_shape_reads_the_same():
     for label, (kit, _) in COPIES.items():
         for md, obj, expected in ((MD_ALL, JSON_ALL, EXPECTED_ALL), (MD_GOOGLE, JSON_GOOGLE, EXPECTED_GOOGLE)):
             for name, resp in _shapes(md, obj):
-                assert kit.parse_targets(resp) == expected, (label, name)
+                got = kit.parse_targets(resp)
+                assert got == expected, (label, name)
+                # prepare_kit은 by_media를 순서대로 훑으므로 순서도 같아야 한다
+                assert list(got["by_media"]) == list(expected["by_media"]), (label, name)
 
 
 def test_non_ok_status_and_old_plain_line_are_no_target():

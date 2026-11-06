@@ -7,7 +7,7 @@ description: >
   `creative-detailed`/`creative-summary`는 다른 스킬들과 **레이아웃이 상당히
   다르다** — 톤앤매너(색상·카드 스타일·폰트)는 동일하게 유지한다.
 metadata:
-  version: "3.4.0"
+  version: "3.4.1"
 ---
 
 > ⚡ thinking은 짧게. MCP 1라운드 → `prepare.py` → 썸네일 조회 → 문장 작성 + `build_report.py` → 게시, 이 순서로만 진행한다.

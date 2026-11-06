@@ -6,7 +6,7 @@ description: >
   아니라 최우수 소재 카드·소재별 라인차트 등으로 구성된다(매출 지표가 없는 브랜드는 클릭·CTR·CPC 기준). 사용자가 말한 브랜드의 매체·지표를
   응답에서 알아내고, 소재 데이터가 있는 매체 하나를 골라 분석한다.
 metadata:
-  version: "3.2.0"
+  version: "3.2.1"
 ---
 
 > ⚡ thinking은 짧게. MCP 라운드 A → `prepare.py` 확인 → 라운드 B → `prepare.py` → 썸네일 조회 → 문장 작성 + `build_report.py` → 게시, 이 순서로만 진행한다.
