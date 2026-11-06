@@ -209,7 +209,6 @@ def test_every_wrapped_shape_reads_the_same():
             for name, resp in _shapes(md, obj):
                 got = kit.parse_targets(resp)
                 assert got == expected, (label, name)
-                # prepare_kit은 by_media를 순서대로 훑으므로 순서도 같아야 한다
                 assert list(got["by_media"]) == list(expected["by_media"]), (label, name)
 
 
