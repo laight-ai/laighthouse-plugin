@@ -5,7 +5,7 @@ description: >
   목표 대비 진행·월별 추이·매체별 일별 추이·매체별 예산·계층 표(매체·캠페인·광고그룹·광고, 전월 동기
   vs 당월)까지 보여주는 7섹션 MTD 보고서. 사용자가 말한 브랜드의 매체·지표를 응답에서 알아내 어떤 브랜드에도 같은 방식으로 동작한다.
 metadata:
-  version: "3.1.0"
+  version: "3.2.0"
 ---
 
 > ⚡ thinking은 짧게. MCP 라운드 A → `prepare.py` 확인 → 라운드 B → `prepare.py` → 문장 작성 + `build_report.py` → 게시, 이 순서로만 진행한다.
@@ -66,7 +66,7 @@ metadata:
 | 7 | A | `list_promotions` | 당월 1일 ~ T | — | — |
 
 `get_ad_performance`는 전부 `metrics`·`filters`를 생략한다(전체 지표·전체 매체). 브랜드명이 서버에 없다고
-거절되면 그때만 `get_brand_list`로 가장 비슷한 이름을 찾아 맞는지 사용자에게 묻는다(`shared/references/mcp-tools.md` 공통 규칙).
+거절되면 그때만 `get_brand_list`로 가장 비슷한 이름을 찾아 맞는지 사용자에게 묻는다(`shared/references/mcp-tools.md` 공통 규칙). 확인받은 이름은 이후 모든 호출의 `brand_name`과 `prepare.py --brand`, 제목·파일명에 쓴다.
 
 ## `facts` 읽는 법
 
