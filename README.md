@@ -30,7 +30,11 @@ laighthouse-plugin/
             ├── monthly-detailed/  #  월간 보고서(HTML, 실무 상세)
             ├── monthly-summary/   #  Executive 월간 보고서(HTML, 임원용 요약)
             ├── creative-detailed/ #  소재 보고서(HTML, 실무 상세)
-            └── creative-summary/  #  Executive 소재 보고서(HTML, 임원용 요약)
+            ├── creative-summary/  #  Executive 소재 보고서(HTML, 임원용 요약)
+            ├── naver-search/      #  외부 요인: 네이버 검색량(HTML, 날짜 범위)
+            ├── naver-news/        #  외부 요인: 네이버 뉴스 언급·주요 기사(HTML, 날짜 범위)
+            ├── naver-blog/        #  외부 요인: 네이버 블로그 언급·주요 글(HTML, 날짜 범위)
+            └── weather-impact/    #  외부 요인: 서울 날씨 + 광고 클릭 겹치기(HTML, 날짜 범위)
 ```
 
 ## 포함된 플러그인
@@ -49,6 +53,10 @@ laighthouse-plugin/
 | `monthly-summary` |  Executive 월간 보고서(HTML, 임원용 핵심 요약) 렌더링 |
 | `creative-detailed` |  소재 보고서(HTML, 실무 상세) 렌더링 |
 | `creative-summary` |  Executive 소재 보고서(HTML, 임원용 핵심 요약) 렌더링 |
+| `naver-search` | 브랜드(자사·경쟁) 네이버 추정 검색수 비교(날짜 범위) |
+| `naver-news` | 브랜드 네이버 뉴스 기사 수 비교 + 자사 주요 기사 4건 |
+| `naver-blog` | 브랜드 네이버 블로그 글 수 비교 + 자사 주요 글 4건 |
+| `weather-impact` | 서울 일별 기온·강수·불쾌지수(+광고 클릭이 있으면 비 온 날 차이) |
 | `skill-catalog` |  라이트하우스 스킬 목록(이름·명령어·설명·요청 예시)을 채팅에 표로 보여 준다 — "스킬 목록", "어떤 스킬 있어" |
 
 자세한 사용법은 [플러그인 README](plugins/laighthouse-analytics-prod/README.md)를 참고하세요.
@@ -57,6 +65,7 @@ laighthouse-plugin/
 
 - "<브랜드>의 MTD 보고서로 보여줘"
 - "임원용 데일리 보고서 만들어줘"
+- "<브랜드> 최근 2주 네이버 검색량을 경쟁사와 비교해줘", "<브랜드> 지난주 뉴스 주요 기사 뭐였어?"
 
 ## 마켓플레이스 등록
 

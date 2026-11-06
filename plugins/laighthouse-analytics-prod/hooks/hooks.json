@@ -12,7 +12,7 @@
         ]
       },
       {
-        "matcher": "^mcp__.+__(get_ad_performance|get_target_progress_v2|list_promotions)$",
+        "matcher": "^mcp__.+__(get_ad_performance|get_target_progress_v2|list_promotions|get_external_context)$",
         "hooks": [
           {
             "type": "command",

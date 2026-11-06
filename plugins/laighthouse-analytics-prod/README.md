@@ -17,6 +17,10 @@
 | 스킬 | monthly-summary |  Executive 월간 보고서(HTML, 5개 섹션, 임원용 핵심 요약) 렌더링 |
 | 스킬 | creative-detailed |  소재 보고서(HTML, 5개 섹션, 실무 상세) 렌더링 |
 | 스킬 | creative-summary |  Executive 소재 보고서(HTML, 5개 섹션, 임원용 핵심 요약) 렌더링 |
+| 스킬 | naver-search | 외부 요인: 브랜드(자사·경쟁) 네이버 추정 검색수 비교(날짜 범위) |
+| 스킬 | naver-news | 외부 요인: 브랜드 네이버 뉴스 기사 수 비교 + 자사 주요 기사 4건 |
+| 스킬 | naver-blog | 외부 요인: 브랜드 네이버 블로그 글 수(제목 일치) 비교 + 자사 주요 글 4건 |
+| 스킬 | weather-impact | 외부 요인: 서울 일별 기온·강수·불쾌지수, 광고 클릭이 있으면 겹치기 |
 | 스킬 | skill-catalog |  라이트하우스 스킬 목록(이름·명령어·설명·요청 예시)을 채팅에 표로 보여 준다(파일을 만들지 않는다) |
 
 ## 사용법
@@ -30,6 +34,20 @@
 > "임원용 월간 보고서로 보여줘" → `monthly-summary`
 > "소재 보고서 만들어줘" → `creative-detailed`
 > "임원용 소재 보고서 만들어줘" → `creative-summary`
+
+### 외부 요인 보고서 (3.3.0~)
+> "현대카드 최근 2주 네이버 검색량" → `naver-search`
+> "지난 2주 뉴스 얼마나 나왔고 주요 기사 뭐였어?" → `naver-news`
+> "블로그에서 얼마나 얘기 나와?" → `naver-blog`
+> "최근 2주 날씨가 광고 성과에 영향 줬는지" → `weather-impact`
+
+입력은 브랜드와 날짜 범위(기본 어제까지 14일)다. 스킬은 MCP 도구 `get_external_context`(report-backend가 laighthouse-elt의
+외부 맥락 데이터를 중계)를 1회 부르고(날씨는 `get_ad_performance`와 함께 2회), 저장 훅이 남긴 응답을 `assets/prepare.py`가
+읽어 집계한다. 집계·HTML은 공통 킷 `shared/assets/external_context/`가
+한다. 이 폴더와 스킬 4개는 laighthouse-plugin-agency(`laighthouse-agency`)와 같은 파일이다 — 고칠 때는 양쪽을 함께 고친다.
+외부 데이터 수집 대상이 아닌 브랜드는 도구가 "is not collected for external context"로 거절한다.
+수치 회귀 비교: `python3 tests/regress_external_context.py --responses <응답 폴더> --baseline <기준 폴더>`(기준은 같은 명령에 `--write`로 먼저 만든다),
+자체 검사: `python3 tests/test_weather_trend.py`·`tests/test_responses.py`·`tests/test_range_rules.py`·`tests/test_citations.py`.
 
 각 보고서 종류는 별도 스킬로 나뉘어 있으며, report_type을 별도로 지정할 필요 없이 스킬 자체가
 보고서 종류를 고정한다.
