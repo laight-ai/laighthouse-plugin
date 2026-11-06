@@ -71,7 +71,7 @@
   (`매출_AB`)로 찾는다 — 규칙은 `shared/references/generic-report-pattern.md`.
 - **매출 지표가 없는 브랜드**는 매출·ROAS 자리에 노출·클릭·CTR·CPC를 보여준다.
 - **Organic(광고 외 귀속 매출)**은 데이터가 있는 브랜드에서만 표·차트·요약에 나온다.
-- 목표는 `get_target_progress_v2`를 전체 매체(`media` 생략)로 1회 조회한다. 매체별 목표는 응답의 두 번째 표를 쓴다.
+- 목표는 `get_target_progress_v2`를 전체 매체(`media` 생략)로 1회 조회한다. 매체별 목표는 응답 `scopes`의 매체 행을 쓴다.
 - 실무 상세 보고서의 캠페인 이하 성과는 매체→캠페인→광고그룹→광고 계층 표(펼치기·정렬·검색·
   지표 선택)로 보여준다.
 - 렌더링 부품(목표 카드·차트·비교 표·계층 표)은 공용 킷 `shared/assets/report_kit.*` 한 곳에 있다.

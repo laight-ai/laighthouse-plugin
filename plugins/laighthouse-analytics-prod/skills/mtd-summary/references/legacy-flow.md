@@ -46,8 +46,8 @@ generic 도구(`get_ad_performance`)와 `get_target_progress_v2`, `list_promotio
 - 매체 필터가 필요하면 `filters: {"media": ["<media_list의 값>"]}` (정확 일치). 이 스킬은
   필터 없이 `group_by:["media"]`로 전 매체를 한 번에 받는다.
 - ⚠️ `get_target_progress_v2`는 `media`를 생략(전체 매체)해 **1회만** 부른다(`shared/references/
-  target-achievement.md`). 응답은 markdown 표이고, 이 스킬은 목표 ROAS를 목표 매출÷목표 예산으로
-  빌더가 계산하므로 roas 행은 쓰지 않는다.
+  target-achievement.md`). 응답은 JSON 객체이고(예전 서버는 markdown 표), 이 스킬은 목표 ROAS를
+  목표 매출÷목표 예산으로 빌더가 계산하므로 roas 행은 쓰지 않는다.
 - `group_by:["media"]` 응답의 `media`가 `null`인 행이 `Organic`이다(광고비 없이 매출만 귀속).
   정상 응답이니 버리지 말고 섹션 규칙대로 매핑한다. 디스커버리에 없는 매체 행을 지어 넣지
   않는다.
@@ -112,7 +112,7 @@ generic 도구(`get_ad_performance`)와 `get_target_progress_v2`, `list_promotio
    출력의 `missing`/`ambiguous`가 비어 있지 않을 때만 사용자에게 한 번에 묻는다(revenue가 없는
    것은 질문 사유가 아니다 — 매출 없음 모드).
 3. **1차 배치 (한 메시지에 동시 발사)**: `get_target_progress_v2` ×1(`media` 생략 = 전체 매체, `cost_metric`/`revenue_metric` = `metric_keys`;
-   한 줄 메시지/에러는 목표 없음) + `get_ad_performance` ×1(5개월 전 1일~target_date, `time_grain:"month"`, `group_by:["media"]`, `metrics`·`filters` 생략, `day_offset`=target_date.day)
+   `status`가 `"ok"`가 아니거나(예전 서버는 한 줄 메시지) 에러면 목표 없음) + `get_ad_performance` ×1(5개월 전 1일~target_date, `time_grain:"month"`, `group_by:["media"]`, `metrics`·`filters` 생략, `day_offset`=target_date.day)
    — **section-1/3/4/5 공유**. section-1 실적은 이 응답의 당월 행을 쓴다(별도 당월 호출 없음,
    `mtd-summary-section-1-target-achievement.md`).
 4. ⏱ **필수 체크포인트 — 스켈레톤 선(先) 게시.** 3단계 응답 수신 즉시, 다음 단계 전에
@@ -189,5 +189,5 @@ generic 도구(`get_ad_performance`)와 `get_target_progress_v2`, `list_promotio
   — 별도 호출 없음. section-2만 `list_promotions` 1회를 새로 호출한다.
 - 섹션 데이터가 준비 안 되면 해당 `s*` 키를 빌더 입력에서 뺀다 → "데이터 준비 중" 카드로
   렌더링된다. 섹션을 임의로 생략하는 개념은 없다 — 항상 5개 전부.
-- section-1의 목표 없음(한 줄 메시지/에러)은 오류가 아니다 — `s1`을 빼지 말고 null 규칙대로
-  채운다(빌더가 N/A와 각주를 단다).
+- section-1의 목표 없음(`status`가 `"ok"`가 아님·예전 서버의 한 줄 메시지/에러)은 오류가 아니다 —
+  `s1`을 빼지 말고 null 규칙대로 채운다(빌더가 N/A와 각주를 단다).

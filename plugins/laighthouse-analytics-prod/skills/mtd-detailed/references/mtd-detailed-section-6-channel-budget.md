@@ -26,13 +26,14 @@
   부른다. `media`에는 `media_list`의 값을 **그대로** 넣는다(`.lower()`·표기 변환 금지 — 서버가
   대소문자 무시·한국어 별칭으로 매칭한다).
 - section-1 목표 호출·section-3 공유 호출과 **같은 1차 배치**에서 동시에 발사한다.
-- 응답 처리 (아래는 전부 **목표 없음**, 오류 아님):
-  - `No {media} budget/target available for {month}.` 한 줄
-  - 마트 전제 미충족 안내 한 줄
+- 응답은 JSON 객체다(`shared/references/mcp-tools.md` 3절; 예전 서버는 같은 값을 markdown 표로 준다).
+  아래는 전부 **목표 없음**, 오류 아님:
+  - `status`가 `"ok"`가 아닌 응답 — `message`가 `No {media} budget/target available for {month}.` 또는
+    마트 전제 미충족 안내 한 줄(예전 서버는 표 대신 이 한 줄만 준다)
   - 호출 에러(구버전 서버의 `media` enum 스키마 에러 포함)
-  - 0 표(target 0) — 매칭되는 매체가 없을 때
-- 표가 오면 `cost` 행 `target`(> 0일 때만) → `월_예산`, `revenue` 행 `target`(> 0일 때만) →
-  `목표_매출`. **`actual`/`progress_ratio` 열은 쓰지 않는다.**
+  - target 0 — 매칭되는 매체가 없을 때
+- `status`가 `"ok"`면 `summary`의 `cost` 행 `target`(> 0일 때만) → `월_예산`, `revenue` 행 `target`(> 0일
+  때만) → `목표_매출`. **`actual`/`progress_ratio`는 쓰지 않는다.**
 
 ## 실적 — 신규 호출 없음
 

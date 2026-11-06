@@ -8,7 +8,7 @@
 
 > ℹ️ **3.1.0부터 기본 흐름은 `assets/prepare.py`다** — 스킬의 MCP 호출을 한 번에 보내면 저장 훅이 응답을 남기고,
 > prepare.py(본체 `shared/assets/prepare_kit.py`)가 아래 2·3절(디스커버리·역할 해석), 5절(매체별 목표 — 이제 `media`
-> 생략 응답의 두 번째 표), 8절(계층 표 — 이제 레벨마다 필터 없이 1회, 5만 행 초과 시에만 매체별)을 응답에서 처리한다.
+> 생략 응답 `scopes`의 매체 행), 8절(계층 표 — 이제 레벨마다 필터 없이 1회, 5만 행 초과 시에만 매체별)을 응답에서 처리한다.
 > 별도 디스커버리 호출과 `discover.py`는 저장 훅이 없는 호스트의 폴백 절차(`references/legacy-flow.md`)에서만 쓴다.
 > 아래 규칙(역할 후보·모드·표시명)은 prepare.py와 빌더가 그대로 따른다.
 
@@ -80,16 +80,17 @@
 ## 5. 월 목표 (`get_target_progress_v2`)
 
 - **합계 카드(section-1)는 `media`를 생략(= `null`, 전체 매체)하고 1회만 호출한다.** 매체
-  목록을 순회하지 않는다. 응답 헤더는 `media: all`.
+  목록을 순회하지 않는다. 응답 `media`는 `"all"`.
 - 매체별 목표가 꼭 필요한 표(현재 `mtd-detailed` section-6)만 `media_list`의 값을 **그대로**
   넣어 매체마다 호출한다. 서버가 대소문자 무시·한국어 별칭으로 매칭하므로 `.lower()`나 표기
   변환을 하지 않는다.
-- 응답 처리:
-  - 표(행 cost/revenue/roas × 열 target|actual|progress_ratio): `target > 0`인 행만 목표로 쓴다.
-  - `No {media} budget/target available for {month}.` 한 줄 → 목표 없음(오류 아님).
-  - 마트 전제 미충족(비용·매출 지표 또는 `media` 차원 없음) 한 줄 메시지 → 목표 없음(오류 아님).
-  - 매칭되는 매체가 없으면 0 표가 온다 → target 0 이므로 목표 없음.
-- ⚠️ `media: all`의 목표는 **목표가 저장된 매체만** 합산되고, 실적은 마트 전체다. 그래서
+- 응답 처리(JSON 객체 — `mcp-tools.md` 3절. 예전 서버는 같은 값을 markdown 표로 준다):
+  - `summary`(행 cost/revenue/roas)와 `scopes`의 매체 행: `target > 0`인 행만 목표로 쓴다.
+  - `status`가 `"ok"`가 아님 — `message`가 `No {media} budget/target available for {month}.` 또는
+    마트 전제 미충족(비용·매출 지표 또는 `media` 차원 없음) 한 줄 → 목표 없음(오류 아님). 예전
+    서버는 표 대신 이 한 줄만 준다.
+  - 매칭되는 매체가 없으면 target 0으로 온다 → 목표 없음.
+- ⚠️ 전체 매체(`media` `"all"`)의 목표는 **목표가 저장된 매체만** 합산되고, 실적은 마트 전체다. 그래서
   실적(소진액·매출)은 **항상 `get_ad_performance`에서** 광고 매체 행(`media` non-null) 합으로
   가져오고, 목표 도구의 `actual`은 쓰지 않는다. 빌더가 "목표는 등록 매체 기준" 각주를 항상 단다.
 

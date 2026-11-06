@@ -62,7 +62,7 @@ metadata:
 | 3 | B | `get_ad_performance` | 전월 1일 ~ T | `month` | `group_by:["media","campaign_name"]`, `day_offset` |
 | 4 | B | `get_ad_performance` | 전월 1일 ~ T | `month` | `group_by:["media","campaign_name","ad_group_name"]`, `day_offset` |
 | 5 | B | `get_ad_performance` | 전월 1일 ~ T | `month` | `group_by:["media","campaign_name","ad_group_name","ad_name"]`, `day_offset` |
-| 6 | A | `get_target_progress_v2` | `month`: M, `as_of_date`: T | — | `media` 생략 (매체별 목표는 응답의 두 번째 표) |
+| 6 | A | `get_target_progress_v2` | `month`: M, `as_of_date`: T | — | `media` 생략 (매체별 목표는 응답 `scopes`의 매체 행) |
 | 7 | A | `list_promotions` | 당월 1일 ~ T | — | — |
 
 `get_ad_performance`는 전부 `metrics`·`filters`를 생략한다(전체 지표·전체 매체). 브랜드명이 서버에 없다고

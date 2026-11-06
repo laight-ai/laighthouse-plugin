@@ -44,9 +44,9 @@ generic 도구(`get_ad_performance`)와 `get_target_progress_v2`, `list_promotio
   생략하면 총계만 온다(day/month grain이면 `date`/`month` 키 포함).
 - 매체 필터가 필요하면 `filters: {"media": ["<media_list의 값>"]}` (정확 일치). 이 스킬은
   필터 없이 `group_by:["media"]`로 전 매체를 한 번에 받는다.
-- ⚠️ `get_target_progress_v2`는 `media`를 생략(전체 매체)해 1회만 부른다. 응답은 markdown
-  표이고, ROAS류는 비율값(0.87)이다 — 이 스킬은 목표 ROAS를 목표 매출÷목표 예산으로 직접
-  계산하므로 roas 행은 쓰지 않는다.
+- ⚠️ `get_target_progress_v2`는 `media`를 생략(전체 매체)해 1회만 부른다. 응답은 JSON
+  객체이고(예전 서버는 markdown 표), ROAS류는 비율값(0.87)이다 — 이 스킬은 목표 ROAS를 목표
+  매출÷목표 예산으로 직접 계산하므로 roas 행은 쓰지 않는다.
 - `group_by:["media"]` 응답의 `media`가 `null`인 행이 `Organic`이다(광고비 없이 매출만 귀속).
   정상 응답이니 버리지 말고 섹션 규칙대로 매핑한다. 디스커버리에 없는 매체 행을 지어 넣지
   않는다.
@@ -119,8 +119,8 @@ generic 도구(`get_ad_performance`)와 `get_target_progress_v2`, `list_promotio
    출력의 `missing`/`ambiguous`가 비어 있지 않을 때만 사용자에게 한 번에 묻는다(revenue가 없는
    것은 질문 사유가 아니다 — 매출 없음 모드).
 3. **데이터 호출을 전부 한 메시지에 동시 발사한다** (조건부 3차 라운드 없음):
-   - `get_target_progress_v2` ×1 (`media` 생략 = 전체 매체, `cost_metric`/`revenue_metric` = `metric_keys`; 한 줄 메시지/에러는 목표 없음)
-     — section-1
+   - `get_target_progress_v2` ×1 (`media` 생략 = 전체 매체, `cost_metric`/`revenue_metric` = `metric_keys`;
+     `status`가 `"ok"`가 아니거나(예전 서버는 한 줄 메시지) 에러면 목표 없음) — section-1
    - `get_ad_performance` ×1 (당월 1일~target_date, `time_grain:"month"`, `group_by:["media"]`,
      `filters` 생략) — section-1의 실적(소진액·매출·노출·클릭)
    - `get_ad_performance` ×1 (기준일 6일 전~target_date, `time_grain:"day"`,

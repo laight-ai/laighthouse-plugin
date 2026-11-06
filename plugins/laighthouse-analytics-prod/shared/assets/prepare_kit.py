@@ -232,11 +232,44 @@ def _num(v):
     return x if x > 0 else None
 
 
-def parse_targets(text):
-    """get_target_progress_v2 응답 → {"all": {"cost", "revenue"}, "by_media": {media: {"cost", "revenue"}}}.
-    한 줄 메시지·에러·0 표는 목표 없음(None). actual 열은 쓰지 않는다."""
+def _target_payload(resp):
+    """get_target_progress_v2 응답 → JSON 객체(dict, `status` 있음) | 문자열(예전 서버의 markdown 표·한 줄 문장).
+    {"result": …}·텍스트 블록 래퍼는 먼저 벗긴다. 응답이 str·dict·list 어느 것으로 와도 된다."""
+    if resp is None:
+        return ""
+    text = _unwrap(resp if isinstance(resp, str) else json.dumps(resp, ensure_ascii=False))
+    try:
+        obj = json.loads(text)
+    except ValueError:
+        return text
+    return obj if isinstance(obj, dict) and "status" in obj else text
+
+
+def _targets_from_json(obj):
+    """JSON 객체 → parse_targets와 같은 모양. status가 "ok"가 아니면 목표 없음."""
     out = {"all": {"cost": None, "revenue": None}, "by_media": {}}
-    tables = _md_tables(text)
+    if obj.get("status") != "ok":
+        return out
+    for row in obj.get("summary") or []:
+        if row.get("metric") in ("cost", "revenue"):
+            out["all"][row["metric"]] = _num(row.get("target"))
+    for row in obj.get("scopes") or []:
+        if row.get("campaign_name") not in (None, "") or row.get("metric") not in ("cost", "revenue"):
+            continue
+        slot = out["by_media"].setdefault(row.get("media"), {"cost": None, "revenue": None})
+        slot[row["metric"]] = _num(row.get("target"))
+    return out
+
+
+def parse_targets(resp):
+    """get_target_progress_v2 응답 → {"all": {"cost", "revenue"}, "by_media": {media: {"cost", "revenue"}}}.
+    JSON 객체(`summary`·`scopes`의 매체 행)와 예전 서버의 markdown 표(첫 표·두 번째 표의 매체 행)를 같은 결과로 읽는다.
+    status ≠ "ok"·한 줄 메시지·에러·target 0은 목표 없음(None). actual은 쓰지 않는다."""
+    payload = _target_payload(resp)
+    if isinstance(payload, dict):
+        return _targets_from_json(payload)
+    out = {"all": {"cost": None, "revenue": None}, "by_media": {}}
+    tables = _md_tables(payload)
     if not tables:
         return out
     for row in tables[0]:

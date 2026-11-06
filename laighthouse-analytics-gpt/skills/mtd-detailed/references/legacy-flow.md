@@ -48,7 +48,8 @@ generic 도구(`get_ad_performance`)와 `get_target_progress_v2`, `list_promotio
   정상 응답이니 버리지 말고 섹션 규칙대로 다룬다. 디스커버리에 없는 매체 행을 지어 넣지 않는다.
 - ⚠️ `get_target_progress_v2`: section-1 카드는 `media`를 생략(전체 매체)해 **1회**
   (`shared/references/target-achievement.md`), section-6 표만 `media_list`의 값을 **그대로** 넣어
-  매체마다 1회씩 부른다(`.lower()` 금지). 한 줄 메시지·0 표·에러는 전부 목표 없음이다. 응답의
+  매체마다 1회씩 부른다(`.lower()` 금지). 응답은 JSON 객체(예전 서버는 markdown 표)이고, `status`가
+  `"ok"`가 아님(예전 서버는 한 줄 메시지)·target 0·에러는 전부 목표 없음이다. 응답의
   `actual`은 어디에도 쓰지 않는다 — 실적은 항상 `get_ad_performance`에서 가져온다.
 
 ---

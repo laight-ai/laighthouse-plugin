@@ -105,20 +105,43 @@ naver 전용 계열, v1 target_progress, 리포트 공유 계열)은 **서버에
 - `cost_metric`/`revenue_metric`(선택): 실적을 읽을 마트 지표 이름. **스킬은 항상
   `discover.py`의 `metric_keys` 값을 넘긴다**(매출 없음 모드면 `revenue_metric` 생략). 생략하면
   서버가 내장 후보(`광고비`/`cost`, `매출_AB`/`revenue`/`매출`)로 찾는다. 마트에 없는 이름을 주면
-  유효한 목록을 담은 ValueError. 매출 지표가 없으면 표는 그대로 오고 매출·ROAS 실적만 `-`다.
+  유효한 목록을 담은 ValueError. 매출 지표가 없으면 응답은 그대로 오고 매출·ROAS 실적만 `null`이다.
   구버전 서버가 이 인자를 거절하면 두 인자를 빼고 1회 재호출한다.
 
-- `media`: **생략/`null`/`""`/`"all"` → 전체 매체**(목표 합산 + 브랜드 전체 실적, 헤더
-  `media: all`). 이름을 주면 대소문자 무시 + 한국어 별칭(양방향)으로 그 달 마트가 서빙한 매체와
+- `media`: **생략/`null`/`""`/`"all"` → 전체 매체**(목표 합산 + 브랜드 전체 실적, 응답
+  `media`는 `"all"`). 이름을 주면 대소문자 무시 + 한국어 별칭(양방향)으로 그 달 마트가 서빙한 매체와
   매칭한다 — `get_ad_performance` 응답의 `media` 값을 **그대로** 넣으면 된다(`.lower()` 불필요).
   예전의 naver/google/meta/tiktok 네 값 제한은 없어졌다.
-- **이 도구만 여전히 markdown 표를 반환한다** — 행(cost/revenue/roas) × 열(target|actual|
-  progress_ratio). 표 대신 **한 줄 평문**이 오는 두 경우는 오류가 아니라 "목표 없음"이다:
-  - `No {media} budget/target available for {month}.` (전체 매체면 `No all budget/...`)
-  - 마트 전제 미충족(광고비 지표 없음, `media` 차원 없음) 안내 한 줄
-- 매칭되는 매체가 없으면 0 표(target 0)가 온다 → 역시 목표 없음.
+- **응답은 JSON 객체 하나다**(키는 항상 전부 온다):
+
+```json
+{ "status": "ok", "message": null, "month": "2026-10", "as_of_date": "2026-10-31", "media": "all",
+  "fee_basis": "net",
+  "summary": [ {"metric": "cost", "target": 161400000, "actual": 190828604, "progress_ratio": 1.1823},
+               {"metric": "revenue", "target": 0, "actual": 0, "progress_ratio": 0.0},
+               {"metric": "roas", "target": 0.0, "actual": 0.0, "progress_ratio": 0.0} ],
+  "scopes": [ {"media": "Google", "campaign_name": null, "included": null, "metric": "cost",
+               "target": 31300000, "actual": 65858985, "achievement": 2.1041},
+              {"media": "Google", "campaign_name": "<캠페인명>", "included": true, "metric": "cpv",
+               "target": 28, "actual": null, "achievement": null} ],
+  "fees": [ {"media": "Google", "fee_mode": "commission", "rate": 10} ] }
+```
+
+  - `summary`: 요청한 매체의 합계 3행(cost/revenue/roas). cost 목표는 예산이다.
+  - `scopes`: 매체 행(`campaign_name`·`included`가 `null`)과 그 뒤의 캠페인 행(`included`
+    true/false). 매체별 목표는 **매체 행**의 `target`이다.
+  - `fees`: 그 달 수수료를 받는 매체만(없으면 `[]`). `fee_basis`(`net`/`gross`)는 비용 목표·실적의
+    기준이다. 보고서는 둘 다 쓰지 않는다.
+  - 값이 없는 칸은 `null`이고, 0은 0으로 온다.
+- `status`가 `"ok"`가 아니면 오류가 아니라 **"목표 없음"**이다 — 목록은 비고 `message`에 안내 한 줄이 온다:
+  - `no_target`: `No {media} budget/target available for {month}.` (전체 매체면 `No all budget/...`)
+  - `no_cost_metric` / `no_media_dimension`: 마트 전제 미충족(광고비 지표 없음, `media` 차원 없음)
+- 매칭되는 매체가 없으면 target이 0으로 온다 → 역시 목표 없음.
+- 예전 서버는 같은 값을 markdown으로 준다 — 헤더 줄(`month:` …) 뒤에 `summary`·`scopes`·`fees` 순서의
+  표(`null`은 `-`, `included`는 `Y`/`N`, `fees`가 비면 셋째 표 생략)이고, "목표 없음"이면 표 대신
+  `message`의 한 줄만 온다. `prepare.py`(`prepare_kit.parse_targets`)가 두 형식을 같은 결과로 읽는다.
 - ⚠️ ROAS류 수치는 비율값(예: 0.87, 5.06)이므로 ×100 후 표시한다 (0.87 → 87%).
-- ⚠️ **`actual` 열은 쓰지 않는다** — `media: all`에서 목표는 목표가 저장된 매체만 합산되지만
+- ⚠️ **`actual`은 쓰지 않는다** — `media`가 `"all"`이면 목표는 목표가 저장된 매체만 합산되지만
   실적은 마트 전체라 범위가 다르다. 실적(소진액·매출)은 항상 `get_ad_performance`의 광고 매체
   행 합에서 가져온다.
 - 호출 정책: 합계 카드는 **전체 매체 1회**. 매체별 목표 표가 있는 스킬(`mtd-detailed`

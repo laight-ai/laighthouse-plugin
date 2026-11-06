@@ -21,18 +21,19 @@ non-null) 역할 키 합이다 — Organic 매출은 넣지 않는다(ROAS는 �
   "cost_metric": "<metric_keys.cost>", "revenue_metric": "<metric_keys.revenue — 있을 때만>" }
 ```
 
-- **`media`를 생략한다**(= 전체 매체, 응답 헤더 `media: all`). 매체 목록을 순회하지 않는다.
+- **`media`를 생략한다**(= 전체 매체, 응답 `media`는 `"all"`). 매체 목록을 순회하지 않는다.
 - **`cost_metric`/`revenue_metric`에 `discover.py`가 정한 키를 넘긴다** — 서버는 이름을 추측하지
   않고 이 키로 실적을 읽는다. 매출 없음 모드면 `revenue_metric`을 넣지 않는다(서버가 cost 행만
-  채우고 매출·ROAS 실적은 `-`로 돌려준다). 서버가 이 인자를 모르는 구버전이라 인자 에러가 나면
+  채우고 매출·ROAS 실적은 `null`(예전 서버는 `-`)로 돌려준다). 서버가 이 인자를 모르는 구버전이라 인자 에러가 나면
   **두 인자를 빼고 1회만** 다시 호출한다.
-- 응답은 markdown 표(행 cost/revenue/roas × 열 target|actual|progress_ratio). 아래는 전부
+- 응답은 JSON 객체다 — `summary`가 행 cost/revenue/roas × `target`·`actual`·`progress_ratio`
+  (`mcp-tools.md` 3절; 예전 서버는 같은 값을 markdown 표로 준다). 아래는 전부
   **목표 없음**으로 처리한다(오류 아님, "데이터 준비 중" 아님):
-  - `No all budget/target available for {month}.` 한 줄
-  - 마트 전제 미충족 안내 한 줄
+  - `status`가 `"ok"`가 아닌 응답 — `message`가 `No all budget/target available for {month}.` 또는
+    마트 전제 미충족 안내 한 줄(예전 서버는 표 대신 이 한 줄만 준다)
   - 호출 에러(서버가 아직 `media` enum만 받는 구버전이면 스키마 에러가 난다)
-- 표의 `target` 열만 쓴다 — `revenue` 행 `target`이 `-`/0이면 목표 매출 없음.
-- `actual`/`progress_ratio` 열은 쓰지 않는다 — 목표는 목표가 저장된 매체만 합산되고 실적은 마트
+- `summary`의 `target`만 쓴다 — `revenue` 행 `target`이 `null`/0이면 목표 매출 없음.
+- `actual`/`progress_ratio`는 쓰지 않는다 — 목표는 목표가 저장된 매체만 합산되고 실적은 마트
   전체라 범위가 다르다. 실적은 아래 `get_ad_performance`에서만 가져온다.
 
 ## MCP 도구 호출: `get_ad_performance` × 1 (기간 실적)
@@ -52,9 +53,9 @@ non-null) 역할 키 합이다 — Organic 매출은 넣지 않는다(ROAS는 �
 
 | 빌더 필드 | 값 | 모드 |
 |---|---|---|
-| `목표_예산` | 목표 표 `cost` 행 `target` (0/없음/목표 없음이면 null) | 공통 |
+| `목표_예산` | 목표 응답 `summary`의 `cost` 행 `target` (0/없음/목표 없음이면 null) | 공통 |
 | `소진액` | 광고 매체 행의 cost 키 합 | 공통 |
-| `목표_매출` | 목표 표 `revenue` 행 `target` (0/없음이면 null) | 매출 있음 |
+| `목표_매출` | 목표 응답 `summary`의 `revenue` 행 `target` (0/없음이면 null) | 매출 있음 |
 | `기간_매출` | 광고 매체 행의 revenue 키 합 | 매출 있음 |
 | `기간_노출` | 광고 매체 행의 impression 키 합 | 매출 없음 |
 | `기간_클릭` | 광고 매체 행의 click 키 합 | 매출 없음 |
