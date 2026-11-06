@@ -15,7 +15,7 @@
 ## 1. 브랜드
 
 사용자가 말한 브랜드명을 모든 호출의 `brand_name`과 제목·파일명에 **그대로** 쓴다.
-`get_brand_list`는 서버가 `Unknown brand`로 거절했을 때만 호출한다.
+`get_brand_list`는 서버가 `Unknown brand`로 거절했을 때만 호출하고, 가장 비슷한 이름이 맞는지 사용자에게 묻는다(`mcp-tools.md` 공통 규칙). 확인받은 이름은 이후 모든 호출의 `brand_name`과 `prepare.py --brand`, 제목·파일명에 쓴다.
 
 ## 2. 디스커버리 호출 (실행당 1회, 다른 호출보다 먼저)
 

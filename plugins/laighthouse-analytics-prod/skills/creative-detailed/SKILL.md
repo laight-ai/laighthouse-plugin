@@ -6,7 +6,7 @@ description: >
   아니라 최우수 소재 카드·소재별 라인차트 등으로 구성된다(매출 지표가 없는 브랜드는 클릭·CTR·CPC 기준). 사용자가 말한 브랜드의 매체·지표를
   응답에서 알아내고, 소재 데이터가 있는 매체 하나를 골라 분석한다.
 metadata:
-  version: "3.1.0"
+  version: "3.4.0"
 ---
 
 > ⚡ thinking은 짧게. MCP 1라운드 → `prepare.py` → 썸네일 조회 → 문장 작성 + `build_report.py` → 게시, 이 순서로만 진행한다.
@@ -60,7 +60,7 @@ Summary(`s2`) 작성뿐이다. **MCP 응답 원문을 읽거나 옮겨 적거나
 | 3 | `get_ad_performance` | T-6일 ~ T | `day` | `group_by:["media","campaign_name","ad_group_name","ad_name"]` |
 
 `get_ad_performance`는 전부 `metrics`·`filters`를 생략한다. 브랜드명이 서버에 없다고 거절되면 그때만
-`get_brand_list`로 정확한 이름을 확인한다. 이미지 URL은 IP 화이트리스트 뒤에 있어 허용되지 않은 네트워크에서는 안
+`get_brand_list`로 가장 비슷한 이름을 찾아 맞는지 사용자에게 묻는다(플러그인 루트 `shared/references/mcp-tools.md` 공통 규칙). 확인받은 이름은 이후 모든 호출의 `brand_name`과 `prepare.py --brand`, 제목·파일명에 쓴다. 이미지 URL은 IP 화이트리스트 뒤에 있어 허용되지 않은 네트워크에서는 안
 뜰 수 있다(폴백은 빌더가 처리한다).
 
 ## `facts` 읽는 법
