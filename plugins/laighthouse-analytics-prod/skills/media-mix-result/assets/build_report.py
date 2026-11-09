@@ -73,7 +73,7 @@ def script_json(value):
 def parse_job(text):
     """응답 원문 → job dict. job 이 아니면(도구 에러 문구 등) None."""
     try:
-        job = json.loads(kit._unwrap(text))
+        job = json.loads(kit.unwrap(text))
     except (TypeError, ValueError):
         return None
     return job if isinstance(job, dict) and "status" in job and isinstance(job.get("request"), dict) else None
@@ -122,7 +122,7 @@ def pick_job(brand, job_id):
     for rec in reversed(recs):
         if rec["_tool"] != TOOL or (rec.get("tool_input") or {}).get("job_id") != job_id:
             continue
-        text = kit._response_text(rec)
+        text = kit.response_text(rec)
         job = parse_job(text)
         if job is None:
             error = error or {"error": str(text).strip().split("\n", 1)[0][:300]}

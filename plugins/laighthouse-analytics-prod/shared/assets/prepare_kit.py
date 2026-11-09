@@ -38,7 +38,7 @@ SPILL_RE = re.compile(r"Output has been saved to (\S+?)\.?\s*$", re.M)
 # ── 응답 저장소 ───────────────────────────────────────────────────────────────
 
 
-def _unwrap(text):
+def unwrap(text):
     """Cowork/Desktop의 {"result": "<본문>"} 래퍼를 벗긴다(중첩까지). JSON이 아니면 그대로."""
     for _ in range(3):
         if not isinstance(text, str) or not text.lstrip().startswith(("{", "[")):
@@ -57,7 +57,7 @@ def _unwrap(text):
     return text
 
 
-def _response_text(rec):
+def response_text(rec):
     text = rec.get("response")
     if not isinstance(text, str):
         text = json.dumps(text, ensure_ascii=False)
@@ -69,7 +69,7 @@ def _response_text(rec):
                 text = f.read()
         except OSError:
             pass
-    return _unwrap(text)
+    return unwrap(text)
 
 
 def load_records(brand):
@@ -156,7 +156,7 @@ class Store:
                 self.missing.append(describe(call))
             return None, None
         rec = hits[-1]
-        return _response_text(rec), rec
+        return response_text(rec), rec
 
     def envelope(self, call, required=True):
         """get_ad_performance 응답 봉투(dict) | None. 에러면 errors에 기록."""
