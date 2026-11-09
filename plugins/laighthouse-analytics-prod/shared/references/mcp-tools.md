@@ -5,6 +5,8 @@ truth)다. 서버가 ELT 기반으로 개편되면서(2026-08) 도구 수가 대
 전부다**(서버에는 헬스체크용 `ping`이 추가로 등록되어 있으나 스킬은 쓰지 않는다). 여기 없는 도구 이름(예전의 daily/range/monthly 표 도구 3종, SKU 매출 계열,
 naver 전용 계열, v1 target_progress, 리포트 공유 계열)은 **서버에서 제거되어 더 이상
 존재하지 않는다** — 호출하면 unknown tool 에러다.
+예외로 `media-mix-result` 스킬은 미디어믹스 도구 셋(`list_media_mix_metrics`·`create_media_mix_job`·`get_media_mix_job`)을 쓴다 —
+규칙은 그 스킬의 SKILL.md에 있다.
 
 ## 1. `get_ad_performance` — 광고 성과 (유일한 성과 조회 도구)
 
