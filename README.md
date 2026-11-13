@@ -19,7 +19,7 @@ laighthouse-plugin/
         ├── .mcp.json              # laighthouse MCP 서버 연동 설정
         ├── README.md
         ├── hooks/                 # PostToolUse 캡처 훅 (대용량 get_ad_performance 응답 → 파일)
-        ├── shared/                # 스킬 간 공유 (플러그인 루트 기준 경로로 참조됨)
+        ├── shared/                # 스킬 간 공유 원본 (스킬 폴더마다 필요한 부분을 사본으로 넣는다)
         │   ├── references/        # MCP 도구 규칙·브랜드 비종속 패턴·목표 카드 규칙
         │   └── assets/            # 공용 렌더링 킷 report_kit.py/.js/.css (카드·차트·비교 표·계층 표)
         └── skills/
@@ -37,6 +37,13 @@ laighthouse-plugin/
             ├── weather-impact/    #  외부 요인: 서울 날씨 + 광고 클릭 겹치기(HTML, 날짜 범위)
             └── media-mix-result/  #  월간 미디어믹스 결과(HTML, 웹 결과 화면과 같은 모양)
 ```
+
+**스킬 폴더는 혼자서 돌아야 합니다.** Claude Desktop Cowork는 스킬 폴더를 하나씩 따로 올리고 플러그인
+루트의 `shared/`는 올리지 않습니다. 그래서 각 스킬은 필요한 공용 파일을 `skills/<스킬>/shared/`에 사본으로
+갖고, 문서·스크립트는 스킬 폴더 기준 경로(`shared/references/…`, `shared/assets/…`)만 씁니다. 원본은 플러그인
+루트 `shared/`이며 사본은 손으로 고치지 않습니다. `shared/`를 고쳤거나 스킬을 새로 만들었으면
+`scripts/bundle_skills.py`의 목록을 확인하고 `python3 scripts/bundle_skills.py`로 사본을 다시 만듭니다.
+사본이 어긋나면 `tests/test_skill_bundles.py`가 실패합니다.
 
 ## 포함된 플러그인
 
