@@ -5,7 +5,7 @@ description: >
   `mtd-detailed`(상세 MTD 보고서)를 임원이 딥다이브 없이 훑어볼 수 있도록 5개 섹션으로 재구성한 보고서. 사용자가 말한
   브랜드의 매체·지표를 응답에서 알아내 어떤 브랜드에도 같은 방식으로 동작한다.
 metadata:
-  version: "3.4.0"
+  version: "3.7.1"
 ---
 
 > ⚡ thinking은 짧게. MCP 1라운드 → `prepare.py` → 문장 작성 + `build_report.py` → 게시, 이 순서로만 진행한다.
