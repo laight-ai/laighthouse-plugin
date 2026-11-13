@@ -918,6 +918,8 @@ PLANS.update({s: (lambda n: (lambda store, brand, T, override, **kw: _plan_creat
 
 
 def main(skill, argv=None, assets_dir=None):
+    # Cowork는 스킬 폴더를 `<플러그인>:<스킬>` 이름으로 올린다 — 폴더 이름에서 스킬 이름만 쓴다.
+    skill = skill.rsplit(":", 1)[-1]
     ap = argparse.ArgumentParser(description=f"{skill} prepare")
     ap.add_argument("--brand", required=True)
     ap.add_argument("--target-date", required=True)

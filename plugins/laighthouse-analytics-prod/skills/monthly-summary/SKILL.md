@@ -5,7 +5,7 @@ description: >
   대상 월(또는 그 시점까지)의 목표 대비 진행 상황을 임원 관점으로 보여주는 월간 보고서. 사용자가 말한
   브랜드의 매체·지표를 응답에서 알아내 어떤 브랜드에도 같은 방식으로 동작한다.
 metadata:
-  version: "3.4.0"
+  version: "3.7.1"
 ---
 
 > ⚡ thinking은 짧게. MCP 1라운드 → `prepare.py` → 문장 작성 + `build_report.py` → 게시, 이 순서로만 진행한다.
@@ -53,7 +53,7 @@ Summary(`s2`) 작성뿐이다. **MCP 응답 원문을 읽거나 옮겨 적거나
 | 3 | `list_promotions` | 당월 1일의 30일 전 ~ T | — | — |
 
 `get_ad_performance`는 전부 `metrics`·`filters`를 생략한다(전체 지표·전체 매체). 브랜드명이 서버에 없다고
-거절되면 그때만 `get_brand_list`로 가장 비슷한 이름을 찾아 맞는지 사용자에게 묻는다(플러그인 루트 `shared/references/mcp-tools.md` 공통 규칙). 확인받은 이름은 이후 모든 호출의 `brand_name`과 `prepare.py --brand`, 제목·파일명에 쓴다.
+거절되면 그때만 `get_brand_list`로 가장 비슷한 이름을 찾아 맞는지 사용자에게 묻는다(`shared/references/mcp-tools.md` 공통 규칙). 확인받은 이름은 이후 모든 호출의 `brand_name`과 `prepare.py --brand`, 제목·파일명에 쓴다.
 
 ## `facts` 읽는 법
 

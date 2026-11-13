@@ -71,7 +71,7 @@ CHART_JS_FALLBACK = os.path.normpath(os.path.join(
 
 
 def _load_kit():
-    for cand in (os.path.join(ASSETS_DIR, "..", "shared", "assets"),          # ChatGPT 번들
+    for cand in (os.path.join(ASSETS_DIR, "..", "shared", "assets"),          # 스킬 폴더 안 사본(Cowork·ChatGPT)
                  os.path.join(ASSETS_DIR, "..", "..", "..", "shared", "assets")):  # 플러그인 루트
         if os.path.exists(os.path.join(cand, "report_kit.py")):
             sys.path.insert(0, os.path.normpath(cand))
