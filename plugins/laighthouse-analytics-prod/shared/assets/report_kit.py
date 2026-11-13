@@ -1,7 +1,7 @@
 """보고서 공용 킷 — 모든 스킬 빌더가 공유하는 브랜드 비종속 렌더링 부품.
 
 각 스킬의 `assets/build_report.py`·`assets/discover.py`가 import 해서 쓴다(모델이 직접 import
-하지 않는다). 찾는 위치: `<스킬>/shared/assets`(ChatGPT 번들) → `<플러그인>/shared/assets`.
+하지 않는다). 찾는 위치: `<스킬>/shared/assets`(스킬 폴더 안 사본) → `<플러그인>/shared/assets`.
 
 부품 (모드 분기는 전부 여기 한 곳에 있다 — generic-report-pattern.md 3·7절):
 - `resolve_roles`         — 디스커버리 봉투 → media_list/has_organic/metric_keys/currency

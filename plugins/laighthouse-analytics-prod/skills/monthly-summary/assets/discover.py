@@ -21,7 +21,7 @@ import sys
 sys.stdin = io.TextIOWrapper(sys.stdin.buffer, encoding="utf-8")
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 HERE = os.path.dirname(os.path.abspath(__file__))
-for cand in (os.path.join(HERE, "..", "shared", "assets"),          # ChatGPT 번들
+for cand in (os.path.join(HERE, "..", "shared", "assets"),          # 스킬 폴더 안 사본(Cowork·ChatGPT)
              os.path.join(HERE, "..", "..", "..", "shared", "assets")):  # 플러그인 루트
     if os.path.exists(os.path.join(cand, "report_kit.py")):
         sys.path.insert(0, os.path.normpath(cand))

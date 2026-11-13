@@ -25,7 +25,7 @@ import time
 from html import escape
 
 ASSETS_DIR = os.path.dirname(os.path.abspath(__file__))
-# 저장 훅 응답을 읽는 공용 킷(prepare_kit) 위치: <스킬>/shared/assets(ChatGPT 번들) → <플러그인>/shared/assets
+# 저장 훅 응답을 읽는 공용 킷(prepare_kit) 위치: <스킬>/shared/assets(스킬 폴더 안 사본) → <플러그인>/shared/assets
 SHARED_DIRS = [
     os.path.normpath(os.path.join(ASSETS_DIR, "..", "shared", "assets")),
     os.path.normpath(os.path.join(ASSETS_DIR, "..", "..", "..", "shared", "assets")),
