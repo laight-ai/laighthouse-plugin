@@ -51,7 +51,7 @@
 자체 검사: `python3 tests/test_weather_trend.py`·`tests/test_responses.py`·`tests/test_range_rules.py`·`tests/test_citations.py`.
 
 ### 미디어믹스 결과 (3.5.0~)
-> "다라세제 미디어믹스 결과 보여줘, job id …" → `media-mix-result` (이미 끝난 계산)
+> "다라세제 미디어믹스 결과 보여줘" → `media-mix-result` (내가 실행한 job 목록에서 골라 결과를 본다)
 > "다라세제 3월 실적으로 4월 예산 7천만 원 미디어믹스 돌려줘" → `media-mix-result` (조건을 확인받고 새로 실행 → 끝나면 보고서)
 
 MCP 도구 `get_media_mix_job`을 `include_allocation`·`include_diagnostics`로 1회 부르고, 저장 훅이 남긴 응답을
