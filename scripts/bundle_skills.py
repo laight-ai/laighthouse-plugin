@@ -48,7 +48,7 @@ BUNDLES = {
     "monthly-summary": KIT + KIT_INLINE + REPORT_REFS + TARGET_REFS,
     "mtd-detailed": KIT + KIT_INLINE + REPORT_REFS + TARGET_REFS,
     "mtd-summary": KIT + KIT_INLINE + REPORT_REFS + TARGET_REFS,
-    "media-mix-result": KIT,   # 저장 훅 응답 읽기(prepare_kit)만. Chart.js는 스킬 assets/에 따로 있다
+    "media-mix-result": KIT,   # 저장 훅 응답 읽기(prepare_kit)만
     "naver-blog": RANGE_REPORT + EXTERNAL_REFS,
     "naver-news": RANGE_REPORT + EXTERNAL_REFS,
     "naver-search": RANGE_REPORT + EXTERNAL_REFS,

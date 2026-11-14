@@ -65,7 +65,7 @@ laighthouse-plugin/
 | `naver-news` | 브랜드 네이버 뉴스 기사 수 비교 + 자사 주요 기사 4건 |
 | `naver-blog` | 브랜드 네이버 블로그 글 수 비교 + 자사 주요 글 4건 |
 | `weather-impact` | 서울 일별 기온·강수·불쾌지수(+광고 클릭이 있으면 비 온 날 차이) |
-| `media-mix-result` | 월간 미디어믹스 결과(HTML) — 웹 결과 화면과 같은 모양(요약 수치·매체별 요약·일별 매체 배분·진단), 조건 확인 후 새로 실행도 가능 |
+| `media-mix-result` | 월간 미디어믹스 결과(HTML) — 웹 결과 화면과 같은 모양(요약 수치·매체별 요약·진단), 조건 확인 후 새로 실행도 가능 |
 | `skill-catalog` |  라이트하우스 스킬 목록(이름·명령어·설명·요청 예시)을 채팅에 표로 보여 준다 — "스킬 목록", "어떤 스킬 있어" |
 
 자세한 사용법은 [플러그인 README](plugins/laighthouse-analytics-prod/README.md)를 참고하세요.
