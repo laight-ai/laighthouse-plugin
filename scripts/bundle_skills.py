@@ -48,7 +48,7 @@ BUNDLES = {
     "monthly-summary": KIT + KIT_INLINE + REPORT_REFS + TARGET_REFS,
     "mtd-detailed": KIT + KIT_INLINE + REPORT_REFS + TARGET_REFS,
     "mtd-summary": KIT + KIT_INLINE + REPORT_REFS + TARGET_REFS,
-    "nextmonth-budget-planning": KIT,   # 저장 훅 응답 읽기(prepare_kit)만
+    "nextmonth-budget-planning": (),   # 결과 HTML 을 Claude 가 직접 쓴다 — 공용 파일 없음
     "naver-blog": RANGE_REPORT + EXTERNAL_REFS,
     "naver-news": RANGE_REPORT + EXTERNAL_REFS,
     "naver-search": RANGE_REPORT + EXTERNAL_REFS,
