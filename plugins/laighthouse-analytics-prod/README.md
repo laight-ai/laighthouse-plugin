@@ -21,7 +21,7 @@
 | 스킬 | naver-news | 외부 요인: 브랜드 네이버 뉴스 기사 수 비교 + 자사 주요 기사 4건 |
 | 스킬 | naver-blog | 외부 요인: 브랜드 네이버 블로그 글 수(제목 일치) 비교 + 자사 주요 글 4건 |
 | 스킬 | weather-impact | 외부 요인: 서울 일별 기온·강수·불쾌지수, 광고 클릭이 있으면 겹치기 |
-| 스킬 | media-mix-result | 월간 미디어믹스 결과 보고서(HTML) — 라이트하우스 웹 결과 화면과 같은 모양, 전용 킷(`assets/mm_view.*`) |
+| 스킬 | nextmonth-budget-planning | 월간 미디어믹스 결과 보고서(HTML) — 라이트하우스 웹 결과 화면과 같은 모양, 전용 킷(`assets/mm_view.*`) |
 | 스킬 | skill-catalog |  라이트하우스 스킬 목록(이름·명령어·설명·요청 예시)을 채팅에 표로 보여 준다(파일을 만들지 않는다) |
 
 ## 사용법
@@ -51,8 +51,8 @@
 자체 검사: `python3 tests/test_weather_trend.py`·`tests/test_responses.py`·`tests/test_range_rules.py`·`tests/test_citations.py`.
 
 ### 미디어믹스 결과 (3.5.0~)
-> "다라세제 미디어믹스 결과 보여줘" → `media-mix-result` (내가 실행한 job 목록에서 골라 결과를 본다)
-> "다라세제 3월 실적으로 4월 예산 7천만 원 미디어믹스 돌려줘" → `media-mix-result` (조건을 확인받고 새로 실행 → 끝나면 보고서)
+> "다라세제 미디어믹스 결과 보여줘" → `nextmonth-budget-planning` (내가 실행한 job 목록에서 골라 결과를 본다)
+> "다라세제 3월 실적으로 4월 예산 7천만 원 미디어믹스 돌려줘" → `nextmonth-budget-planning` (조건을 확인받고 새로 실행 → 끝나면 보고서)
 
 MCP 도구 `get_media_mix_job`을 기본 인자로 부르고, 저장 훅이 남긴 응답을
 `assets/build_report.py`가 그대로 HTML에 넣는다(응답 읽기는 `shared/assets/prepare_kit.py`). 계산·모양은 전용 킷
