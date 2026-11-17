@@ -55,7 +55,7 @@ BUNDLES = {
     "naver-search": RANGE_REPORT + EXTERNAL_REFS,
     "weather-impact": RANGE_REPORT + ("assets/external_context/weather_trend.py",) + EXTERNAL_REFS,
     "skill-catalog": (),
-    "app-guide": (),   # 화면 사용법 문서만 — 공용 파일 없음
+    "app-guide": (),
 }
 
 
