@@ -47,8 +47,8 @@ laighthouse-plugin/
 
 세 플러그인이 함께 쓰는 파일(외부 요인 킷과 스킬 4개, nextmonth-budget-planning, 훅 두 개)의 원본은
 laighthouse-plugin-common 레포입니다. 어느 파일을 어느 태그로 가져오는지는 `common.json`에 적혀 있습니다. 공통 레포에서
-고치고 태그를 붙인 뒤 `common.json`의 `version`을 바꾸고 `python3 ../laighthouse-plugin-common/sync.py`로 가져와서,
-이어서 `python3 scripts/bundle_skills.py`를 실행합니다. 사본이 어긋나면 CI(`.github/workflows/common-check.yml`)가 실패합니다.
+고치고 태그를 붙인 뒤 `common.json`의 `version`을 바꾸고 `python3 ../laighthouse-plugin-common/sync.py`로 가져온 뒤
+`python3 scripts/bundle_skills.py`를 실행합니다. 사본이 어긋나면 CI(`.github/workflows/common-check.yml`)가 실패합니다.
 
 ## 포함된 플러그인
 
