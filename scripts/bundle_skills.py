@@ -6,8 +6,9 @@
 스킬 폴더 밖을 가리키는 스크립트·문서는 Cowork에서 깨진다. 그래서 각 스킬 폴더가 자기 안에
 `shared/assets`·`shared/references` 사본을 갖고, 스크립트는 이 사본을 먼저 찾는다.
 
-원본은 언제나 플러그인 루트의 `shared/`다. 스킬 폴더 안 `shared/`는 이 스크립트가 만드는 사본이므로
-손으로 고치지 않는다. `shared/`를 고친 뒤에는 다시 실행해 사본을 맞춘다:
+원본은 플러그인 루트의 `shared/`다. 스킬 폴더 안 `shared/`는 이 스크립트가 만드는 사본이므로
+손으로 고치지 않는다. `shared/`를 고친 뒤에는 다시 실행해 사본을 맞춘다. 다만 레포 루트 common.json에 적힌 경로는
+laighthouse-plugin-common 레포의 사본이므로 공통 레포에서 고치고 `python3 ../laighthouse-plugin-common/sync.py`로 가져온다:
 
     python3 scripts/bundle_skills.py           # 사본을 다시 만든다
     python3 scripts/bundle_skills.py --check   # 어긋난 사본(differs/missing/extra)을 보여 주고 1로 끝난다

@@ -45,10 +45,10 @@
 입력은 브랜드와 날짜 범위(기본 어제까지 14일)다. 스킬은 MCP 도구 `get_external_context`(report-backend가 laighthouse-elt의
 외부 맥락 데이터를 중계)를 1회 부르고(날씨는 `get_ad_performance`와 함께 2회), 저장 훅이 남긴 응답을 `assets/prepare.py`가
 읽어 집계한다. 집계·HTML은 공통 킷 `shared/assets/external_context/`가
-한다. 이 폴더와 스킬 4개는 laighthouse-plugin-agency(`laighthouse-agency`)와 같은 파일이다 — 고칠 때는 양쪽을 함께 고친다.
+한다. 이 폴더와 스킬 4개의 원본은 laighthouse-plugin-common 레포다 — 여기서 고치지 말고 공통 레포에서 고친 뒤
+레포 루트의 `common.json`대로 `python3 ../laighthouse-plugin-common/sync.py`로 가져온다(레포 루트 README 참고).
 외부 데이터 수집 대상이 아닌 브랜드는 도구가 "is not collected for external context"로 거절한다.
-수치 회귀 비교: `python3 tests/regress_external_context.py --responses <응답 폴더> --baseline <기준 폴더>`(기준은 같은 명령에 `--write`로 먼저 만든다),
-자체 검사: `python3 tests/test_weather_trend.py`·`tests/test_responses.py`·`tests/test_range_rules.py`·`tests/test_citations.py`.
+수치 회귀 비교와 자체 검사는 공통 레포의 `tests/`에 있다.
 
 ### 미디어믹스 결과 (3.5.0~)
 > "다라세제 미디어믹스 결과 보여줘" → `nextmonth-budget-planning` (내가 실행한 job 목록에서 골라 결과를 본다)
@@ -56,8 +56,8 @@
 
 MCP 도구 `get_media_mix_job`을 기본 인자로 부르고, Claude 가 응답의 `summary`로 증감률·비중을 `python3`로 계산한 뒤
 SKILL.md 의 「HTML 뼈대」대로 HTML 을 직접 쓴다(3.12.0~, 스크립트 없음). 표는 기준 달 「N월 현재까지」와 「M월 제안」을 나란히 두고,
-제안 칸마다 현재 대비 증감을 빨강(상승)·파랑(하락)으로 붙인다. SKILL.md 는 laighthouse-plugin-agency · -external 과 같은 파일이다 —
-고칠 때는 함께 고친다. 이전 렌더러(`assets/build_report.py`·`mm_view.js`·`mm_view.css`와 그 테스트)는 git 태그
+제안 칸마다 현재 대비 증감을 빨강(상승)·파랑(하락)으로 붙인다. SKILL.md 의 원본은 laighthouse-plugin-common
+레포다 — 공통 레포에서 고친 뒤 `sync.py`로 가져온다. 이전 렌더러(`assets/build_report.py`·`mm_view.js`·`mm_view.css`와 그 테스트)는 git 태그
 `archive/media-mix-html-renderer`에 있다(되살리기: `git checkout archive/media-mix-html-renderer -- <경로>`).
 
 각 보고서 종류는 별도 스킬로 나뉘어 있으며, report_type을 별도로 지정할 필요 없이 스킬 자체가

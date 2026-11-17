@@ -159,9 +159,10 @@ MCP 도구(`get_ad_performance` 등)는 ChatGPT 설정에서 `laighthouse` MCP �
 1. 대용량 응답 처리: 훅 스텁이 오면 `json_files`, 원본이 오면 `json` — 두 경로를 모두 서술하고
    판별 규칙은 `gpt-large-response-guardrail.md`에 둡니다. "이 환경에는 훅이 없다"고 단정하는
    문구를 쓰지 않습니다(Work 모드/Codex에서는 훅이 돕니다).
-2. 훅·공용 스크립트: `hooks/capture_ad_performance.py`·`hooks/save_responses.py`·`shared/assets/report_kit.py`·
-   `shared/assets/prepare_kit.py`와 스킬별 `assets/prepare.py`는 Claude Code판과 동일 파일을 복사한 것입니다.
-   원본이 바뀌면 그대로 다시 복사합니다. `hooks.json`만 `${PLUGIN_ROOT}` 기준으로 다릅니다.
+2. 훅·공용 스크립트: `hooks/capture_ad_performance.py`·`hooks/save_responses.py`는 laighthouse-plugin-common 레포의
+   사본입니다 — 레포 루트 `common.json`대로 `python3 ../laighthouse-plugin-common/sync.py`가 맞춥니다.
+   `shared/assets/report_kit.py`·`shared/assets/prepare_kit.py`와 스킬별 `assets/prepare.py`는 Claude Code판과 동일 파일을
+   복사한 것이고, 원본이 바뀌면 그대로 다시 복사합니다. `hooks.json`만 `${PLUGIN_ROOT}` 기준으로 다릅니다.
 3. 매니페스트: `.codex-plugin/plugin.json`(플러그인)과 스킬별 `agents/openai.yaml`(스킬 메타)을
    함께 유지합니다. 버전은 Claude Code판 `plugin.json`과 맞춥니다.
 4. 공유 참조 배포: 레포에서는 `shared/references/`가 단일 소스지만, 웹 업로드 단위가 스킬
