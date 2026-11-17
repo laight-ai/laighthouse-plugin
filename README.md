@@ -49,6 +49,8 @@ laighthouse-plugin/
 laighthouse-plugin-common 레포입니다. 어느 파일을 어느 태그로 가져오는지는 `common.json`에 적혀 있습니다. 공통 레포에서
 고치고 태그를 붙인 뒤 `common.json`의 `version`을 바꾸고 `python3 ../laighthouse-plugin-common/sync.py`로 가져온 뒤
 `python3 scripts/bundle_skills.py`를 실행합니다. 사본이 어긋나면 CI(`.github/workflows/common-check.yml`)가 실패합니다.
+공통 레포에서 받는 스킬의 SKILL.md `metadata.version`은 그 스킬이 마지막으로 바뀐 공통 레포 태그를 따르므로 이 레포에서 올리지 않습니다.
+플러그인 릴리스 버전(`plugin.json`·`marketplace.json`)은 공통 레포 태그를 새로 받을 때도 올립니다.
 
 ## 포함된 플러그인
 
