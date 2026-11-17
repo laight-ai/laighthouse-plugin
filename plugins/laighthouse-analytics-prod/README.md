@@ -45,10 +45,10 @@
 입력은 브랜드와 날짜 범위(기본 어제까지 14일)다. 스킬은 MCP 도구 `get_external_context`(report-backend가 laighthouse-elt의
 외부 맥락 데이터를 중계)를 1회 부르고(날씨는 `get_ad_performance`와 함께 2회), 저장 훅이 남긴 응답을 `assets/prepare.py`가
 읽어 집계한다. 집계·HTML은 공통 킷 `shared/assets/external_context/`가
-한다. 이 폴더와 스킬 4개는 laighthouse-plugin-agency(`laighthouse-agency`)와 같은 파일이다 — 고칠 때는 양쪽을 함께 고친다.
+한다. 이 폴더와 스킬 4개의 원본은 laighthouse-plugin-common 레포다 — 여기서 고치지 말고 공통 레포에서 고친 뒤
+레포 루트의 `common.json`대로 `python3 ../laighthouse-plugin-common/sync.py`로 가져온다(레포 루트 README 참고).
 외부 데이터 수집 대상이 아닌 브랜드는 도구가 "is not collected for external context"로 거절한다.
-수치 회귀 비교: `python3 tests/regress_external_context.py --responses <응답 폴더> --baseline <기준 폴더>`(기준은 같은 명령에 `--write`로 먼저 만든다),
-자체 검사: `python3 tests/test_weather_trend.py`·`tests/test_responses.py`·`tests/test_range_rules.py`·`tests/test_citations.py`.
+수치 회귀 비교와 자체 검사는 공통 레포의 `tests/`에 있다.
 
 ### 미디어믹스 결과 (3.5.0~)
 > "다라세제 미디어믹스 결과 보여줘" → `nextmonth-budget-planning` (내가 실행한 job 목록에서 골라 결과를 본다)
