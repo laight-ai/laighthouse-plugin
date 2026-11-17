@@ -56,8 +56,8 @@
 
 MCP 도구 `get_media_mix_job`을 기본 인자로 부르고, Claude 가 응답의 `summary`로 증감률·비중을 `python3`로 계산한 뒤
 SKILL.md 의 「HTML 뼈대」대로 HTML 을 직접 쓴다(3.12.0~, 스크립트 없음). 표는 기준 달 「N월 현재까지」와 「M월 제안」을 나란히 두고,
-제안 칸마다 현재 대비 증감을 빨강(상승)·파랑(하락)으로 붙인다. SKILL.md 는 laighthouse-plugin-agency · -external 과 같은 파일이다 —
-고칠 때는 함께 고친다. 이전 렌더러(`assets/build_report.py`·`mm_view.js`·`mm_view.css`와 그 테스트)는 git 태그
+제안 칸마다 현재 대비 증감을 빨강(상승)·파랑(하락)으로 붙인다. SKILL.md 의 원본은 laighthouse-plugin-common
+레포다 — 공통 레포에서 고친 뒤 `sync.py`로 가져온다. 이전 렌더러(`assets/build_report.py`·`mm_view.js`·`mm_view.css`와 그 테스트)는 git 태그
 `archive/media-mix-html-renderer`에 있다(되살리기: `git checkout archive/media-mix-html-renderer -- <경로>`).
 
 각 보고서 종류는 별도 스킬로 나뉘어 있으며, report_type을 별도로 지정할 필요 없이 스킬 자체가
