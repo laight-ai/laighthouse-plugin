@@ -74,6 +74,7 @@ laighthouse-plugin-common 레포입니다. 어느 파일을 어느 태그로 가
 | `weather-impact` | 서울 일별 기온·강수·불쾌지수(+광고 클릭이 있으면 비 온 날 차이) |
 | `nextmonth-budget-planning` | 월간 미디어믹스 결과(HTML) — 웹 결과 화면과 같은 모양(요약 수치·매체별 요약, 제안 칸에 현재 대비 증감), Claude 가 직접 작성, 조건 확인 후 새로 실행도 가능 |
 | `app-guide` | 라이트하우스 웹 화면(app.laight.ai) 사용법 — 메뉴 위치, 매체 연동·파일 업로드·목표 설정 등 순서 안내(데이터 조회 없음) — "라이트하우스 사용법", "메뉴 어디 있어" |
+| `owned-media-data` | 자사 매체(지금은 TikTok) 오가닉 일별 지표·수집 원자료를 조회해 채팅에 표로 보여 준다(HTML 없음). 조직에 조회 도구가 열려 있을 때만 동작 — "TikTok 오가닉 지표 보여줘" |
 | `skill-catalog` |  라이트하우스 스킬 목록(이름·명령어·설명·요청 예시)을 채팅에 표로 보여 준다 — "스킬 목록", "어떤 스킬 있어" |
 
 자세한 사용법은 [플러그인 README](plugins/laighthouse-analytics-prod/README.md)를 참고하세요.

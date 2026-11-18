@@ -56,6 +56,7 @@ BUNDLES = {
     "weather-impact": RANGE_REPORT + ("assets/external_context/weather_trend.py",) + EXTERNAL_REFS,
     "skill-catalog": (),
     "app-guide": (),
+    "owned-media-data": (),
 }
 
 
