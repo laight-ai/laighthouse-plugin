@@ -671,7 +671,10 @@ def _plan_month_family(store, brand, T, override, skill):
     cur, base = ym(T), ym(m1)
     mtd = skill == "mtd-report"
     promo_start = first if mtd else first - timedelta(days=30)
-    six = store.envelope(perf(m5, T, "month", ["media"], T.day))
+    # mtd는 매달을 T의 일까지 자른 동기 비교, monthly는 지난 달을 말일까지 다 본다(31 = 자르지 않음 —
+    # T.day를 쓰면 11/30 기준일 때 10/31이 빠진다). 당월은 어느 쪽이든 end_date(T)까지다.
+    off = T.day if mtd else 31
+    six = store.envelope(perf(m5, T, "month", ["media"], off))
     day = store.envelope(perf(first, T, "day", ["media"])) if mtd else None
     tgt_text = store.text(target(cur, T))
     promo_text = store.text(promotions(promo_start, T))
@@ -682,7 +685,7 @@ def _plan_month_family(store, brand, T, override, skill):
         return ask
     keys, media_list = disc["metric_keys"], disc["media_list"]
     has_rev = bool(keys.get("revenue"))
-    camp, adg, ad = _levels(store, m1, T, "month", T.day, media_list)
+    camp, adg, ad = _levels(store, m1, T, "month", off, media_list)
     tgt = parse_targets(tgt_text)
     promos = parse_promotions(promo_text) if promo_text else []
     folder = work_dir(brand, skill, T)
@@ -725,7 +728,8 @@ def _plan_month_family(store, brand, T, override, skill):
     lb, lc = ("prev_same_period", "mtd") if mtd else ("prev_month", "this_month")
     total, by_media = _compare_facts(six, media_list, base, cur, keys, has_rev, (lb, lc))
     facts = {"mode": _mode(disc),
-             "period": {lc: f"{first}~{T}", lb: _prev_same_period(T)},
+             "period": {lc: f"{first}~{T}", lb: _prev_same_period(T) if mtd else
+                        f"{m1}~{m1.replace(day=calendar.monthrange(m1.year, m1.month)[1])}"},
              "pacing": _pacing(T, tgt, total[lc].get("cost"), total[lc].get("revenue"), has_rev),
              "total": total, "by_media": by_media,
              "promotions": overlapping_promos(promos, first, T, lead_days=7 if mtd else 30)}

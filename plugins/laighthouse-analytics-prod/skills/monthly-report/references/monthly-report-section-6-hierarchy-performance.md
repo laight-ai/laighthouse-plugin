@@ -17,7 +17,7 @@ CTR·전환 순으로 값이 있는 6개를 처음에 보여 주고(나머지는
 > `legacy-flow.md`(저장 훅 없는 호스트)가 따르는 호출 규칙이다.
 
 모든 호출: `start_date` = 전월 1일, `end_date` = target_date, `time_grain: "month"`,
-`day_offset: <target_date.day (정수)>`(전월을 당월과 같은 일자까지 자른 동일 기간 비교),
+`day_offset: 31`(전월은 말일까지 전체, 당월은 기준일까지),
 **`metrics`는 역할 5개만**: 라운드 A(section-3) 응답에서 알아낸 실제 광고비·노출·클릭·매출·전환 지표 이름
 (매출·전환이 없는 브랜드는 있는 것만). ROAS·CTR·CPC 열은 빌더가 역할 합으로 채운다.
 

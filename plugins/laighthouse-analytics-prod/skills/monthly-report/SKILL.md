@@ -58,12 +58,12 @@ Summary(`s2`) 작성뿐이다. **MCP 응답 원문을 읽거나 옮겨 적거나
 
 | # | 라운드 | 도구 | 기간 | grain | 나머지 인자 |
 |---|---|---|---|---|---|
-| 1 | A | `get_ad_performance` | 5개월 전 1일 ~ T | `month` | `group_by:["media"]`, `day_offset`: T의 일(정수) |
+| 1 | A | `get_ad_performance` | 5개월 전 1일 ~ T | `month` | `group_by:["media"]`, `day_offset`: **31**(지난 달은 말일까지) |
 | 2 | A | `get_target_progress_v2` | `month`: M, `as_of_date`: T | — | `media` 생략 |
 | 3 | A | `list_promotions` | 당월 1일의 30일 전 ~ T | — | — |
-| 4 | B | `get_ad_performance` | 전월 1일 ~ T | `month` | `group_by:["media","campaign_name"]`, `day_offset` |
-| 5 | B | `get_ad_performance` | 전월 1일 ~ T | `month` | `group_by:["media","campaign_name","ad_group_name"]`, `day_offset` |
-| 6 | B | `get_ad_performance` | 전월 1일 ~ T | `month` | `group_by:["media","campaign_name","ad_group_name","ad_name"]`, `day_offset` |
+| 4 | B | `get_ad_performance` | 전월 1일 ~ T | `month` | `group_by:["media","campaign_name"]`, `day_offset`: 31 |
+| 5 | B | `get_ad_performance` | 전월 1일 ~ T | `month` | `group_by:["media","campaign_name","ad_group_name"]`, `day_offset`: 31 |
+| 6 | B | `get_ad_performance` | 전월 1일 ~ T | `month` | `group_by:["media","campaign_name","ad_group_name","ad_name"]`, `day_offset`: 31 |
 
 `get_ad_performance`는 전부 `metrics`·`filters`를 생략한다(전체 지표·전체 매체). 브랜드명이 서버에 없다고
 거절되면 그때만 `get_brand_list`로 가장 비슷한 이름을 찾아 맞는지 사용자에게 묻는다(`shared/references/mcp-tools.md`

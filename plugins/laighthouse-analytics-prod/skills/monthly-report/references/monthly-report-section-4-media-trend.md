@@ -8,7 +8,7 @@
 | 항목 | 값 |
 |---|---|
 | 차트 기간 응답 | section-3의 공유 응답(6개월, `time_grain:"month"`, `group_by:["media"]`, `day_offset`) — **새로 부르지 않는다** |
-| total 응답 | 넘기지 않는다(`day_offset` 범위를 total 한 번으로 만들 수 없다) — 범례는 이번 달 값 |
+| total 응답 | 넘기지 않는다 — 범례는 이번 달 값 |
 
 ```json
 "s4": { "json": ["<section-3 응답 원문>"] }

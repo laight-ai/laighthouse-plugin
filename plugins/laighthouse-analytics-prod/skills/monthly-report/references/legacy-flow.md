@@ -52,7 +52,7 @@ generic 도구(`get_ad_performance`)와 `get_target_progress_v2`, `list_promotio
 - `group_by:["media"]` 응답의 `media`가 `null`인 행이 `Organic`이다(광고비 없이 매출만 귀속,
   `has_organic`일 때). 정상 응답이니 버리지 말고 섹션 규칙대로 매핑한다. 디스커버리에 없는
   매체 행을 지어 넣지 않고, 고정 행 목록도 없다.
-- ⚠️ 여러 달을 걸치는 `time_grain:"month"` 호출에는 항상 `day_offset: target_date.day`를
+- ⚠️ 여러 달을 걸치는 `time_grain:"month"` 호출에는 항상 `day_offset: 31`(지난 달을 말일까지 — 기준일의 일을 넣으면 30일 기준일 때 31일이 빠진다)을
   넣는다 — 범위 내 모든 월에 균일하게 적용되어 "매달 기준일과 같은 일자까지"의 동일 기준
   비교가 된다. (당월 한 달만 부르는 호출은 `end_date`가 이미 기준일이라 불필요.)
 
@@ -119,7 +119,7 @@ generic 도구(`get_ad_performance`)와 `get_target_progress_v2`, `list_promotio
    받는다. 출력의 `missing`/`ambiguous`가 비어 있지 않을 때만 사용자에게 한 번에 묻는다(revenue가
    없는 것은 질문 사유가 아니다 — 매출 없음 모드).
 3. **1차 배치 (한 메시지에 동시 발사)**: `get_target_progress_v2` ×1(`media` 생략, `cost_metric`/`revenue_metric` = `metric_keys`) +
-   section-1/3/4/5/6(매체 레벨) 공유 응답 (5개월 전 1일~target_date, `time_grain:"month"`, `group_by:["media"]`, `metrics`·`filters` 생략, `day_offset`=target_date.day)
+   section-1/3/4/5/6(매체 레벨) 공유 응답 (5개월 전 1일~target_date, `time_grain:"month"`, `group_by:["media"]`, `metrics`·`filters` 생략, `day_offset`=31)
    — section-1 실적은 이 응답의 당월 행(별도 당월 호출 없음, `monthly-report-section-1-target-achievement.md`).
 4. ⏱ **필수 체크포인트 — 스켈레톤 선(先) 게시.** 3단계 응답 수신 즉시, 다음 단계 전에
    `python3 assets/build_report.py`를 `{"skeleton": true, ...}`로 1회 호출해 전 섹션 "데이터
@@ -127,7 +127,7 @@ generic 도구(`get_ad_performance`)와 `get_target_progress_v2`, `list_promotio
    이 단계를 건너뛰고 끝에서 한꺼번에 내놓으려다 툴호출 예산이 바닥나면 사용자는 아무것도 못
    본다 — 자매 스킬의 실제 사고 사례가 있는 필수 단계다.
 5. **2차 배치 (한 메시지에 동시 발사)**: section-6 계층 표
-   (전월 1일~target_date, `time_grain:"month"`, `day_offset`, `metrics` = 역할 5개 지표 이름 — 캠페인 레벨 1회 +
+   (전월 1일~target_date, `time_grain:"month"`, `day_offset`: 31, `metrics` = 역할 5개 지표 이름 — 캠페인 레벨 1회 +
    광고그룹 레벨 `media_list`의 매체마다 1회, **광고 레벨은 부르지 않는다**) + `list_promotions` 1회(당월 1일 30일
    전 ~ target_date, 라운드 A에서 받았으면 생략). `monthly-report-section-6-hierarchy-performance.md`의 호출 명세를
    따른다.

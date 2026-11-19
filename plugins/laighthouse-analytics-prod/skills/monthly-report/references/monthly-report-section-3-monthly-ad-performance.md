@@ -12,7 +12,7 @@
 ## MCP 도구 호출: `get_ad_performance` × 1 (section-4/5/6 공유)
 
 ```json
-{ "brand_name": "<brand>", "start_date": "5개월 전 YYYY-MM-01", "end_date": "target_date", "time_grain": "month", "group_by": ["media"], "day_offset": <target_date.day (정수)> }
+{ "brand_name": "<brand>", "start_date": "5개월 전 YYYY-MM-01", "end_date": "target_date", "time_grain": "month", "group_by": ["media"], "day_offset": 31 }
 ```
 
 - **`filters`·`metrics`를 생략한다** — 이 1회 호출로 월별·매체별(`media_list`의 각 값) 행에 더해,
@@ -21,7 +21,7 @@
 - **이 응답은 section-4·5·6(계층 표의 매체 레벨)이 그대로 재사용한다** — 각자 호출하지 않는다.
 - 이 섹션(`s3`)의 배열은 **`media`가 `null`이 아닌 행만** 합산한다 — Organic 행은 광고 성과
   차트이므로 여기서는 제외한다(Organic 매출은 section-4의 별도 계열).
-- **`day_offset: target_date.day`를 반드시 넣는다** — 범위 내 모든 월에 균일하게 적용된다.
+- **`day_offset: 31`을 반드시 넣는다** — 지난 달은 말일까지 다 보고, 당월은 `end_date`(target_date)까지다. 기준일의 일을 넣으면 30일 기준일 때 지난 달 31일이 빠진다.
 
 ## 빌더 `s3` 필드 (각 배열은 6개, 5개월 전 → 당월 순)
 

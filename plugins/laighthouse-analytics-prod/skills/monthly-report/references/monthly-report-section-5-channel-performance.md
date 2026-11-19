@@ -17,9 +17,9 @@
 ## MCP 도구 호출 — 별도 호출 없음, section-3의 공유 응답을 재사용
 
 section-3이 1회 호출한 `get_ad_performance`(`filters`·`metrics` 생략, `time_grain:"month"`,
-`group_by:["media"]`, 5개월 전~당월, `day_offset`=target_date.day) 응답에서 전월(M-1)·당월(M0)
+`group_by:["media"]`, 5개월 전~당월, `day_offset`=31) 응답에서 전월(M-1)·당월(M0)
 두 달치 행만 골라 쓴다 — 필요한 범위(2개월)가 6개월 범위에 항상 포함되므로 별도 호출과 결과가
-동일하다. `day_offset`이 이미 적용돼 있어 전월도 당월과 같은 일자까지 자른 동기 비교다.
+동일하다. `day_offset: 31`이라 전월은 말일까지 전체, 당월은 기준일까지다(월 중간 기준일이면 진행 중인 당월 vs 전월 전체 — 같은 기간 비교는 mtd-report가 맡는다).
 
 - `cost`/`impression`/`click`/`revenue`/`conversion`: 해당 매체 행의 해당 월 역할 키 값 — 한 행에
   전부 들어있다(별도 조인 없음). `metric_keys`에 없는 역할(revenue/conversion)은 행에도 넣지 않는다.
