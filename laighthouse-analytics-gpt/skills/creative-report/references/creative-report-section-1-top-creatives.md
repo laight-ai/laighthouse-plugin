@@ -55,7 +55,7 @@ PYEOF
 - 상위 5개(section-4/5)는 광고비 내림차순 — 최소 표본 기준을 적용하지 않는다.
 - stdout 요약: `s1`(카드 항목)·`lookups`(썸네일 조회 대상)·`top5_names`·`eligibility`·
   `media_totals`(매체 7일 합과 CTR/ROAS 또는 CPC)·`top_by_cost`(광고비 상위 10개 소재 요약 —
-  Executive Summary 근거).
+  소재 Summary 근거).
 
 ## MCP 도구 호출: `get_ad_creative_info` (`lookups`의 소재만, `source` 없이)
 

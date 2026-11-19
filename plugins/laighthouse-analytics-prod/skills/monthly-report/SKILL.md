@@ -7,7 +7,7 @@ description: >
   (매체 단위로 접힌 채 시작)를 담은 HTML 보고서. 사용자가 말한 브랜드의 매체·지표를 응답에서 알아내 어떤 브랜드에도
   같은 방식으로 동작한다.
 metadata:
-  version: "4.0.1"
+  version: "4.1.0"
 ---
 
 > ⚡ thinking은 짧게. MCP 라운드 A → `prepare.py` → 라운드 B → `prepare.py` → 문장 작성 + `build_report.py` → 게시, 이 순서로만 진행한다.
@@ -42,13 +42,16 @@ Summary(`s2`) 작성뿐이다. **MCP 응답 원문을 읽거나 옮겨 적거나
      레벨만 매체마다 `filters: {"media": ["<매체>"]}`로 다시 부르고 재실행한다(prepare.py가 합친다).
    - `ask_user`가 있으면 필수 지표(광고비·노출·클릭) 키를 못 정한 것이다 — 후보를 보여 주고 한 번에 묻고, 답을
      `--metric-keys '{"cost":"…"}'`로 넘겨 재실행한다. 매출 지표가 없는 것은 질문 사유가 아니다(매출 없음 모드).
-   → `missing`이 비면 출력 JSON의 `base`(경로)·`facts`를 쓴다.
-3. `references/monthly-report-section-2-executive-summary.md`에서 **작성 원칙·모드별 기준·문장 형식**만 따른다. 그 파일의
-   MCP 호출·데이터 수집 설명은 무시한다 — 전부 facts로 대체됐다. `facts`만 근거로 `s2`(카드 4~5개)를 쓴 뒤 빌더를
-   1회 호출한다:
+   → `missing`이 비면 출력 JSON의 `base`(경로)·`digest`를 쓴다.
+3. **Executive Summary(`s2`)**: `guides/executive-summary.md`(무엇을 어떻게 쓸지 — [소진]·[효율])와
+   `references/monthly-report-section-2-executive-summary.md`(근거·이 플러그인에서 달라지는 점·빌더 입력)를 따라
+   prepare 출력의 **`digest`만** 근거로 쓴 뒤 빌더를 1회 호출한다:
    ```
    python3 assets/build_report.py <<'PYEOF'
-   {"base": "<prepare가 준 base 경로>", "s2": {"bullets": [{"text": "…", "tone": "green|red|neutral"}, …]}}
+   {"base": "<prepare가 준 base 경로>", "s2": {"groups": [
+     {"title": "소진", "lead": "…", "media": [{"name": "<매체>", "desc": "…",
+       "bullets": [{"unit": "캠페인", "label": "<캠페인>", "text": "…", "tone": "red|yellow|green|neutral"}, …]}, …]},
+     {"title": "효율", "lead": "…", "media": [ … ]}]}}
    PYEOF
    ```
    → `~/Downloads/laighthouse-reports/{브랜드}_monthly-report_{T}.html`에 저장된다(출력 `out`). 사용자가 다른 위치를
@@ -69,18 +72,15 @@ Summary(`s2`) 작성뿐이다. **MCP 응답 원문을 읽거나 옮겨 적거나
 거절되면 그때만 `get_brand_list`로 가장 비슷한 이름을 찾아 맞는지 사용자에게 묻는다(`shared/references/mcp-tools.md`
 공통 규칙). 확인받은 이름은 이후 모든 호출의 `brand_name`과 `prepare.py --brand`, 제목·파일명에 쓴다.
 
-## `facts` 읽는 법
+## `digest` 읽는 법
 
-`mode` · `pacing` · `total`(당월(기준일까지) vs 전월(말일까지 전체), `change_pct`) · `by_media` · `monthly_trend`(최근 6개월 — 분기
-비교도 여기서) · `organic`(있을 때만) · `promotions`(당월과 겹치거나 직전 30일 안에 끝난 것) ·
-`campaigns_top_by_cost`(당월 광고비 상위 12개, `eff_shift`=효율 ±20% 이상, `pick_score`=광고비×변화 폭) ·
-`campaigns_efficiency_shift`(상위 밖 효율 급변) · `top_campaign_ad_groups`(상위 캠페인의 광고그룹 당월·전월,
-`new`=신규).
-비율은 이미 계산돼 있다(ROAS·CTR %, CPC·CPA 통화, `change_pct`는 증감률 %). 섹션 문서가 "다른 섹션 응답에서
-가져온다"고 한 수치는 전부 facts의 위 키에 있다. **facts에 없는 수치는 쓰지 않는다** — facts 수치끼리의 단순
-비교(배수·차이·%p)는 써도 된다. 숫자 표기: 금액·개수는 천 단위 쉼표, 비율은 소수 1자리(CTR은 2자리), 금액에는
-`mode.currency`. 매체명은 facts 값 그대로 쓰고, `mode.has_revenue`가 false면 매출·ROAS를, `mode.has_organic`이
-false면 Organic을 언급하지 않는다.
+`기간`(당월 1일~기준일 · 전월 한 달 전체) · `전체`(당월·전월 값과 `전월 대비`) · `예산`(월예산·소진율, 목표 예산이 있을
+때만) · `매체`(당월·전월·`전월 대비`·`광고비비중`, 매체 목표가 있으면 `월예산`·`소진율`) ·
+`매체-캠페인`·`매체-캠페인-광고그룹`·`매체-캠페인-광고그룹-광고`(당월 광고비 상위 + 전월 대비 광고비 변동 상위 행) ·
+`… 생략`(빠진 행 수). 값은 화면에 쓸 문자열로 이미 만들어져 있다(금액 `₩`·천 단위 쉼표, 변화율 소수 1자리, % 지표는
+%p). **digest 값을 그대로 옮기고 다시 계산하지 않는다. digest에 없는 수치는 쓰지 않는다.** 전월 값 `-`·변화 `신규`는
+신규 집행, 변화 `중단`은 당월 집행 없음이다. 매출·ROAS 키가 없으면 매출·ROAS를, 조회수·CPV 키가 없으면 조회수·CPV를
+언급하지 않는다. 출력의 `facts`는 s2 작성에 쓰지 않는다.
 
 ## 완료 메시지 형식
 

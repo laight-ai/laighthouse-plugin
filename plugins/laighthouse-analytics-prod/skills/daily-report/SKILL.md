@@ -3,21 +3,21 @@ name: daily-report
 description: >
   브랜드 비종속 데일리 보고서 생성 스킬. "데일리 보고서", "일간 보고서", "daily 보고서", "임원용 데일리 보고서",
   "executive daily", "실무자용 데일리 보고서" 요청 시 사용 — 임원용·실무용 구분 없이 같은 보고서를 만든다.
-  목표 달성 현황, Executive Summary, 최근 7일 성과, 매체별 성과 추이, 매체별 비교(D-1 vs D0), 매체·캠페인·광고그룹·광고
+  목표 달성 현황, Daily Summary, 최근 7일 성과, 매체별 성과 추이, 매체별 비교(D-1 vs D0), 매체·캠페인·광고그룹·광고
   계층 표(D-1 vs D0, 매체 단위로 접힌 시작)를 담은 HTML 보고서. 사용자가 말한 브랜드의 매체·지표를 응답에서 알아내
   어떤 브랜드에도 같은 방식으로 동작한다.
 metadata:
-  version: "4.0.1"
+  version: "4.1.0"
 ---
 
 > ⚡ thinking은 짧게. MCP 라운드 A → `prepare.py` → 라운드 B → `prepare.py` → 문장 작성 + `build_report.py` → 게시, 이 순서로만 진행한다.
 
 ## 역할
 
-사용자가 말한 브랜드의 **데일리 보고서**(HTML, 6섹션: 목표 달성 현황 · Executive Summary · 최근 7일 성과 · 매체별 성과 추이 · 매체별 성과(D-1 vs D0) · 매체·캠페인·광고그룹·광고 계층 표(D-1 vs D0))를 만든다. 임원용·실무용을 따로 만들지 않는다. 다른 보고서는 자매 스킬이다.
+사용자가 말한 브랜드의 **데일리 보고서**(HTML, 6섹션: 목표 달성 현황 · Daily Summary · 최근 7일 성과 · 매체별 성과 추이 · 매체별 성과(D-1 vs D0) · 매체·캠페인·광고그룹·광고 계층 표(D-1 vs D0))를 만든다. 임원용·실무용을 따로 만들지 않는다. 다른 보고서는 자매 스킬이다.
 브랜드명은 모든 호출의 `brand_name`과 제목·파일명에 **그대로** 쓴다.
 
-계산·렌더링은 전부 미리 검증된 스크립트가 한다. 모델이 할 일은 (1) MCP 호출, (2) 스크립트 실행, (3) Executive
+계산·렌더링은 전부 미리 검증된 스크립트가 한다. 모델이 할 일은 (1) MCP 호출, (2) 스크립트 실행, (3) Daily
 Summary(`s2`) 작성뿐이다. **MCP 응답 원문을 읽거나 옮겨 적거나 파일로 저장하지 않는다** — 플러그인 저장 훅이 응답
 원본을 파일로 남기고 `prepare.py`가 그것을 읽는다. 스크립트 파일을 새로 만들거나 HTML을 직접 쓰지 않는다.
 `references/`의 섹션 문서는 아래에서 지정한 것 말고는 읽지 않는다.
@@ -30,7 +30,7 @@ Summary(`s2`) 작성뿐이다. **MCP 응답 원문을 읽거나 옮겨 적거나
 1. **라운드 A**: 아래 표의 라운드 A 호출 5개를 한 메시지에서 동시에 보낸다(응답이 작다). 인자는 표 그대로 —
    `prepare.py`가 (도구 + 인자)로 응답을 고르므로 날짜·grain·`day_offset`이 다르면 그 응답은 `missing`이 된다.
    응답은 훑어보지도 않는다.
-2. `python3 assets/prepare.py --brand <브랜드> --target-date <T>` → 출력 JSON의 `base`(경로)·`facts`.
+2. `python3 assets/prepare.py --brand <브랜드> --target-date <T>` → 출력 JSON의 `base`(경로)·`digest`.
    - `note`(저장된 응답 없음)가 나오면 저장 훅이 없는 호스트다 → **라운드 B를 보내지 말고**
      `references/legacy-flow.md` 절차로 진행한다(받은 라운드 A 응답은 재사용).
    - 아니면 `missing`에 라운드 B(계층 표 3레벨)가 나온다 → `missing` 항목의 인자 그대로 **라운드 B**를 한 메시지에서
@@ -40,11 +40,12 @@ Summary(`s2`) 작성뿐이다. **MCP 응답 원문을 읽거나 옮겨 적거나
      레벨만 매체마다 `filters: {"media": ["<매체>"]}`로 다시 부르고 재실행한다(prepare.py가 합친다).
    - `ask_user`가 있으면 필수 지표(광고비·노출·클릭) 키를 못 정한 것이다 — 후보를 보여 주고 한 번에 묻고, 답을
      `--metric-keys '{"cost":"…"}'`로 넘겨 재실행한다. 매출 지표가 없는 것은 질문 사유가 아니다(매출 없음 모드).
-3. `references/daily-report-section-2-executive-summary.md`에서 **작성 원칙·모드별 기준·문장 형식**만 따른다. 그 파일의 MCP 호출·데이터 수집
-   설명(다른 섹션 응답·캡처 파일·`discover.py`·스크립트 출력 언급)은 무시한다 — 전부 facts로 대체됐다, `facts`만 근거로 `s2`를 쓴 뒤 빌더를 1회 호출한다:
+3. **Daily Summary(`s2`)**: `guides/daily-summary.md`(무엇을 어떻게 쓸지)와
+   `references/daily-report-section-2-executive-summary.md`(근거·이 플러그인에서 달라지는 점·빌더 입력)를 따라
+   prepare 출력의 **`digest`만** 근거로 불릿 3~6개를 쓴 뒤 빌더를 1회 호출한다:
    ```
    python3 assets/build_report.py <<'PYEOF'
-   {"base": "<prepare가 준 base 경로>", "s2": {"bullets": [{"text": "…", "tone": "green|red|neutral"}, …]}}
+   {"base": "<prepare가 준 base 경로>", "s2": {"bullets": [{"head": "전체", "text": "…", "tone": "neutral"}, {"head": "<매체> / <캠페인>", "text": "…", "tone": "red|yellow|green"}, …]}}
    PYEOF
    ```
    → `~/Downloads/laighthouse-reports/{브랜드}_daily-report_{T}.html`에 저장된다(출력 `out`). 사용자가 다른 위치를
@@ -67,13 +68,14 @@ Summary(`s2`) 작성뿐이다. **MCP 응답 원문을 읽거나 옮겨 적거나
 거절되면 그 레벨만 매체마다 `filters: {"media": ["<매체>"]}`로 다시 부르고 재실행한다(prepare.py가 합친다). 브랜드명이 서버에 없다고
 거절되면 그때만 `get_brand_list`로 가장 비슷한 이름을 찾아 맞는지 사용자에게 묻는다(`shared/references/mcp-tools.md` 공통 규칙). 확인받은 이름은 이후 모든 호출의 `brand_name`과 `prepare.py --brand`, 제목·파일명에 쓴다.
 
-## `facts` 읽는 법
+## `digest` 읽는 법
 
-`mode` · `pacing`·`mtd`(당월 누적 — 목표 대비) · `total`(D0 vs D-1, `change_pct`) · `by_media`(매체별 D0 vs D-1) · `daily_7d`(최근 7일 합계) · `organic`(있을 때만) · `promotions`(D0와 겹치거나 직전 7일 안에 끝난 것) · `campaigns_top_by_cost`(D0 광고비 상위 캠페인과 D-1 대비 효율 변화, `eff_shift`=효율 급변) · `top_campaign_ad_groups`(상위 캠페인의 광고그룹). 비율은 이미 계산돼 있다(ROAS·CTR %, CPC·CPA 통화, `change_pct`는 증감률 %). 섹션 문서가 "다른 섹션
-응답에서 가져온다"고 한 수치는 전부 facts의 위 키에 있다. **facts에 없는 수치는 쓰지 않는다** — facts 수치끼리의 단순 비교(배수·차이·%p)는 써도 된다. 숫자 표기: 금액·개수는 천 단위
-쉼표, 비율은 소수 1자리(CTR은 2자리), 금액에는 `mode.currency`. 매체명은 facts 값
-그대로, 금액에는 `mode.currency`를 붙이고, `mode.has_revenue`가 false면 매출·ROAS를, `mode.has_organic`이 false면
-Organic을 언급하지 않는다.
+`기준일`·`전일` · `지표`(이 브랜드에 있는 지표 라벨) · `전체`·`매체`(기준일·전일 값과 `전일 대비`) ·
+`매체-캠페인`·`매체-캠페인-광고그룹`·`매체-캠페인-광고그룹-광고`(기준일 광고비 상위 + 광고비 변동 상위 행) ·
+`구분`(신규 집행·집행 중단·광고비 급등·광고비 급락·효율 급변 — 미리 판정됨). 값은 화면에 쓸 문자열로 이미
+만들어져 있다(금액 `₩`·천 단위 쉼표, 변화율 소수 1자리, % 지표는 %p). **digest 값을 그대로 옮기고 다시 계산하지
+않는다. digest에 없는 수치는 쓰지 않는다.** 값 `-`는 그날 집행이 없었다는 뜻이다. `지표`에 매출·ROAS가 없으면
+매출·ROAS를, 조회수·CPV가 없으면 조회수·CPV를 언급하지 않는다. 출력의 `facts`는 s2 작성에 쓰지 않는다.
 
 ## 완료 메시지 형식
 

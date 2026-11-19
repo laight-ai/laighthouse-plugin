@@ -184,6 +184,7 @@ class CreativeOverallSourceTest(PrepareRun):
     """매체 M의 전체 일별 CTR은 10%(클릭 100 / 노출 1,000), 상위 소재 A만 보면 50%(50 / 100)."""
 
     def save_rounds(self, with_media_day):
+        self.save_prev_total()
         dims4 = ["media", "campaign_name", "ad_group_name", "ad_name"]
         self.perf("2026-11-12", T, "total", ["media"],
                   [{"media": "M", "광고비": 700, "노출": 7000, "클릭": 700, "매출": 3500}])
@@ -205,13 +206,41 @@ class CreativeOverallSourceTest(PrepareRun):
         self.assertEqual(out["missing"], [])
         self.assertEqual(out["facts"]["overall_daily"]["ctr_series"], [10.0] * 7)
 
+    def test_digest_is_built_from_this_and_previous_period(self):
+        # 응답이 다 모이면 소재 Summary 근거가 붙는다 — 이번 7일 광고비 700(A 400 + B 300) vs 직전 7일 300(A)
+        self.save_rounds(with_media_day=True)
+        out = self.run_prepare("creative-report", "--media", "M")
+        d = out["digest"]
+        self.assertEqual(d["전체"]["광고비"], "₩700")
+        self.assertEqual(d["전체"]["직전 대비"]["광고비"], "+133.3%")
+        self.assertEqual(d["일별 추이"]["집행일 수"], "7일 / 7일")
+
+    def test_previous_period_error_gives_digest_without_comparison(self):
+        # 직전 7일 호출이 에러로 끝나면 errors에만 남기고 다시 요청하지 않는다 — 소재 Summary는 비교 없이 만든다
+        self.save_rounds(with_media_day=True)
+        self.save("get_ad_performance",
+                  {"start_date": "2026-11-05", "end_date": "2026-11-11", "time_grain": "total",
+                   "group_by": ["media", "campaign_name", "ad_group_name", "ad_name"]},
+                  "Error executing tool get_ad_performance: upstream timeout")
+        out = self.run_prepare("creative-report", "--media", "M")
+        self.assertEqual(out["missing"], [])
+        self.assertEqual(len(out["errors"]), 1)
+        self.assertNotIn("직전 대비", out["digest"]["전체"])
+
     def save_round_c(self, names, rows_for, age_secs=0):
         ad = {"media": "M", "campaign_name": "C", "ad_group_name": "G"}
         dims4 = ["media", "campaign_name", "ad_group_name", "ad_name"]
         rows = [dict(ad, date=d, ad_name=n, **rows_for[n]) for n in names if n in rows_for for d in DAYS]
         self.perf("2026-11-12", T, "day", dims4, rows, filters={"media": ["M"], "ad_name": names}, age_secs=age_secs)
 
+    def save_prev_total(self):
+        # 직전 같은 길이 기간(11/5~11/11)의 소재 total — 소재 Summary의 직전 대비 근거(라운드 B)
+        ad = {"media": "M", "campaign_name": "C", "ad_group_name": "G"}
+        self.perf("2026-11-05", "2026-11-11", "total", ["media", "campaign_name", "ad_group_name", "ad_name"],
+                  [dict(ad, ad_name="A", 광고비=300, 노출=4000, 클릭=200, 매출=1500)])
+
     def save_a_and_b(self):
+        self.save_prev_total()
         dims4 = ["media", "campaign_name", "ad_group_name", "ad_name"]
         self.perf("2026-11-12", T, "total", ["media"], [{"media": "M", "광고비": 700, "노출": 7000, "클릭": 700, "매출": 3500}])
         self.perf("2026-11-12", T, "day", ["media"],
@@ -329,6 +358,7 @@ class CreativeOverallSourceTest(PrepareRun):
         self.save_rounds(with_media_day=False)
         out = self.run_prepare("creative-report", "--media", "M")
         self.assertNotIn("overall_daily", out["facts"])
+        self.assertNotIn("digest", out)   # 응답이 덜 모였을 때는 요약 근거를 만들지 않는다
         self.assertIn({"tool": "get_ad_performance", "start_date": "2026-11-12", "end_date": T,
                        "time_grain": "day", "group_by": ["media"]}, out["missing"])
 

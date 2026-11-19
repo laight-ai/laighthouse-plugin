@@ -40,7 +40,8 @@ for name, mod in list(sys.modules.items()):
     if f and not os.path.abspath(f).startswith(prefixes):
         assert os.path.abspath(f).startswith(skill_root + os.sep), f"{name}: 스킬 폴더 밖 {f}"
 kit = sys.modules.get("report_kit")
-for tpl in glob.glob(os.path.join(skill_root, "assets", "*.html")):
+uses_kit = os.path.basename(script) != "digest.py"   # digest.py는 요약 근거만 계산한다 — 템플릿을 다루지 않는다
+for tpl in glob.glob(os.path.join(skill_root, "assets", "*.html")) if uses_kit else []:
     with open(tpl, encoding="utf-8") as fh:
         html = fh.read()
     if "__REPORT_KIT_" in html:

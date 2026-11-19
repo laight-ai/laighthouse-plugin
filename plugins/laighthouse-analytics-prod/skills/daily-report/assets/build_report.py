@@ -55,6 +55,7 @@
 - s1~s6 중 키 자체가 없거나 null인 섹션은 "데이터 준비 중" 카드로 렌더링된다(섹션 생략 없음).
 - 출력(stdout): {"out": 절대경로, "bytes": 크기, "mode": {...}, "sections": {"s1": "ok"|"placeholder", ...}, "tree_nodes": N}
 """
+import html
 import io
 import json
 import os
@@ -87,8 +88,9 @@ S3_NO_REVENUE_NOTE = ('<p style="font-size:11px; color:#94a3b8; margin-top:8px;"
                       "* 매출 지표가 없는 브랜드라 클릭·CTR 기준으로 표시합니다. 광고비·노출·CPC는 "
                       "막대에 마우스를 올리면 확인할 수 있습니다.</p>")
 
-# section-2 불릿 점(●) 색상 — 성장/개선=초록, 하락/점검=빨강, 중립 관찰=회색-갈색
-S2_TONE_COLORS = {"green": "#16a34a", "red": "#dc2626", "neutral": "#78716c"}
+# section-2 불릿 점(●) 색상 — guides/daily-summary.md: 전체=회색, 광고비 급변=빨강, 효율 급변=노랑, 개선=초록
+S2_TONE_COLORS = {"green": "#16a34a", "red": "#dc2626", "yellow": "#eab308", "neutral": "#78716c"}
+S2_MAX_BULLETS = 6   # guides/daily-summary.md — 불릿 3~6개
 
 
 def swap_section(html, key, replacement):
@@ -155,20 +157,30 @@ def tree_note(d1, target):
             "지표 헤더를 누르면 정렬되고(기본: 광고비 내림차순), '지표 선택'으로 표시할 컬럼을 고를 수 있습니다.")
 
 
+def _rich(text):
+    """본문은 <strong>만 허용 — 다른 태그는 글자로 보인다(section-2 문서 규칙)."""
+    s = html.escape(str(text or ""), quote=False)
+    return s.replace("&lt;strong&gt;", "<strong>").replace("&lt;/strong&gt;", "</strong>")
+
+
 def build_bullets(s2):
-    """s2 → 불릿 카드 HTML. bullets 배열(text/tone) 우선, executive_summary 문자열도 허용."""
+    """s2 → 불릿 카드 HTML. {"bullets": [{"head", "text", "tone"}]} — head는 굵게, tone은 red·green·yellow·neutral.
+    head 없는 예전 불릿과 executive_summary 문자열(줄마다 neutral)도 받는다. 가이드대로 6개까지만 그린다."""
     bullets = s2.get("bullets")
     if bullets is None and s2.get("executive_summary"):
         bullets = [{"text": line.strip(), "tone": "neutral"}
                    for line in s2["executive_summary"].split("\n") if line.strip()]
     items = []
-    for b in bullets or []:
+    for b in (bullets or [])[:S2_MAX_BULLETS]:
         color = S2_TONE_COLORS.get(b.get("tone", "neutral"), S2_TONE_COLORS["neutral"])
+        head = b.get("head")
+        head_html = (f'<strong style="color:#1e293b;">{html.escape(str(head))}</strong>'
+                     '<span style="color:#94a3b8;"> — </span>') if head else ""
         items.append(
             '<div style="border:1px solid #e2e8f0; border-radius:8px; padding:16px 18px; '
             'display:flex; gap:10px; align-items:flex-start;">\n'
             f'        <span style="color:{color}; font-size:14px; line-height:1.6;">●</span>\n'
-            f'        <span style="font-size:13px; color:#374151; line-height:1.6;">{b.get("text", "")}</span>\n'
+            f'        <span style="font-size:13px; color:#374151; line-height:1.6;">{head_html}{_rich(b.get("text", ""))}</span>\n'
             '      </div>')
     return "\n      ".join(items)
 

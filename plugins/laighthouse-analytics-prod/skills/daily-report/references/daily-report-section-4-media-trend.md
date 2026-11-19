@@ -9,7 +9,7 @@
 |---|---|
 | 차트 기간 응답 | section-3의 공유 응답(기준일 6일 전~target_date, `time_grain:"day"`, `group_by:["media"]`) — **새로 부르지 않는다** |
 | total 응답 | `get_ad_performance` ×1 — 같은 7일, `time_grain:"total"`, `group_by:["media"]`, `metrics` 생략 (section-3 호출과 같은 배치) |
-| 프로모션 | section-2 공유 `list_promotions` 응답 그대로 |
+| 프로모션 | 라운드 A `list_promotions` 응답 그대로 |
 
 ```json
 "s4": { "json": ["<section-3 응답 원문>"], "total_json": ["<total 응답 원문>"], "promotions": [...] }

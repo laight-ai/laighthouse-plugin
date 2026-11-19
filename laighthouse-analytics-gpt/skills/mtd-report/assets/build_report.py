@@ -24,7 +24,10 @@
 
   "s1": {"목표_예산": .., "소진액": .., "목표_매출": .., "기간_매출": .., "기간_노출": .., "기간_클릭": ..},
                              # shared/references/target-achievement.md — 원본 숫자, 없으면 null
-  "s2": {"bullets": [{"text": "...<strong>+22.4%</strong>...", "tone": "green|red|neutral"}]},
+  "s2": {"groups": [{"title": "소진", "lead": "...", "media": [{"name": "<media 값>", "desc": "...",
+          "bullets": [{"label": "<캠페인 이름>", "text": "...", "tone": "red|yellow|green|neutral", "unit": "캠페인|광고그룹"}]}]}]},
+        # guides/weekly-summary.md의 [소진]·[효율] (references/…section-2 문서). 예전 형식
+        # {"bullets": [{"text", "tone"}]}·{"executive_summary": "..."}도 받는다 — groups가 있으면 groups가 우선
                              # 카드 4~5개(5개 초과분은 잘린다). {"executive_summary": "줄\n줄"}도 받는다(전부 neutral)
   "s3": {                    # 월별 광고 성과 — 배열 6개(5개월 전 → 당월), 광고 매체 행(media non-null) 합
     "cost": [..], "revenue": [..],           # 매출 있음
@@ -193,6 +196,57 @@ def build_summary_items(s2):
     return "\n      ".join(cards)
 
 
+# ── s2 groups 형식(요약 가이드의 [소진]·[효율]) ─────────────────────────────────
+# {"groups": [{"title", "lead", "media": [{"name", "desc", "bullets": [{"label", "text", "tone", "unit"?}]}]}]}
+# tone: red(빨강)·yellow(노랑)·green(초록)·neutral(회색) — 가이드의 색 이름을 그대로 옮긴다.
+# unit: "캠페인"|"광고그룹" — 가이드 v1.5의 두 묶음. 같은 unit이 이어지면 작은 제목 하나 아래에 모은다.
+GROUP_TONES = {"red": "#dc2626", "down": "#dc2626", "yellow": "#b45309", "green": "#16a34a", "up": "#16a34a",
+               "neutral": "#78716c"}
+GROUP_MEDIA_DOTS = ["#2563eb", "#16a34a", "#f59e0b", "#9333ea", "#0891b2", "#db2777", "#65a30d", "#78716c"]
+
+
+def _rich(text):
+    """본문은 <strong>만 허용 — 다른 태그는 글자로 보인다."""
+    import html as _h
+    s = _h.escape(str(text or ""), quote=False)
+    return s.replace("&lt;strong&gt;", "<strong>").replace("&lt;/strong&gt;", "</strong>")
+
+
+def build_groups(s2):
+    """s2.groups → [소진]·[효율] 블록 HTML. groups가 비면 None."""
+    groups = [g for g in (s2.get("groups") or []) if isinstance(g, dict)]
+    if not groups:
+        return None
+    dots, out = {}, []
+    for g in groups:
+        parts = [f'<div style="font-size:14px; font-weight:700; color:#0f172a;">[{_rich(g.get("title"))}]</div>']
+        if g.get("lead"):
+            parts.append(f'<div style="font-size:13px; color:#374151; line-height:1.7;">{_rich(g["lead"])}</div>')
+        for m in [x for x in g.get("media") or [] if isinstance(x, dict)]:
+            name = str(m.get("name") or "")
+            dot = dots.setdefault(name, GROUP_MEDIA_DOTS[len(dots) % len(GROUP_MEDIA_DOTS)])
+            box = [f'<div style="font-size:13px; font-weight:700; color:#0f172a; display:flex; align-items:center; gap:6px;">'
+                   f'<span style="width:8px; height:8px; border-radius:50%; background:{dot}; display:inline-block;"></span>'
+                   f'{_rich(name)}</div>']
+            if m.get("desc"):
+                box.append(f'<div style="font-size:13px; color:#374151; line-height:1.7;">{_rich(m["desc"])}</div>')
+            unit = None
+            for b in [x if isinstance(x, dict) else {"text": x} for x in m.get("bullets") or []]:   # 문자열 불릿도 받는다
+                u = b.get("unit")
+                if u and u != unit:
+                    box.append(f'<div style="font-size:12px; font-weight:600; color:#64748b; margin-top:6px;">{_rich(u)}</div>')
+                unit = u
+                color = GROUP_TONES.get(b.get("tone") or "neutral", GROUP_TONES["neutral"])
+                label = f'<strong style="color:{color};">{_rich(b.get("label"))}</strong>: ' if b.get("label") else ""
+                pad = "18px" if u else "4px"
+                box.append(f'<div style="font-size:13px; color:#374151; line-height:1.7; padding-left:{pad};">'
+                           f'<span style="color:{color};">•</span> {label}{_rich(b.get("text"))}</div>')
+            parts.append('<div style="border:1px solid #e2e8f0; border-radius:8px; padding:12px 16px; '
+                         'display:flex; flex-direction:column; gap:4px;">' + "".join(box) + "</div>")
+        out.append('<div style="display:flex; flex-direction:column; gap:8px;">' + "\n".join(parts) + "</div>")
+    return "\n      ".join(out)
+
+
 def _para(line):
     style = ' style="color:#d97706;"' if line.startswith("⚠") else ""
     return f"<p{style}>{line}</p>"
@@ -311,9 +365,11 @@ def main():
 
     # ── section 2
     s2 = section_data("s2")
-    if s2 and (s2.get("bullets") or s2.get("executive_summary")):
+    s2_html = (build_groups(s2) or ((s2.get("bullets") or s2.get("executive_summary")) and build_summary_items(s2))
+               if s2 else None)
+    if s2_html:
         status["s2"] = "ok"
-        html = html.replace("__S2_ITEMS_HTML__", build_summary_items(s2))
+        html = html.replace("__S2_ITEMS_HTML__", s2_html)
     else:
         status["s2"] = "placeholder"
         html = swap_section(html, "s2", PLACEHOLDER_CARD)

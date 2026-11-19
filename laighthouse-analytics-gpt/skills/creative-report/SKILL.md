@@ -3,11 +3,11 @@ name: creative-report
 description: >
   브랜드 비종속 소재 보고서 생성 스킬. "소재 보고서", "소재 분석 보고서", "creative report", "임원용 소재 보고서",
   "executive creative report", "실무자용 소재 보고서" 요청 시 사용 — 임원용·실무용 구분 없이 같은 보고서를 만든다.
-  소재(개별 광고 크리에이티브) 단위로 최근 7일 ROAS·CTR을 분석한다: 최우수 소재 카드, Executive Summary, 전체 일별
+  소재(개별 광고 크리에이티브) 단위로 최근 7일 ROAS·CTR을 분석한다: 최우수 소재 카드, 소재 Summary, 전체 일별
   추이, 광고비 상위 5개 소재의 일별 CTR·ROAS, 소재 단위 누적 성과 표(매출 지표가 없는 브랜드는 클릭·CTR·CPC 기준).
   사용자가 말한 브랜드의 매체·지표를 응답에서 알아내고, 소재 데이터가 있는 매체 하나를 골라 분석한다.
 metadata:
-  version: "4.0.1"
+  version: "4.1.0"
 ---
 
 > ⚡ thinking은 짧게. MCP 라운드 A → `prepare.py` → 라운드 B·C → `prepare.py` → 썸네일 조회 → 문장 작성 + `build_report.py` → 게시, 이 순서로만 진행한다.
@@ -18,11 +18,11 @@ metadata:
 
 ## 역할
 
-사용자가 말한 브랜드의 **소재 보고서**(HTML, 6섹션: 최우수 소재 · Executive Summary · 전체 일별 추이 · 상위 5개 일별 CTR · 상위 5개 일별 ROAS(매출 없음: 클릭) · 소재 단위 누적 성과 표)를 만든다. 임원용·실무용을 따로 만들지 않는다. 최근 7일(T-6일 ~ T), **매체 하나**
+사용자가 말한 브랜드의 **소재 보고서**(HTML, 6섹션: 최우수 소재 · 소재 Summary · 전체 일별 추이 · 상위 5개 일별 CTR · 상위 5개 일별 ROAS(매출 없음: 클릭) · 소재 단위 누적 성과 표)를 만든다. 임원용·실무용을 따로 만들지 않는다. 최근 7일(T-6일 ~ T), **매체 하나**
 (`chosen_media`)의 소재(개별 광고)를 분석한다. 브랜드명은 모든 호출의 `brand_name`과 제목·파일명에 **그대로** 쓴다.
 
 계산·렌더링은 전부 미리 검증된 스크립트가 한다. 모델이 할 일은 (1) MCP 호출, (2) 스크립트 실행, (3) Executive
-Summary(`s2`) 작성뿐이다. **MCP 응답 원문을 읽거나 옮겨 적거나 파일로 저장하지 않는다** — 플러그인 저장 훅이 응답
+Summary(`s2`, 소재 Summary) 작성뿐이다. **MCP 응답 원문을 읽거나 옮겨 적거나 파일로 저장하지 않는다** — 플러그인 저장 훅이 응답
 원본을 파일로 남기고 `prepare.py`가 매체 선택·랭킹·일별 시리즈까지 만든다. 스크립트 파일을 새로 만들거나 HTML을
 직접 쓰지 않는다. `references/`의 섹션 문서는 아래에서 지정한 것 말고는 읽지 않는다.
 
@@ -35,10 +35,11 @@ Summary(`s2`) 작성뿐이다. **MCP 응답 원문을 읽거나 옮겨 적거나
 2. `python3 assets/prepare.py --brand <브랜드> --target-date <T>` (사용자가 매체를 말했으면 `--media <매체>`도).
    - `note`(저장된 응답 없음)가 나오면 저장 훅이 없는 환경(웹 Chat, 훅 미승인)이다 → **라운드 B를 보내지 말고** `references/legacy-flow.md`
      절차로 진행한다(받은 라운드 A 응답은 재사용).
-   - 아니면 `missing`에 라운드 B(소재 단위 total)가 나온다 → **라운드 B**를 보내고 prepare.py를 재실행한다.
+   - 아니면 `missing`에 라운드 B(소재 단위 total — 최근 7일과 직전 7일)가 나온다 → **라운드 B** 2개를 한 메시지에서
+     동시에 보내고 prepare.py를 재실행한다.
    - 매체가 정해지면 `missing`에 **라운드 C**(상위 소재만의 일별 — `filters`에 매체·소재명이 들어 있다)가 나온다 →
      `missing` 항목의 인자를 **글자 그대로**(소재명 포함) 보내고 재실행한다. 이 호출을 필터 없이 보내지 않는다.
-   → 마지막 출력 JSON의 `base`(경로)·`facts`·`lookups`.
+   → 마지막 출력 JSON의 `base`(경로)·`facts`·`digest`·`lookups`.
    - `ask_user.choose_media`가 있으면 소재명이 있는 매체가 여럿이다 — 후보(소재명 수 `named_ad_count`)를 보여 주고 어느 매체를 볼지 한 번 묻는다(`excluded`는 소재명이 없어 빠진 매체).
      답을 받으면 **MCP를 다시 부르지 않고** `--media <답>`으로 prepare.py만 재실행한다.
    - `stop`이 있으면 소재 단위 데이터가 있는 매체가 없다 — 그 사실을 알리고 끝낸다.
@@ -50,11 +51,12 @@ Summary(`s2`) 작성뿐이다. **MCP 응답 원문을 읽거나 옮겨 적거나
    "<lookups[i].ad_name>"}`로 한 메시지에서 동시에 부른다(**`source`는 넣지 않는다**). 응답 `items` 중 `ad_name`이
    정확히 같고, 항목에 `adgroup_name`/`campaign_name`이 있으면 그것도 lookup의 `ad_group_name`/`campaign_name`과 정확히
    같은 첫 항목의 `image_url`을 `thumbnails[lookups[i].id]`에 넣는다. 에러·빈 결과·불일치는 `null`(재시도 없음).
-4. `references/creative-report-section-2-executive-summary.md`에서 **작성 원칙·모드별 기준·문장 형식**만 따른다. 그 파일의
-   데이터 수집 설명(캡처 파일·`discover.py`·스크립트 출력 언급)은 무시한다 — 전부 facts로 대체됐다, `facts`만 근거로 `s2`를 쓴 뒤 빌더를 1회 호출한다:
+4. **소재 Summary(`s2`)**: `guides/creative-summary.md`(작성 규칙·문장 규칙·예시)와
+   `references/creative-report-section-2-executive-summary.md`(digest 읽는 법·이 플러그인에서 달라지는 점)를 읽고,
+   prepare 출력의 **`digest`만 근거로** 가이드 출력 형식의 불릿 3~6개를 쓴 뒤 빌더를 1회 호출한다:
    ```
    python3 assets/build_report.py <<'PYEOF'
-   {"base": "<prepare가 준 base 경로>", "thumbnails": {"L1": "<url>", "L2": null}, "s2": {"bullets": [{"text": "…", "tone": "good|bad|neutral"}, …]}}
+   {"base": "<prepare가 준 base 경로>", "thumbnails": {"L1": "<url>", "L2": null}, "s2": {"bullets": [{"head": "전체", "text": "…", "tone": "neutral"}, {"head": "<매체> / <소재>", "text": "…", "tone": "red|green|yellow|neutral"}, …]}}
    PYEOF
    ```
    → `~/Downloads/laighthouse-reports/{브랜드}_creative-report_{T}.html`에 저장된다(출력 `out`). 사용자가 다른 위치를
@@ -67,7 +69,8 @@ Summary(`s2`) 작성뿐이다. **MCP 응답 원문을 읽거나 옮겨 적거나
 | 1 | A | `get_ad_performance` | T-6일 ~ T | `total` | `group_by:["media"]` |
 | 2 | A | `get_ad_performance` | T-6일 ~ T | `day` | `group_by:["media"]` |
 | 3 | B | `get_ad_performance` | T-6일 ~ T | `total` | `group_by:["media","campaign_name","ad_group_name","ad_name"]` |
-| 4 | C | `get_ad_performance` | T-6일 ~ T | `day` | prepare.py `missing`의 인자 그대로(소재 단위 group_by + `filters` 매체·상위 소재명) |
+| 4 | B | `get_ad_performance` | T-13일 ~ T-7일 | `total` | `group_by:["media","campaign_name","ad_group_name","ad_name"]` (소재 Summary의 직전 대비·신규·중단) |
+| 5 | C | `get_ad_performance` | T-6일 ~ T | `day` | prepare.py `missing`의 인자 그대로(소재 단위 group_by + `filters` 매체·상위 소재명) |
 
 `get_ad_performance`는 전부 `metrics`를 생략한다(전체 지표). `filters`는 라운드 C에만 prepare.py가 넣어 준다. 브랜드명이 서버에 없다고 거절되면 그때만
 `get_brand_list`로 가장 비슷한 이름을 찾아 맞는지 사용자에게 묻는다(`shared/references/mcp-tools.md` 공통 규칙). 확인받은 이름은 이후 모든 호출의 `brand_name`과 `prepare.py --brand`, 제목·파일명에 쓴다. 이미지 URL은 IP 화이트리스트 뒤에 있어 허용되지 않은 네트워크에서는 안
@@ -75,12 +78,18 @@ Summary(`s2`) 작성뿐이다. **MCP 응답 원문을 읽거나 옮겨 적거나
 
 ## `facts` 읽는 법
 
+facts는 완료 메시지 하이라이트와 화면 확인용이다. **소재 Summary(`s2`)는 아래 `digest`만 근거로 쓴다.**
+
 `mode` · `chosen_media`·`candidates` · `media_totals`(매체 7일 합과 CTR·ROAS — 매출 없음: CPC) · `eligibility`(최소 표본
 기준과 충족 소재 수) · `best`(최우수 소재 1·2위) · `top_by_cost`(광고비 상위 10개 소재의 7일 누적 지표·표시 이름) ·
 `top5`(광고비 상위 5개 소재의 7일 누적 + 일별 CTR·ROAS(매출 없음: 클릭) 시리즈, `dates` 순서, `trend`=앞 3일 vs 뒤 4일 평균) · `overall_daily`(매체
 전체 일별 CTR·ROAS/클릭) · `overall_trend`(같은 앞·뒤 평균). 비율은 이미 계산돼 있다. 추이 분석은 `top5` 소재로만 한다(다른 소재는 일별 값이 없다).
-소재는 표시 이름 그대로 쓰고, 프로모션은 언급하지 않는다. **facts에 없는 수치는 쓰지 않는다** — facts 수치끼리의 단순 비교(배수·차이·%p)는 써도 된다. 숫자 표기: 금액·개수는 천 단위
+소재는 표시 이름 그대로 쓰고, 프로모션은 언급하지 않는다. 하이라이트에는 **facts에 없는 수치는 쓰지 않는다** — facts 수치끼리의 단순 비교(배수·차이·%p)는 써도 된다. 숫자 표기: 금액·개수는 천 단위
 쉼표, 비율은 소수 1자리(CTR은 2자리), 금액에는 `mode.currency`.
+
+`digest`는 소재 Summary(`s2`) 전용 근거다 — 최근 7일 매체 합계와 직전 7일 대비, 광고비 상위 소재(비중·직전 대비·신규 집행),
+최소 표본 소재 가운데 ROAS(매출 없음: CTR)·CPC 우수·저조, 직전 대비 광고비 변동 상위 소재(신규 집행·집행 중단), 일별 추이.
+읽는 법은 section-2 문서. 값은 화면 표기 그대로라 다시 계산하지 않는다. 직전 7일 응답이 없으면 비교 항목이 빠진다.
 
 ## 완료 메시지 형식
 
