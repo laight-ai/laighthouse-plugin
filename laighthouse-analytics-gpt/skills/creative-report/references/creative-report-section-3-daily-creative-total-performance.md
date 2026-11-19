@@ -1,40 +1,34 @@
-# Executive Creative Section 3: 최근 7일 전체 소재 CTR 및 ROAS (매출 없음: CTR 및 클릭)
+# Creative Section 3: 최근 7일 매체 전체 CTR 및 ROAS (매출 없음: CTR 및 클릭)
 
 **report_type:** `creative-report` (항상 포함). **`chosen_media` 하나만 대상.**
-section-4/5(상위 5개 소재)와 달리 **모든 소재를 날짜별로 합산**해 전체 CTR과 전체 ROAS(매출
-없음 모드: **전체 클릭**)의 7일 추이를 보여준다. 두 지표는 카드 2개로 분리 렌더링(듀얼 Y축 합침
+section-4/5(상위 5개 소재)와 달리 **분석 매체 전체**(소재 단위로 측정하지 않는 캠페인 포함)의 날짜별 CTR과
+ROAS(매출 없음 모드: **클릭**) 7일 추이를 보여준다. 두 지표는 카드 2개로 분리 렌더링(듀얼 Y축 합침
 금지 — 스케일 착시)·최소 Y축 폭·`M/D(요일)` 라벨·각주·모드별 제목은 전부 템플릿+빌더에 고정돼
 있다.
 
-## MCP 도구 호출: 신규 호출 없음 — section-3/4/5 공유 day grain 응답 재사용
+## MCP 도구 호출: 매체 일별 1회 (legacy-flow 6-a)
 
-SKILL.md 실행 순서 3-b에서 호출한 `get_ad_performance`(`time_grain:"day"`,
-`filters:{"media":["<chosen_media>"]}`, 소재 단위, 최근 7일) 응답을 그대로 쓴다 — 이 섹션에서
-다시 호출하지 않는다. section-1의 total 응답은 날짜가 무너져 있어 이 섹션의 "날짜별 추이"에
-쓸 수 없다.
+`get_ad_performance`(`time_grain:"day"`, `group_by:["media"]`, `filters:{"media":["<chosen_media>"]}`, 최근 7일,
+`metrics` 생략) — 행이 7개뿐이다. 소재 단위 일별 응답(6-b)은 상위 5개 소재만 받으므로 이 섹션에 쓰지 않는다.
+저장 훅이 있는 호스트에서는 prepare.py가 라운드 A 매체 일별 응답으로 이 섹션을 만든다.
 
 ## 계산: `assets/creative_daily_series.py` (필수 — 손계산·새 스크립트 금지)
 
-응답이 `[laighthouse-capture-hook] ... 저장됨: <경로>` 스텁으로 오면(캡처 훅 동작 호스트) 그
-경로를 `json_files`에, 원본 JSON 봉투가 그대로 오면 `json`에 문자열 통째로(혼용 가능, 손
-전사·행 선별 절대 금지). 스텁이 가리키는 캡처 파일을 Read로 열지 않는다(경로만 넘긴다).
-section-4/5용 상위 5개 키가 든 `rank_file`(SKILL.md 5단계의 `rank_creatives.py` 출력)과
-디스커버리에서 정한 `metric_keys`까지 같이 넘겨 **한 번의
-호출**로 끝내고, 출력은 빌더가 읽을 파일로 저장한다:
+응답이 캡처 훅 스텁으로 오면 경로를 `json_files`에, 원본 JSON 봉투면 `json`에 문자열 통째로 넘긴다.
+**`rank_file` 없이** 호출해 전체 일별만 계산하고, 상위 5개용 시리즈 파일과 따로 저장한다:
 
 ```bash
-python3 assets/creative_daily_series.py <<'PYEOF' > /tmp/creative_series.json
-{"json_files": ["<day 응답 스텁 경로>"],
+python3 assets/creative_daily_series.py <<'PYEOF' > /tmp/creative_series_overall.json
+{"json_files": ["<매체 일별 응답 스텁 경로>"],
  "dates": ["기준일 6일 전", "...", "target_date"],
- "metric_keys": <discover.py 출력의 metric_keys 그대로 — revenue가 없으면 없는 채로>,
- "rank_file": "/tmp/creative_rank.json"}
+ "metric_keys": <discover.py 출력의 metric_keys 그대로 — revenue가 없으면 없는 채로>}
 PYEOF
 ```
 
 - `dates`는 기준일 포함 7일 전체를 명시한다(행이 전혀 없는 날짜도 결측으로 정확히 채워진다).
 - 응답을 먼저 파일로 저장했다가 별도 호출로 다시 읽지 않는다 — 따옴표 있는
   heredoc(`<<'PYEOF'`) 하나로 한 번에 끝낸다(`echo '...'`는 이스케이프가 깨지기 쉬워 금지).
-- 스크립트가 구현한 계산(참고용 스펙): 날짜별로 모든 행의 cost/impression/click(/revenue) 키
+- 스크립트가 구현한 계산(참고용 스펙): 날짜별로 매체 행의 cost/impression/click(/revenue) 키
   합 → `전체 CTR` = 클릭 합÷노출 합×100(노출 0이면 null), `전체 클릭` = 클릭 합(행 없으면 0),
   `전체 ROAS` = 매출 합÷광고비 합×100(광고비 0이면 null — **매출 있음 모드만**, 매출 없음이면
   ROAS 계열을 생략하고 멈추지 않는다). 매출이 각 행에 지표로 들어있어 조인이 없다. 비율은 행의
@@ -49,11 +43,10 @@ PYEOF
 ## 빌더 `s3` 필드
 
 ```json
-"series_file": "/tmp/creative_series.json",   // 최상위 — s3/s4/s5가 공유
-"s3": {}
+"series_file": "/tmp/creative_series.json",                   // 최상위 — s4/s5(상위 5개)
+"s3": {"series_file": "/tmp/creative_series_overall.json"}    // 이 섹션만 매체 일별로 만든 시리즈
 ```
 
-- 위 스크립트 출력 파일 경로를 빌더 입력 **최상위** `series_file`에 넣고, `s3` 키를
-  존재시키기만 하면 된다(빌더가 `overall.ctr_series`와 `overall.roas_series` — 매출 없음:
-  `overall.click_series` — 그리고 `dates` 기반 라벨을 알아서 쓴다). CTR Y축은 0 아래로 내려가지
-  않고, 눈금은 소수 최대 2자리로 반올림되며, CTR 툴팁은 소수 2자리다(템플릿 고정). 데이터가 비어있으면 `s3` 키를 빼면 "데이터 준비 중" 카드가 된다.
+- 빌더가 `overall.ctr_series`와 `overall.roas_series`(매출 없음: `overall.click_series`), `dates` 기반 라벨을 쓴다.
+  CTR Y축은 0 아래로 내려가지 않고, 눈금은 소수 최대 2자리, CTR 툴팁은 소수 2자리다(템플릿 고정).
+  데이터가 비어 있으면 `s3` 키를 빼면 "데이터 준비 중" 카드가 된다.

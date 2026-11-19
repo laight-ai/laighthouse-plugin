@@ -102,12 +102,10 @@ S1_A_NOTE = {
     False: "*최근 7일 합산 클릭 수 기준이며, 많을수록 소재가 고객의 관심을 많이 끌었음을 의미합니다. "
            "단, 클릭 수는 광고비 규모에 비례하므로 CTR과 함께 보아야 합니다.",
 }
-S3B_TITLE = {True: "최근 7일 전체 소재 ROAS", False: "최근 7일 전체 소재 클릭"}
+S3B_TITLE = {True: "최근 7일 매체 전체 ROAS", False: "최근 7일 매체 전체 클릭"}
 S3B_NOTE = {
-    True: "* 위 차트에 포함된 ROAS는 개별 소재 성과의 합계입니다. 이미지나 비디오 소재 단위에서\n"
-          "      성과를 측정하지 않는 매체나 캠페인의 성과는 포함하지 않습니다. (예: 검색광고)",
-    False: "* 위 차트의 클릭은 개별 소재 클릭의 날짜별 합계입니다. 이미지나 비디오 소재 단위에서\n"
-           "      성과를 측정하지 않는 매체나 캠페인의 성과는 포함하지 않습니다. (예: 검색광고)",
+    True: "* 위 차트의 ROAS는 분석 매체 전체(소재 단위로 성과를 측정하지 않는 캠페인 포함)의 날짜별 매출/광고비입니다.",
+    False: "* 위 차트의 클릭은 분석 매체 전체(소재 단위로 성과를 측정하지 않는 캠페인 포함)의 날짜별 합계입니다.",
 }
 S5_TITLE = {True: "최근 7일 일별 ROAS (광고비 상위 5개 소재)",
             False: "최근 7일 일별 클릭 (광고비 상위 5개 소재)"}
@@ -370,7 +368,7 @@ def main():
     second_key = "roas_series" if has_revenue else "click_series"
     second_unit = "%" if has_revenue else ""
 
-    # ── section 3: 전체 소재 CTR + ROAS(매출 없음: 클릭) (스크립트 데이터는 섹션 유무와 무관하게
+    # ── section 3: 매체 전체 CTR + ROAS(매출 없음: 클릭) (스크립트 데이터는 섹션 유무와 무관하게
     #    항상 유효한 JSON으로 치환 — placeholder일 땐 canvas가 없어 스크립트가 스스로 no-op 한다)
     s3 = section_data("s3")
     series3 = load_series(payload, s3) if s3 is not None else None

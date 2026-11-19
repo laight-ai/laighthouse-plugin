@@ -60,36 +60,55 @@ class PrepareRun(unittest.TestCase):
 
 
 class HookDetectionTest(PrepareRun):
-    """daily-report 라운드 A 응답이 한 시간 전 것뿐인 경우."""
+    """daily-report 라운드 A 응답으로 저장 훅이 지금 동작하는지 판별한다."""
 
-    def save_round_a(self, metrics):
-        age = 3600
+    UNKNOWN = ["spend_x", "imps_x", "taps_x"]   # 광고비·노출·클릭 역할을 정할 수 없는 지표 이름
+    ANSWER = '{"cost": "spend_x", "impression": "imps_x", "click": "taps_x"}'
+
+    def save_round_a(self, metrics, age_secs):
         media_row = {"media": "M", **{m: 100 for m in metrics}}
-        self.perf("2026-11-01", T, "month", ["media"], [dict(media_row, month="2026-11")], metrics=metrics, age_secs=age)
-        self.perf("2026-11-12", T, "day", ["media"], [dict(media_row, date=d) for d in DAYS], metrics=metrics, age_secs=age)
-        self.perf("2026-11-12", T, "total", ["media"], [media_row], metrics=metrics, age_secs=age)
+        self.perf("2026-11-01", T, "month", ["media"], [dict(media_row, month="2026-11")], metrics=metrics, age_secs=age_secs)
+        self.perf("2026-11-12", T, "day", ["media"], [dict(media_row, date=d) for d in DAYS], metrics=metrics, age_secs=age_secs)
+        self.perf("2026-11-12", T, "total", ["media"], [media_row], metrics=metrics, age_secs=age_secs)
+
+    def age_saved_responses(self, secs):
+        for name in os.listdir(self.folder):
+            path = os.path.join(self.folder, name)
+            with open(path, encoding="utf-8") as f:
+                rec = json.load(f)
+            rec["saved_at"] -= secs
+            with open(path, "w", encoding="utf-8") as f:
+                json.dump(rec, f, ensure_ascii=False)
 
     def test_stale_responses_mean_no_hook(self):
-        # 이번 실행 응답이 저장되지 않았다(예전 세션 응답만 남음) → 큰 호출을 보내지 말라는 note
-        self.save_round_a(METRICS)
+        # 예전 세션 응답만 남아 있다 → 큰 호출을 보내지 말라는 note
+        self.save_round_a(METRICS, age_secs=3600)
         out = self.run_prepare("daily-report")
         self.assertIn("note", out)
         self.assertNotIn("missing", out)
 
-    def test_metric_key_question_is_not_replaced_by_note(self):
-        # 광고비·노출·클릭 역할을 못 정해 사용자에게 묻는 중 — 답이 늦어 응답이 오래돼도 질문을 그대로 낸다
-        self.save_round_a(["spend_x", "imps_x", "taps_x"])
-        out = self.run_prepare("daily-report")
-        self.assertNotIn("note", out)
-        self.assertIn("ask_user", out)
-
-    def test_rerun_with_answered_metric_keys_still_asks_for_round_b(self):
-        # 질문에 30분 넘게 늦게 답해 --metric-keys로 다시 돌려도, 라운드 A가 저장된 실행이므로 라운드 B를 요청한다
-        self.save_round_a(["spend_x", "imps_x", "taps_x"])
-        out = self.run_prepare("daily-report", "--metric-keys",
-                               '{"cost": "spend_x", "impression": "imps_x", "click": "taps_x"}')
+    def test_late_answer_to_metric_key_question_still_asks_for_round_b(self):
+        # 방금 받은 라운드 A로 지표 키를 묻고 → 한 시간 뒤 답해 --metric-keys로 다시 돌려도 라운드 B를 요청한다
+        self.save_round_a(self.UNKNOWN, age_secs=0)
+        asked = self.run_prepare("daily-report")
+        self.assertIn("ask_user", asked)
+        self.age_saved_responses(3600)
+        out = self.run_prepare("daily-report", "--metric-keys", self.ANSWER)
         self.assertNotIn("note", out)
         self.assertIn(["media", "campaign_name"], [m.get("group_by") for m in out["missing"]])
+
+    def test_stale_responses_with_metric_keys_but_no_question_mean_no_hook(self):
+        # 이 보고서에서 질문을 낸 적이 없는데 --metric-keys만 넘어오고 응답은 예전 것뿐 → 훅 있음으로 보지 않는다
+        self.save_round_a(self.UNKNOWN, age_secs=3600)
+        out = self.run_prepare("daily-report", "--metric-keys", self.ANSWER)
+        self.assertIn("note", out)
+
+    def test_stale_responses_do_not_raise_a_question(self):
+        # 예전 응답만으로는 지표 키를 묻지 않고 폴백 절차로 보낸다
+        self.save_round_a(self.UNKNOWN, age_secs=3600)
+        out = self.run_prepare("daily-report")
+        self.assertIn("note", out)
+        self.assertNotIn("ask_user", out)
 
 
 class CreativeOverallSourceTest(PrepareRun):

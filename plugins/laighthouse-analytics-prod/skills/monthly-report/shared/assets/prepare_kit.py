@@ -36,6 +36,7 @@ MAX_AGE = 24 * 3600
 
 
 def _fresh_secs(default=1800):
+    """훅 판별 기준(초). 환경변수는 오래된 저장 응답으로 회귀를 재현할 때만 늘려 쓴다."""
     try:
         return int(os.environ.get("LAIGHTHOUSE_PREPARE_FRESH_SECS") or default)
     except ValueError:
@@ -157,15 +158,14 @@ class Store:
     def __init__(self, brand):
         self.records = load_records(brand)
         self.missing, self.errors = [], []
-        self.deep_hit = False   # 계층·소재 단위(group_by에 media 말고 다른 차원) 응답을 하나라도 찾았는가
 
-    def hook_ok(self, answered=False, now=None):
+    def hook_ok(self, asked=False, now=None):
         """이번 실행의 응답이 저장되고 있는가. 같은 PC에 남은 예전 응답으로 "훅 있음"을 오판하지 않도록
-        최근 FRESH_SECS 안에 저장된 응답이 있어야 True다. 다만 사용자 답을 기다리느라 시간이 지난 경우는 예외다 —
-        라운드 B 응답을 이미 찾았거나(매체 질문은 라운드 B 뒤에 나온다), 지표 키 질문에 답한 재실행(answered)이면 True."""
+        최근 FRESH_SECS 안에 저장된 응답이 있어야 True다. 예외는 asked — 이 보고서에서 사용자에게 질문(지표 키·매체)을
+        냈던 실행이 있으면(그때 이미 최근 응답으로 훅을 확인했다) 답을 기다리느라 시간이 지나도 True."""
         now = time.time() if now is None else now
         recent = any(now - float(r.get("saved_at") or 0) <= FRESH_SECS for r in self.records)
-        return bool(self.records) and (recent or self.deep_hit or answered)
+        return bool(self.records) and (recent or asked)
 
     def find(self, call, required=True):
         """계획한 호출과 같은 최근 응답 → (텍스트, 레코드) | (None, None)."""
@@ -175,8 +175,6 @@ class Store:
                 self.missing.append(describe(call))
             return None, None
         rec = hits[-1]
-        if len(call.get("group_by") or []) > 1:
-            self.deep_hit = True
         return response_text(rec), rec
 
     def envelope(self, call, required=True):
@@ -497,6 +495,12 @@ def work_dir(brand, skill, target_date):
     path = os.path.join(WORK_ROOT, safe)
     os.makedirs(path, exist_ok=True)
     return path
+
+
+def _asked_marker(brand, skill, target_date):
+    """사용자 질문(ask_user)을 낸 보고서 표식 — 훅을 확인한 뒤 답을 기다리는 중이라는 뜻(Store.hook_ok)."""
+    safe = re.sub(r"[^\w.-]", "_", f"asked_{brand}_{skill}_{target_date}")
+    return os.path.join(WORK_ROOT, safe)
 
 
 def save_envelope(folder, name, env):
@@ -856,7 +860,8 @@ def _plan_creative(store, brand, T, override, skill, media=None, assets_dir=None
     → C(상위 소재만 일별, filters media·ad_name). 전체 일별 시리즈는 매체 일별 응답에서 만든다."""
     d6 = T - timedelta(days=6)
     media_env = store.envelope(perf(d6, T, "total", ["media"]))
-    media_day = store.envelope(perf(d6, T, "day", ["media"]))
+    media_day_call = perf(d6, T, "day", ["media"])
+    media_day = store.envelope(media_day_call, required=False)
     if not media_env:
         return None
     disc, ask = _discover([media_env], override)
@@ -909,6 +914,8 @@ def _plan_creative(store, brand, T, override, skill, media=None, assets_dir=None
     # 전체 일별은 매체 일별(라운드 A) 응답에서만 — 라운드 C는 상위 소재만이라 전체 합이 아니다.
     # 예전 흐름의 필터 없는 소재 단위 일별 응답은 전체 합이 맞으므로 대신 쓸 수 있다.
     overall_env = media_day or old_day
+    if not overall_env:
+        store.missing.append(describe(media_day_call))
     if overall_env:
         orows = [r for r in overall_env.get("rows") or [] if r.get("media") == chosen]
         mk = series_mod.resolve_metric_keys(set(overall_env.get("metrics") or []), keys)
@@ -972,8 +979,18 @@ def main(skill, argv=None, assets_dir=None):
         result["facts"] = clean(result["facts"])
     result["missing"] = store.missing
     result["errors"] = store.errors
-    # ask_user(질문 중)·--metric-keys(질문에 답한 재실행)는 라운드 A 응답이 저장된 것을 이미 확인한 실행이다.
-    if not store.hook_ok(answered=bool(a.metric_keys)) and "ask_user" not in result:
+    marker = _asked_marker(a.brand, skill, T)
+    try:
+        asked = time.time() - os.path.getmtime(marker) <= MAX_AGE
+    except OSError:
+        asked = False
+    if store.hook_ok(asked=asked) and "ask_user" in result:
+        os.makedirs(WORK_ROOT, exist_ok=True)
+        with open(marker, "w", encoding="utf-8") as f:
+            f.write(str(time.time()))
+    if "facts" in result and not store.missing and os.path.exists(marker):
+        os.remove(marker)   # 보고서 입력이 다 모였다 — 질문 대기 표식을 지운다
+    if not store.hook_ok(asked=asked):
         # 훅이 없는 호스트 — 큰 호출을 더 보내지 않도록 missing은 비우고 폴백 절차로 보낸다.
         result = {"note": (f"최근 저장된 응답이 없다({ROOT}) — 저장 훅이 동작하지 않는 환경이다. 큰 호출(계층 표·소재 단위)을 "
                            "보내지 말고 references/legacy-flow.md 절차로 진행한다(이미 받은 응답은 재사용).")}
