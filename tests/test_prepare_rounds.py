@@ -236,18 +236,37 @@ class CreativeOverallSourceTest(PrepareRun):
         self.assertEqual(self.top5_ctr(out), {"A": [40.0] * 7, "B": [30.0] * 7})
         self.assertEqual(out["missing"], [])
 
-    def test_round_c_error_is_reported_not_requested_again(self):
-        # 라운드 C가 서버 에러로 끝났다 → errors에 남기고, 같은 호출을 missing으로 되풀이 요청하지 않는다
-        self.save_a_and_b()
+    def save_round_c_error(self, names):
         self.save("get_ad_performance",
                   {"start_date": "2026-11-12", "end_date": T, "time_grain": "day",
                    "group_by": ["media", "campaign_name", "ad_group_name", "ad_name"],
-                   "filters": {"media": ["M"], "ad_name": ["A", "B"]}},
+                   "filters": {"media": ["M"], "ad_name": names}},
                   "Error executing tool get_ad_performance: upstream timeout")
+
+    def test_round_c_error_is_reported_and_top_creative_charts_are_left_out(self):
+        # 라운드 C가 서버 에러 → errors에 남기고 되풀이 요청하지 않으며, 상위 소재 차트를 0으로 그리지 않고 뺀다
+        self.save_a_and_b()
+        self.save_round_c_error(["A", "B"])
         out = self.run_prepare("creative-report", "--media", "M")
         self.assertEqual(out["missing"], [])
         self.assertEqual(len(out["errors"]), 1)
         self.assertIn("upstream timeout", out["errors"][0]["response"])
+        self.assertNotIn("top5", out["facts"])
+        with open(out["base"], encoding="utf-8") as f:
+            base = json.load(f)
+        self.assertNotIn("s4", base)
+        self.assertNotIn("s5", base)
+
+    def test_round_c_error_is_filled_from_unfiltered_day_response(self):
+        # 라운드 C는 에러지만 예전 흐름의 필터 없는 소재 일별 응답이 있으면 거기서 채운다
+        self.save_a_and_b()
+        ad = {"media": "M", "campaign_name": "C", "ad_group_name": "G"}
+        self.perf("2026-11-12", T, "day", ["media", "campaign_name", "ad_group_name", "ad_name"],
+                  [dict(ad, date=d, ad_name=n, 광고비=10, 노출=100, 클릭=c, 매출=20) for n, c in (("A", 50), ("B", 30))
+                   for d in DAYS])
+        self.save_round_c_error(["A", "B"])
+        out = self.run_prepare("creative-report", "--media", "M")
+        self.assertEqual(self.top5_ctr(out), {"A": [50.0] * 7, "B": [30.0] * 7})
 
     def test_overlapping_round_c_uses_newest_rows_once(self):
         # A가 두 응답에 다 있다 — 더하지 않고 가장 최근 응답(CTR 20%)만 쓴다

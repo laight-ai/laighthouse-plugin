@@ -189,7 +189,7 @@ class Store:
         return response_text(rec), rec
 
     def filter_values(self, call, key):
-        """call과 filters[key]만 다른 이번 실행 응답들 → [(봉투, 그 응답의 filters[key] 값 목록)].
+        """call과 filters[key]만 다른 이번 실행 응답들 → [(봉투 | 에러면 None, 그 응답의 filters[key] 값 목록)].
         라운드 C처럼 필터 값(소재명)을 모델이 옮겨 적는 호출을, 값이 일부 틀려도 맞은 만큼 쓰기 위해서다."""
         out = []
         for rec in self.records:
@@ -208,9 +208,8 @@ class Store:
             except ValueError:
                 env = None
             if not isinstance(env, dict) or not isinstance(env.get("rows"), list):
-                # 에러 응답 — 기록하고, 그 값들은 받은 것으로 쳐서 같은 호출을 되풀이 요청하지 않는다(행은 없다)
                 self.errors.append({"call": describe(probe), "response": str(text).strip().split("\n", 1)[0][:300]})
-                env = {"rows": []}
+                env = None
             out.append((env, [str(v) for v in vals]))
         return out
 
@@ -947,18 +946,22 @@ def _plan_creative(store, brand, T, override, skill, media=None, assets_dir=None
     if c_call:
         # 소재명을 옮겨 적다 일부 틀려도 맞게 받은 소재는 쓰고, 빠진 소재만 예전 흐름 응답으로 채우거나 다시 요청한다.
         parts = store.filter_values(c_call, "ad_name")
+        ok = [(env, vals) for env, vals in parts if env is not None]
+        errored = {v for env, vals in parts if env is None for v in vals}   # 에러로 끝난 소재 — 되풀이 요청하지 않는다
         got, c_rows = set(), []
-        for env, vals in reversed(parts):            # 소재마다 가장 최근 응답의 행만(겹친 응답을 두 번 더하지 않게)
+        for env, vals in reversed(ok):               # 소재마다 가장 최근 응답의 행만(겹친 응답을 두 번 더하지 않게)
             new = set(vals) - got
             c_rows += [r for r in env["rows"] if str(r.get("ad_name")) in new]
             got |= new
         left = [n for n in c_call["filters"]["ad_name"] if n not in got]
+        ask = [n for n in left if n not in errored]
         if old_day:
             c_rows += [r for r in old_day.get("rows") or [] if str(r.get("ad_name")) in left]
-        elif left:
-            store.missing.append(describe(dict(c_call, filters={"media": [chosen], "ad_name": left})))
-        if parts or c_rows:
-            day = dict(parts[-1][0] if parts else old_day, rows=c_rows, row_count=len(c_rows))
+        elif ask:
+            store.missing.append(describe(dict(c_call, filters={"media": [chosen], "ad_name": ask})))
+        if ok or c_rows:
+            # 정상 라운드 C 응답이 있으면 행이 0개여도 그 결과를 쓴다(0으로 그림). 에러뿐이면 s4·s5를 뺀다.
+            day = dict(ok[-1][0] if ok else old_day, rows=c_rows, row_count=len(c_rows))
     series = None
     # 전체 일별은 매체 일별(라운드 A) 응답에서만 — 라운드 C는 상위 소재만이라 전체 합이 아니다.
     # 예전 흐름의 필터 없는 소재 단위 일별 응답은 전체 합이 맞으므로 대신 쓸 수 있다.
