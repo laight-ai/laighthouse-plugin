@@ -23,14 +23,10 @@ laighthouse-plugin/
         │   ├── references/        # MCP 도구 규칙·브랜드 비종속 패턴·목표 카드 규칙
         │   └── assets/            # 공용 렌더링 킷 report_kit.py/.js/.css (카드·차트·비교 표·계층 표)
         └── skills/
-            ├── daily-detailed/    #  데일리 보고서(HTML, 실무 상세)
-            ├── daily-summary/     #  Executive 데일리 보고서(HTML, 임원용 요약)
-            ├── mtd-detailed/      #  MTD 보고서(HTML, 실무 상세)
-            ├── mtd-summary/       #  Executive MTD 보고서(HTML, 임원용 요약)
-            ├── monthly-detailed/  #  월간 보고서(HTML, 실무 상세)
-            ├── monthly-summary/   #  Executive 월간 보고서(HTML, 임원용 요약)
-            ├── creative-detailed/ #  소재 보고서(HTML, 실무 상세)
-            ├── creative-summary/  #  Executive 소재 보고서(HTML, 임원용 요약)
+            ├── daily-report/      #  데일리 보고서(HTML — 요약 섹션 + 계층 표)
+            ├── mtd-report/        #  MTD 보고서(HTML — 요약 섹션 + 캠페인 분석·예산·계층 표)
+            ├── monthly-report/    #  월간 보고서(HTML — 요약 섹션 + 계층 표)
+            ├── creative-report/   #  소재 보고서(HTML — 상위 소재 추이 + 소재 누적 표)
             ├── naver-search/      #  외부 요인: 네이버 검색량(HTML, 날짜 범위)
             ├── naver-news/        #  외부 요인: 네이버 뉴스 언급·주요 기사(HTML, 날짜 범위)
             ├── naver-blog/        #  외부 요인: 네이버 블로그 언급·주요 글(HTML, 날짜 범위)
@@ -60,14 +56,10 @@ laighthouse-plugin-common 레포입니다. 어느 파일을 어느 태그로 가
 
 | 스킬 | 설명 |
 |------|------|
-| `daily-detailed` |  데일리 보고서(HTML, 실무 상세) 렌더링 |
-| `daily-summary` |  Executive 데일리 보고서(HTML, 임원용 핵심 요약) 렌더링 |
-| `mtd-detailed` |  MTD 보고서(HTML, 실무 상세) 렌더링 |
-| `mtd-summary` |  Executive MTD 보고서(HTML, 임원용 핵심 요약) 렌더링 |
-| `monthly-detailed` |  월간 보고서(HTML, 실무 상세) 렌더링 |
-| `monthly-summary` |  Executive 월간 보고서(HTML, 임원용 핵심 요약) 렌더링 |
-| `creative-detailed` |  소재 보고서(HTML, 실무 상세) 렌더링 |
-| `creative-summary` |  Executive 소재 보고서(HTML, 임원용 핵심 요약) 렌더링 |
+| `daily-report` | 데일리 보고서(HTML) 렌더링 — 임원용·실무용 구분 없이 하나(요약 섹션 + 계층 표) |
+| `mtd-report` | MTD 보고서(HTML) 렌더링 — 요약 섹션 + 캠페인 분석·매체별 예산·계층 표 |
+| `monthly-report` | 월간 보고서(HTML) 렌더링 — 요약 섹션 + 계층 표 |
+| `creative-report` | 소재 보고서(HTML) 렌더링 — 최우수 소재·상위 소재 추이·소재 누적 표 |
 | `naver-search` | 브랜드(자사·경쟁) 네이버 추정 검색수 비교(날짜 범위) |
 | `naver-news` | 브랜드 네이버 뉴스 기사 수 비교 + 자사 주요 기사 4건 |
 | `naver-blog` | 브랜드 네이버 블로그 글 수 비교 + 자사 주요 글 4건 |

@@ -1,7 +1,7 @@
 """보고서 공용 킷 — 모든 스킬 빌더가 공유하는 브랜드 비종속 렌더링 부품.
 
 각 스킬의 `assets/build_report.py`·`assets/discover.py`가 import 해서 쓴다(모델이 직접 import
-하지 않는다). 찾는 위치: `<스킬>/shared/assets`(ChatGPT 번들) → `<플러그인>/shared/assets`.
+하지 않는다). 찾는 위치: `<스킬>/shared/assets`(스킬 폴더 안 사본) → `<플러그인>/shared/assets`.
 
 부품 (모드 분기는 전부 여기 한 곳에 있다 — generic-report-pattern.md 3·7절):
 - `resolve_roles`         — 디스커버리 봉투 → media_list/has_organic/metric_keys/currency
@@ -468,7 +468,7 @@ def media_trend_from_envelopes(labels, period_keys, envelopes, metric_keys, has_
 
     keys = [str(k) for k in period_keys]
     idx = {k: i for i, k in enumerate(keys)}
-    by_media = {}
+    by_media, seen = {}, set()
     for env in envelopes:
         for row in env.get("rows") or []:
             period = str(row.get("date") or row.get("month") or "")[:len(keys[0])] if keys else ""
@@ -480,6 +480,14 @@ def media_trend_from_envelopes(labels, period_keys, envelopes, metric_keys, has_
                 v = row.get(m)
                 if isinstance(v, (int, float)):
                     slot[m][idx[period]] = v
+                    if v:
+                        seen.add(m)
+    # 기간 내내 값이 없거나 0뿐인 지표는 메뉴에서 뺀다(그릴 선이 없다) — 역할 지표는 남긴다.
+    metrics = [m for m in metrics if m in seen or m in roles]
+    for vals in by_media.values():
+        for m in list(vals):
+            if m not in metrics:
+                del vals[m]
     for vals in by_media.values():
         for m in metrics:
             if unit_of[m] != "%":
@@ -554,6 +562,12 @@ def month_keys(target, n=6):
         if m == 0:
             y, m = y - 1, 12
     return out[::-1]
+
+
+def is_month_end(d):
+    """d 가 그 달의 마지막 날이면 True — 당월이 끝난 달이라 "(진행 중)"을 붙이지 않는다."""
+    from datetime import timedelta
+    return (d + timedelta(days=1)).month != d.month
 
 
 def day_keys(first, last):
@@ -679,6 +693,7 @@ def compare_rows_html(rows, modes, currency="₩", base_key="d1", cur_key="d0"):
 
 LEVEL_DIMS = ["media", "campaign_name", "ad_group_name", "ad_name"]
 LEVEL_LABELS = ["매체", "캠페인", "광고그룹", "광고"]
+TREE_DEFAULT_COLS = 6   # 계층 표가 처음 펼쳐 보이는 지표 열 수 (나머지는 "지표 선택" 메뉴)
 UNSET_LABEL = "(미지정)"
 
 
@@ -730,7 +745,7 @@ def build_tree(envelopes, base_period, cur_period, metric_keys, has_organic=True
     (비율 지표를 하위 행에서 합산하지 않기 위해 레벨마다 따로 조회한다).
 
     currency: 단위가 null인 광고비·매출 역할 지표에 붙일 보고서 통화(discover.py의 currency).
-    반환: {"levels": [...], "metrics": [{"key", "unit"}], "base": 기간, "cur": 기간,
+    반환: {"levels": [...], "metrics": [{"key", "unit", "show"(처음에 펼쳐 보일 열)}], "base": 기간, "cur": 기간,
            "nodes": [[name, cur_values, base_values, children], ...]}
     값 배열은 metrics 순서, 없으면 null. 하위 레벨 봉투가 없으면 그 레벨 이하는 비어 있다.
     """
@@ -777,6 +792,8 @@ def build_tree(envelopes, base_period, cur_period, metric_keys, has_organic=True
                     else:
                         bucket[m] = v
 
+    _derive_ratios(values, metrics, metric_keys or {})
+
     # 조상 경로 보장 (하위 레벨에만 있는 경로도 트리에 걸리게)
     for path in list(values):
         for k in range(1, len(path)):
@@ -802,11 +819,57 @@ def build_tree(envelopes, base_period, cur_period, metric_keys, has_organic=True
         return [path[-1], arr(values[path]["cur"]), arr(values[path]["base"]), [node(k) for k in kids]]
 
     roots = sorted(children.get((), []), key=sort_key)
+    # 처음에 펼쳐 보일 열: 값이 하나라도 있는 지표 중 광고비·매출·ROAS·클릭·CTR·전환·노출·CPC 순으로 TREE_DEFAULT_COLS개.
+    # 나머지는 "지표 선택" 메뉴에 남긴다 — 열이 많으면 1280px 화면에서 오른쪽이 잘린다.
+    filled = {m for b in values.values() for slot in b.values() for m, v in slot.items() if v is not None}
+    mk = metric_keys or {}
+    lower = {m.lower(): m for m in metrics}
+    prio = [mk.get("cost"), mk.get("revenue"), lower.get("roas"), mk.get("click"), lower.get("ctr"),
+            mk.get("conversion"), mk.get("impression"), lower.get("cpc")]
+    prio = [m for m in prio if m] + metrics
+    shown = []
+    for m in prio:
+        if m in filled and m not in shown and len(shown) < TREE_DEFAULT_COLS:
+            shown.append(m)
     return {"levels": LEVEL_LABELS[:depth],
-            "metrics": [{"key": m, "unit": units.get(m) or (currency if m in money_keys else None)}
+            "metrics": [{"key": m, "unit": units.get(m) or (currency if m in money_keys else None),
+                         "show": m in shown}
                         for m in metrics],
             "cost": cost_key, "base": base_period, "cur": cur_period,
             "nodes": [node(p) for p in roots]}
+
+
+# 비율 지표 이름(소문자) → (분자 역할, 분모 역할). 하위 레벨을 기본 지표만 받았을 때(훅 없는 폴백) 빈칸을 채운다.
+RATIO_ROLES = {"roas": ("revenue", "cost"), "ctr": ("click", "impression"), "cpc": ("cost", "click")}
+
+
+def _derive_ratios(values, metrics, metric_keys):
+    """값이 없는 비율 지표(roas·ctr·cpc)를 역할 합으로 채운다 — 서버 값이 있는 행에서 배율(% 표기면 100)을 알아낸
+    경우에만. 서버 값이 있는 셀은 건드리지 않으므로 지표 전체를 받은 표는 그대로다."""
+    for m in metrics:
+        roles = RATIO_ROLES.get(m.lower())
+        if not roles:
+            continue
+        num_k, den_k = (metric_keys.get(r) for r in roles)
+        if not num_k or not den_k:
+            continue
+        scale = None
+        for b in values.values():
+            for slot in b.values():
+                v, n, d = slot.get(m), slot.get(num_k), slot.get(den_k)
+                if isinstance(v, (int, float)) and v and n and d:
+                    r = v / (n / d)
+                    scale = next((c for c in (1, 100) if abs(r - c) <= c * 0.01), None)   # 배수 또는 % 표기
+                    break
+            if scale:
+                break
+        if not scale:
+            continue
+        for b in values.values():
+            for slot in b.values():
+                n, d = slot.get(num_k), slot.get(den_k)
+                if m not in slot and isinstance(n, (int, float)) and isinstance(d, (int, float)) and d:
+                    slot[m] = n / d * scale
 
 
 def tree_json(tree):

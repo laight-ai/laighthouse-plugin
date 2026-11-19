@@ -1,0 +1,16 @@
+interface:
+  display_name: "소재 보고서"
+  short_description: "소재(개별 광고 크리에이티브) 단위 최우수 소재·상위 소재 추이·소재 누적 표(매출 지표가 없으면 클릭·CTR)를 담은 소재 보고서(HTML, 6개 섹션)를 생성합니다."
+  brand_color: "#2563EB"
+
+policy:
+  allow_implicit_invocation: true
+
+dependencies:
+  tools:
+    - type: "mcp"
+      value: "get_ad_performance"
+      description: "브랜드 광고 성과 데이터(일/월/구간 합산, 차원별 그룹화)를 조회합니다."
+    - type: "mcp"
+      value: "get_ad_creative_info"
+      description: "소재 메타데이터(썸네일 이미지 링크)를 조회합니다."

@@ -9,14 +9,10 @@
 |------|------|------|
 | MCP | laighthouse | `https://app.laight.ai/api/mcp` 연동 |
 | MCP | laighthouse_local | `https://sedative-duct-numerous.ngrok-free.dev/api/mcp` 연동(개발용) |
-| 스킬 | mtd-detailed |  MTD 보고서(HTML, 7개 섹션, 실무 상세) 렌더링 |
-| 스킬 | mtd-summary |  Executive MTD 보고서(HTML, 5개 섹션, 임원용 핵심 요약) 렌더링 |
-| 스킬 | daily-detailed |  데일리 보고서(HTML, 4개 섹션, 실무 상세 — 매체·캠페인·광고그룹·광고 계층 표) 렌더링 |
-| 스킬 | daily-summary |  Executive 데일리 보고서(HTML, 5개 섹션, 임원용 핵심 요약) 렌더링 |
-| 스킬 | monthly-detailed |  월간 보고서(HTML, 5개 섹션, 실무 상세) 렌더링 |
-| 스킬 | monthly-summary |  Executive 월간 보고서(HTML, 5개 섹션, 임원용 핵심 요약) 렌더링 |
-| 스킬 | creative-detailed |  소재 보고서(HTML, 5개 섹션, 실무 상세) 렌더링 |
-| 스킬 | creative-summary |  Executive 소재 보고서(HTML, 5개 섹션, 임원용 핵심 요약) 렌더링 |
+| 스킬 | daily-report |  데일리 보고서(HTML, 6개 섹션 — 목표·Summary·7일 성과·매체별 추이·매체 비교·계층 표) 렌더링 |
+| 스킬 | mtd-report |  MTD 보고서(HTML, 8개 섹션 — 목표·Summary·월별 성과·매체별 추이·매체 비교·캠페인 분석·매체별 예산·계층 표) 렌더링 |
+| 스킬 | monthly-report |  월간 보고서(HTML, 6개 섹션 — 목표·Summary·월별 성과·매체별 추이·매체 비교·계층 표) 렌더링 |
+| 스킬 | creative-report |  소재 보고서(HTML, 6개 섹션 — 최우수 소재·Summary·전체 추이·상위 5개 CTR·ROAS·소재 누적 표) 렌더링 |
 | 스킬 | naver-search | 외부 요인: 브랜드(자사·경쟁) 네이버 추정 검색수 비교(날짜 범위) |
 | 스킬 | naver-news | 외부 요인: 브랜드 네이버 뉴스 기사 수 비교 + 자사 주요 기사 4건 |
 | 스킬 | naver-blog | 외부 요인: 브랜드 네이버 블로그 글 수(제목 일치) 비교 + 자사 주요 글 4건 |
@@ -28,14 +24,13 @@
 ## 사용법
 
 ### 보고서 렌더링 (HTML)
-> "MTD 보고서로 보여줘" → `mtd-detailed`
-> "임원용 MTD 보고서로 보여줘" → `mtd-summary`
-> "데일리 보고서 만들어줘" → `daily-detailed`
-> "임원용 데일리 보고서 만들어줘" → `daily-summary`
-> "월간 보고서로 보여줘" → `monthly-detailed`
-> "임원용 월간 보고서로 보여줘" → `monthly-summary`
-> "소재 보고서 만들어줘" → `creative-detailed`
-> "임원용 소재 보고서 만들어줘" → `creative-summary`
+> "MTD 보고서로 보여줘", "임원용 MTD 보고서로 보여줘" → `mtd-report`
+> "데일리 보고서 만들어줘", "임원용 데일리 보고서 만들어줘" → `daily-report`
+> "월간 보고서로 보여줘", "임원용 월간 보고서로 보여줘" → `monthly-report`
+> "소재 보고서 만들어줘", "임원용 소재 보고서 만들어줘" → `creative-report`
+
+4.0.0부터 임원용(요약)·실무용(상세) 스킬을 하나로 합쳤다 — 앞 섹션(목표·Executive Summary·추이·매체 비교)이 요약,
+뒤의 계층 표(매체 단위로 접힌 채 시작)가 상세를 맡는다.
 
 ### 외부 요인 보고서 (3.3.0~)
 > "현대카드 최근 2주 네이버 검색량" → `naver-search`
@@ -64,17 +59,21 @@ SKILL.md 의 「HTML 뼈대」대로 HTML 을 직접 쓴다(3.12.0~, 스크립�
 각 보고서 종류는 별도 스킬로 나뉘어 있으며, report_type을 별도로 지정할 필요 없이 스킬 자체가
 보고서 종류를 고정한다.
 
-### 실행 흐름 (3.1.0~)
+### 실행 흐름 (3.1.0~, 라운드 구조 4.0.0~)
 
-1. 스킬의 MCP 호출을 **한 메시지에서 동시에** 보낸다(필터 없는 호출 위주 — mtd-detailed 7개, 소재 보고서 3개 등).
+1. **라운드 A** — 응답이 작은 호출(매체 단위·목표·프로모션)을 한 메시지에서 동시에 보낸다(4.0.0~).
 2. PostToolUse 저장 훅(`hooks/save_responses.py`)이 응답 원본을 `<tmp>/laighthouse_mcp_responses/<session>/`에 남긴다.
 3. 스킬의 `assets/prepare.py`(본체 `shared/assets/prepare_kit.py`)가 저장된 응답을 (도구 + 인자)로 골라 빌더 기본
    입력(`base.json`)과 요약 근거(`facts`)를 만든다. 모델은 응답 원문을 읽거나 옮겨 적지 않는다.
-4. 모델은 `facts`로 요약 문장만 쓰고 `build_report.py`에 `{"base": <경로>, "s2": …}`를 넘긴다.
+   저장된 응답이 없거나 최근 30분 안에 저장된 것이 없으면(같은 PC의 예전 응답 오판 방지) `note`를 낸다.
+4. **라운드 B(·C)** — `note`가 없으면 `missing`에 나온 큰 호출(계층 표 3레벨, 소재 total, 상위 소재만의 소재 일별)을
+   그대로 보내고 prepare.py를 다시 돌린다. 소재 일별은 `filters`(매체·상위 소재명)로 좁혀 받는다
+   (ELENSILIA 실측 1,924,778자 → 27,428자).
+5. 모델은 `facts`로 요약 문장만 쓰고 `build_report.py`에 `{"base": <경로>, "s2": …}`를 넘긴다.
 
 라형식품 MTD 상세(2026-10-25) 실측: 기존 245.6초·MCP 22회 → 44.2초·MCP 7회, 보고서 수치는 동일.
 저장 훅이 동작하지 않는 호스트에서는 prepare.py가 `note`를 내고, 각 스킬의 `references/legacy-flow.md`(기존 절차)로
-진행한다. 캡처 훅(`hooks/capture_ad_performance.py`)은 대용량 응답을 스텁으로 바꿔 컨텍스트를 아끼는 역할로 남아 있다.
+진행한다 — 라운드 B를 보내지 않고, 계층 표는 캠페인·광고그룹까지(역할 지표 5개, 비율 열은 빌더가 채움)만 받는다. 캡처 훅(`hooks/capture_ad_performance.py`)은 대용량 응답을 스텁으로 바꿔 컨텍스트를 아끼는 역할로 남아 있다.
 
 ### 브랜드 비종속 동작
 

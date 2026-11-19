@@ -1,0 +1,19 @@
+interface:
+  display_name: "월간 보고서"
+  short_description: "목표 달성·월별 성과·매체별 추이·매체 비교(M-1 vs M0)·계층 표를 담은 월간 보고서(HTML, 6개 섹션)를 생성합니다."
+  brand_color: "#2563EB"
+
+policy:
+  allow_implicit_invocation: true
+
+dependencies:
+  tools:
+    - type: "mcp"
+      value: "get_ad_performance"
+      description: "브랜드 광고 성과 데이터(일/월/구간 합산, 차원별 그룹화)를 조회합니다."
+    - type: "mcp"
+      value: "get_target_progress_v2"
+      description: "월 목표 대비 진행률(전체 매체 합계)을 조회합니다."
+    - type: "mcp"
+      value: "list_promotions"
+      description: "기간 내 프로모션 목록을 조회합니다."

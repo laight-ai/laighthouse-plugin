@@ -98,8 +98,7 @@ class TestSkillAloneLikeCowork(unittest.TestCase):
 
     def test_report_prepare_runs_under_prefixed_folder_name(self):
         # Cowork 폴더 이름(`<플러그인>:<스킬>`)으로도 스킬을 알아보고, 저장 응답이 없으면 폴백 안내를 낸다
-        for skill in ("creative-detailed", "creative-summary", "daily-detailed", "daily-summary",
-                      "monthly-detailed", "monthly-summary", "mtd-detailed", "mtd-summary"):
+        for skill in ("creative-report", "daily-report", "monthly-report", "mtd-report"):
             with self.subTest(skill=skill):
                 root = self.mount(skill)
                 r = self.run_py(os.path.join(root, "assets", "prepare.py"), "--brand", "t", "--target-date", "2026-11-10")
