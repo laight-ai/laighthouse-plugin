@@ -206,6 +206,15 @@ class CreativeOverallSourceTest(PrepareRun):
         self.assertEqual(out["missing"], [])
         self.assertEqual(out["facts"]["overall_daily"]["ctr_series"], [10.0] * 7)
 
+    def test_digest_is_built_from_this_and_previous_period(self):
+        # 응답이 다 모이면 소재 Summary 근거가 붙는다 — 이번 7일 광고비 700(A 400 + B 300) vs 직전 7일 300(A)
+        self.save_rounds(with_media_day=True)
+        out = self.run_prepare("creative-report", "--media", "M")
+        d = out["digest"]
+        self.assertEqual(d["전체"]["광고비"], "₩700")
+        self.assertEqual(d["전체"]["직전 대비"]["광고비"], "+133.3%")
+        self.assertEqual(d["일별 추이"]["집행일 수"], "7일 / 7일")
+
     def save_round_c(self, names, rows_for, age_secs=0):
         ad = {"media": "M", "campaign_name": "C", "ad_group_name": "G"}
         dims4 = ["media", "campaign_name", "ad_group_name", "ad_name"]
@@ -337,6 +346,7 @@ class CreativeOverallSourceTest(PrepareRun):
         self.save_rounds(with_media_day=False)
         out = self.run_prepare("creative-report", "--media", "M")
         self.assertNotIn("overall_daily", out["facts"])
+        self.assertNotIn("digest", out)   # 응답이 덜 모였을 때는 요약 근거를 만들지 않는다
         self.assertIn({"tool": "get_ad_performance", "start_date": "2026-11-12", "end_date": T,
                        "time_grain": "day", "group_by": ["media"]}, out["missing"])
 

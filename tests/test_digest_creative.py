@@ -2,13 +2,16 @@
 최소 표본을 채운 소재끼리의 우수/저조·앞뒤 절반 일별 추이)을 손으로 계산한 값과 비교한다."""
 import json
 import os
-import sys
 import tempfile
 import unittest
 
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                                "plugins", "laighthouse-analytics-prod", "skills", "creative-report", "assets"))
-import digest  # noqa: E402
+import importlib.util
+
+_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                     "plugins", "laighthouse-analytics-prod", "skills", "creative-report", "assets", "digest.py")
+_spec = importlib.util.spec_from_file_location("creative_digest", _PATH)
+digest = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(digest)
 
 KEYS = {"cost": "광고비", "impression": "노출", "click": "클릭", "revenue": "매출"}
 DATES = ["2026-07-%02d" % d for d in range(14, 21)]
@@ -41,14 +44,15 @@ class CreativeDigestTest(unittest.TestCase):
             json.dump(obj, f, ensure_ascii=False)
         return path
 
-    def build(self, with_prev=True):
+    def build(self, with_prev=True, with_day=True, cur_rows=CUR_ROWS, prev_rows=PREV_ROWS):
         base = {"metric_keys": KEYS, "currency": "₩", "chosen_media": "M",
                 "period": "2026-07-14~2026-07-20", "prev_period": "2026-07-07~2026-07-13",
-                "tot_file": self.write("tot.json", {"rows": CUR_ROWS}),
-                "media_day_file": self.write("day.json", {"rows": [{"date": d, "media": "M", "광고비": c}
-                                                                   for d, c in zip(DATES, DAY_COSTS)]})}
+                "tot_file": self.write("tot.json", {"rows": cur_rows})}
+        if with_day:
+            base["media_day_file"] = self.write("day.json", {"rows": [{"date": d, "media": "M", "광고비": c}
+                                                                      for d, c in zip(DATES, DAY_COSTS)]})
         if with_prev:
-            base["prev_file"] = self.write("prev.json", {"rows": PREV_ROWS})
+            base["prev_file"] = self.write("prev.json", {"rows": prev_rows})
         return digest.build(self.write("base.json", base))
 
     def test_total_and_change_vs_previous_period(self):
@@ -87,6 +91,15 @@ class CreativeDigestTest(unittest.TestCase):
         self.assertEqual(t["변화"], "+50.0%")
         self.assertEqual(t["가장 많이 쓴 날"], "2026-07-17 (₩200)")
         self.assertEqual(t["집행일 수"], "6일 / 7일")
+
+    def test_no_daily_trend_without_media_day_response(self):
+        # 매체 일별 응답이 없으면(에러·예전 흐름) 추이를 0원·0일 집행으로 지어내지 않고 키를 뺀다
+        self.assertNotIn("일별 추이", self.build(with_day=False))
+
+    def test_ctr_change_uses_two_decimals(self):
+        # CTR 0.41% → 0.45%는 +0.04%p — 소수 1자리로 찍으면 +0.0%p가 된다
+        d = self.build(cur_rows=[ad("A", 1000, 10000, 45, 0)], prev_rows=[ad("A", 1000, 10000, 41, 0)])
+        self.assertEqual(d["전체"]["직전 대비"]["CTR"], "+0.04%p")
 
     def test_without_previous_period_skips_comparison(self):
         d = self.build(with_prev=False)

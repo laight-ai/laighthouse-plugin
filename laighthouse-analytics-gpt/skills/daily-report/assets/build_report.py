@@ -157,6 +157,12 @@ def tree_note(d1, target):
             "지표 헤더를 누르면 정렬되고(기본: 광고비 내림차순), '지표 선택'으로 표시할 컬럼을 고를 수 있습니다.")
 
 
+def _rich(text):
+    """본문은 <strong>만 허용 — 다른 태그는 글자로 보인다(section-2 문서 규칙)."""
+    s = html.escape(str(text or ""), quote=False)
+    return s.replace("&lt;strong&gt;", "<strong>").replace("&lt;/strong&gt;", "</strong>")
+
+
 def build_bullets(s2):
     """s2 → 불릿 카드 HTML. {"bullets": [{"head", "text", "tone"}]} — head는 굵게, tone은 red·green·yellow·neutral.
     head 없는 예전 불릿과 executive_summary 문자열(줄마다 neutral)도 받는다. 가이드대로 6개까지만 그린다."""
@@ -168,13 +174,13 @@ def build_bullets(s2):
     for b in (bullets or [])[:S2_MAX_BULLETS]:
         color = S2_TONE_COLORS.get(b.get("tone", "neutral"), S2_TONE_COLORS["neutral"])
         head = b.get("head")
-        head_html = (f'<strong style="color:#1e293b;">{html.escape(head)}</strong>'
+        head_html = (f'<strong style="color:#1e293b;">{html.escape(str(head))}</strong>'
                      '<span style="color:#94a3b8;"> — </span>') if head else ""
         items.append(
             '<div style="border:1px solid #e2e8f0; border-radius:8px; padding:16px 18px; '
             'display:flex; gap:10px; align-items:flex-start;">\n'
             f'        <span style="color:{color}; font-size:14px; line-height:1.6;">●</span>\n'
-            f'        <span style="font-size:13px; color:#374151; line-height:1.6;">{head_html}{b.get("text", "")}</span>\n'
+            f'        <span style="font-size:13px; color:#374151; line-height:1.6;">{head_html}{_rich(b.get("text", ""))}</span>\n'
             '      </div>')
     return "\n      ".join(items)
 

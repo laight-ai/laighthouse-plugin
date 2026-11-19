@@ -108,10 +108,11 @@ def _change(a, b, kind):
     if a is None or b is None:
         return "-"
     if kind in ("pct1", "pct2"):
-        return f"{a - b:+.{2 if kind == 'pct2' else 1}f}%p"
+        n = 2 if kind == "pct2" else 1
+        return f"{round(a - b, n) + 0.0:+,.{n}f}%p"   # + 0.0: -0.0 → 0.0
     if not b:
         return "-"
-    return f"{(a - b) / abs(b) * 100:+.1f}%"
+    return f"{round((a - b) / abs(b) * 100, 1) + 0.0:+,.1f}%"
 
 
 def _rate(a, b):
@@ -176,8 +177,9 @@ def build(base_path):
 
     out = {"기준일": d0, "전일": d1, "지표": [lab for lab, _, _ in labels],
            "급변 기준": f"광고비 전일 대비 ±{SPEND_JUMP:.0f}% · 효율(CPV·CPM·CTR) ±{EFF_JUMP:.0f}%"}
-    by_dims = {tuple(d for d in e.get("dimensions") or [] if d != "date"): e for e in envs}
-    media_env = by_dims.get(("media",))
+    # 응답의 차원 순서와 상관없이 찾는다(집합 비교)
+    by_dims = {frozenset(d for d in e.get("dimensions") or [] if d != "date"): e for e in envs}
+    media_env = by_dims.get(frozenset(["media"]))
     if media_env:
         g0, g1 = _group(media_env, ["media"], atoms, d0), _group(media_env, ["media"], atoms, d1)
         tot0 = _ratios({r: sum(v.get(r, 0) for v in g0.values()) for r in atoms})
@@ -186,7 +188,7 @@ def build(base_path):
         names = sorted(set(g0) | set(g1), key=lambda k: -((g0.get(k) or {}).get("cost") or 0))
         out["매체"] = [row(k[0], g0.get(k), g1.get(k)) for k in names[:MEDIA_TOP]]
     for name, dims, top in LEVELS:
-        env = by_dims.get(tuple(dims))
+        env = by_dims.get(frozenset(dims))
         if not env:
             continue
         g0, g1 = _group(env, dims, atoms, d0), _group(env, dims, atoms, d1)

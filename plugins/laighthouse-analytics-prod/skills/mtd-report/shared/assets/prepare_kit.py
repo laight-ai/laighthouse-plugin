@@ -4,14 +4,17 @@
 
 흐름: 스킬 SKILL.md의 MCP 호출을 한 메시지에 동시에 보낸다 → 플러그인 저장 훅(`hooks/save_responses.py`)이
 응답 원본을 `<tmp>/laighthouse_mcp_responses/<session>/`에 남긴다 → `prepare.py --brand <브랜드> --target-date <T>`
-→ 이 모듈이 (도구 + 인자)로 응답을 골라 base.json과 facts를 출력한다 → 모델은 응답 원문을 읽거나 옮겨 적지
-않고, facts만 보고 요약 문장(s2 등)을 써서 `build_report.py`에 `{"base": <경로>, "s2": ...}`로 넘긴다.
+→ 이 모듈이 (도구 + 인자)로 응답을 골라 base.json과 facts(·digest)를 출력한다 → 모델은 응답 원문을 읽거나 옮겨
+적지 않고, 요약(s2)은 digest(스킬 guides/의 요약 가이드가 쓰는 수치)를, 그 밖의 문장은 facts를 보고 써서
+`build_report.py`에 `{"base": <경로>, "s2": ...}`로 넘긴다.
 
 응답 선택: 브랜드·날짜·grain·group_by·day_offset·filters·metrics가 계획과 같은 응답 중 가장 최근 것 하나.
 다른 브랜드·날짜·인자의 응답은 무시한다. 같은 폴더 형식을 쓰는 laighthouse-plugin-external의 저장 훅
 (`hooks/save_mcp_response.py`)이 남긴 응답도 그대로 읽는다.
 
-출력(stdout JSON): {"base": 경로, "mode": {...}, "facts": {...}, "missing": [...], "errors": [...], "ask_user": {...}?}
+출력(stdout JSON): {"base": 경로, "mode": {...}, "facts": {...}, "digest": {...}?, "missing": [...], "errors": [...],
+                   "ask_user": {...}?}
+- digest: 스킬에 assets/digest.py가 있고 missing이 비었을 때만. 만들다 실패하면 빠지고 errors에 "digest.py"로 남는다.
 - missing: 저장된 응답이 없는 호출 — 그 호출만 다시 보내고 prepare.py를 재실행한다.
 - errors: 에러로 끝난 호출(응답 첫 줄 포함) — 해당 섹션은 base에서 빠져 "데이터 준비 중"이 된다.
 - ask_user: 필수 지표 역할(cost/impression/click)을 못 찾았거나 모호할 때만 — 사용자에게 한 번에 묻고,
@@ -1065,9 +1068,14 @@ def main(skill, argv=None, assets_dir=None):
     result = PLANS[skill](store, a.brand, T, override, **kw) or {}
     if "facts" in result:
         result["facts"] = clean(result["facts"])
-        # 요약 근거 — 스킬의 assets/digest.py가 있으면 base.json으로 만든다(Summary 작성 가이드가 쓰는 수치)
-        if assets_dir and os.path.exists(os.path.join(assets_dir, "digest.py")) and result.get("base"):
-            result["digest"] = _import_asset(assets_dir, "digest").build(result["base"])
+        # 요약 근거 — 스킬의 assets/digest.py가 있으면 base.json으로 만든다(Summary 작성 가이드가 쓰는 수치).
+        # 응답이 다 모인 뒤에만 만든다. 실패해도 보고서 흐름은 막지 않는다 — errors에 남기고 digest만 뺀다.
+        if (assets_dir and not store.missing and result.get("base")
+                and os.path.exists(os.path.join(assets_dir, "digest.py"))):
+            try:
+                result["digest"] = _import_asset(assets_dir, "digest").build(result["base"])
+            except Exception as e:  # noqa: BLE001 — digest 버그·예상 밖 응답 형태 모두 같은 처리
+                store.errors.append({"call": "digest.py", "response": f"{type(e).__name__}: {e}"[:300]})
     result["missing"] = store.missing
     result["errors"] = store.errors
     marker = _asked_marker(a.brand, skill, T)

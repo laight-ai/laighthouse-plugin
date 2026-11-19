@@ -5,7 +5,7 @@ guides/creative-summary.md(노션 "소재 Summary" 가이드 사본)가 쓰는 �
 creative_digest.py를 따르되, 이 보고서는 매체 하나(chosen_media)만 다룬다.
 
 base.json에서 읽는 것: tot_file(이번 기간 선택 매체 소재 total) · prev_file(직전 기간, 없을 수 있음) · media_day_file(선택
-매체 일별) · metric_keys · currency · chosen_media · period · prev_period.
+매체 일별, 없으면 「일별 추이」를 빼낸다) · metric_keys · currency · chosen_media · period · prev_period.
 """
 import json
 import os
@@ -32,17 +32,23 @@ def pct(v, digits=1):
     return "-" if v is None else format(v, ",.%df" % digits) + "%"
 
 
-def change(cur, prev, pp=False):
-    """직전 기간 대비. 비율 지표는 %p 차, 나머지는 변화율. 직전 값이 0·없음이면 '신규', 이번 값이 0이면 '중단'."""
+def _signed(v, digits):
+    v = round(v, digits) + 0.0   # -0.0 → 0.0 ("-0.0%" 방지)
+    return format(v, "+,.%df" % digits)
+
+
+def change(cur, prev, pp=False, digits=1):
+    """직전 기간 대비. 비율 지표는 %p 차(digits는 값 표기와 같은 자릿수), 나머지는 변화율.
+    직전 값이 0·없음이면 '신규', 이번 값이 0이면 '중단'."""
     if cur is None or prev is None:
         return "-"
     if pp:
-        return "%+.1f%%p" % (cur - prev)
+        return _signed(cur - prev, digits) + "%p"
     if not prev:
         return "신규" if cur else "-"
     if not cur:
         return "중단"
-    return "%+.1f%%" % ((cur - prev) / abs(prev) * 100)
+    return _signed((cur - prev) / abs(prev) * 100, 1) + "%"
 
 
 def ratios(e):
@@ -103,7 +109,7 @@ def card(e, p, cur, has):
         out["ROAS"] = pct(e["roas"])
     if p is not None:
         diff = {"광고비": change(e["cost"], p["cost"]), "노출": change(e["impression"], p["impression"]),
-                "클릭": change(e["click"], p["click"]), "CTR": change(e["ctr"], p["ctr"], True),
+                "클릭": change(e["click"], p["click"]), "CTR": change(e["ctr"], p["ctr"], True, 2),
                 "CPC": change(e["cpc"], p["cpc"])}
         if has["conversion"]:
             diff.update({"전환": change(e["conversion"], p["conversion"]), "CVR": change(e["cvr"], p["cvr"], True)})
@@ -203,6 +209,7 @@ def build(base_path):
             {"소재": label(e or p), "광고비": "%s → %s" % (money(p["cost"] if p else 0, cur), money(e["cost"] if e else 0, cur)),
              "변화": "신규 집행" if not p or not p["cost"] else "집행 중단" if not e or not e["cost"] else change(e["cost"], p["cost"])}
             for amt, e, p in moves[:TOP] if amt]
-    if base.get("period"):
-        d["일별 추이"] = daily_trend(load(base.get("media_day_file")), keys, cur, dates_of(base["period"]))
+    day_env = load(base.get("media_day_file"))
+    if base.get("period") and day_env is not None:   # 매체 일별 응답이 없으면 추이를 쓰지 않는다(0원으로 지어내지 않게)
+        d["일별 추이"] = daily_trend(day_env, keys, cur, dates_of(base["period"]))
     return d

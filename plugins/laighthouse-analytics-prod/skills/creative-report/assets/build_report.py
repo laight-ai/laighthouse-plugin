@@ -142,6 +142,12 @@ S6_ID_HEADERS = [("캠페인", 160, S6_TH_TEXT), ("광고그룹", 130, S6_TH_TEX
 S6_METRIC_WIDTH = 100
 
 
+def _rich(text):
+    """본문은 <strong>만 허용 — 다른 태그는 글자로 보인다(section-2 문서 규칙)."""
+    s = html_mod.escape(str(text or ""), quote=False)
+    return s.replace("&lt;strong&gt;", "<strong>").replace("&lt;/strong&gt;", "</strong>")
+
+
 def esc(v):
     return html_mod.escape(str(v if v is not None else ""), quote=True)
 
@@ -235,7 +241,7 @@ def build_bullets(s2):
             if str(item.get("head") or "").strip():
                 head = f'<strong style="color:#1e293b;">{esc(str(item["head"]).strip())}</strong> — '
         if text:
-            cards.append(BULLET_CARD.format(color=color, head=head, text=text))
+            cards.append(BULLET_CARD.format(color=color, head=head, text=_rich(text)))
     return "\n      ".join(cards)
 
 
