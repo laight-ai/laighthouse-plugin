@@ -202,12 +202,16 @@ class Store:
                 continue
             if self.run_start is not None and float(rec.get("saved_at") or 0) < self.run_start:
                 continue
+            text = response_text(rec)
             try:
-                env = json.loads(response_text(rec))
+                env = json.loads(text)
             except ValueError:
-                continue
-            if isinstance(env, dict) and isinstance(env.get("rows"), list):
-                out.append((env, [str(v) for v in vals]))
+                env = None
+            if not isinstance(env, dict) or not isinstance(env.get("rows"), list):
+                # 에러 응답 — 기록하고, 그 값들은 받은 것으로 쳐서 같은 호출을 되풀이 요청하지 않는다(행은 없다)
+                self.errors.append({"call": describe(probe), "response": str(text).strip().split("\n", 1)[0][:300]})
+                env = {"rows": []}
+            out.append((env, [str(v) for v in vals]))
         return out
 
     def envelope(self, call, required=True):
@@ -953,7 +957,7 @@ def _plan_creative(store, brand, T, override, skill, media=None, assets_dir=None
             c_rows += [r for r in old_day.get("rows") or [] if str(r.get("ad_name")) in left]
         elif left:
             store.missing.append(describe(dict(c_call, filters={"media": [chosen], "ad_name": left})))
-        if c_rows:
+        if parts or c_rows:
             day = dict(parts[-1][0] if parts else old_day, rows=c_rows, row_count=len(c_rows))
     series = None
     # 전체 일별은 매체 일별(라운드 A) 응답에서만 — 라운드 C는 상위 소재만이라 전체 합이 아니다.

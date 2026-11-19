@@ -14,7 +14,7 @@
     const pager = document.getElementById(opts.pager);
     const count = opts.count ? document.getElementById(opts.count) : null;
     if (!tbody || !pager) return;
-    const g = opts.global || '__lhTable';   // 검색 input·페이지 버튼이 부르는 window 함수 접두
+    const g = opts.global || '__lhTable';
     let term = '', page = 1;
 
     function button(label, to, o) {

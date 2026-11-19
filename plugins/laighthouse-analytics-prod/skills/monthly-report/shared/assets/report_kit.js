@@ -2,7 +2,7 @@
  * 전역: window.LHKit = { configure, fmt, mixedChart, trendChart(=stackChart), promoBrackets, treeTable }
  */
 (function () {
-  const K = {};
+  const K = window.LHKit = window.LHKit || {};   // report_table.js 등 다른 부품과 순서 상관없이 합친다
   let CURRENCY = '₩';
   const ZERO_DEC = ['₩', '¥', '원', 'KRW', 'JPY'];
   const SUFFIX = ['원', 'KRW', 'USD', 'JPY', 'EUR'];

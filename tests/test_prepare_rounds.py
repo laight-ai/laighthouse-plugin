@@ -158,7 +158,7 @@ class CurrentRunOnlyTest(PrepareRun):
 class MonthlyPeriodTest(PrepareRun):
     """monthly-report는 지난 달을 말일까지 본다(day_offset 31) — 기준일의 일로 자르면 30일 기준일 때 31일이 빠진다."""
 
-    def test_mid_month_requests_full_previous_months(self):
+    def test_month_end_target_requests_full_previous_months(self):
         self.mark_hook()
         out = self.run_prepare("monthly-report", target_date="2026-11-30")
         six = [m for m in out["missing"] if m.get("group_by") == ["media"]]
@@ -235,6 +235,19 @@ class CreativeOverallSourceTest(PrepareRun):
         out = self.run_prepare("creative-report", "--media", "M")
         self.assertEqual(self.top5_ctr(out), {"A": [40.0] * 7, "B": [30.0] * 7})
         self.assertEqual(out["missing"], [])
+
+    def test_round_c_error_is_reported_not_requested_again(self):
+        # 라운드 C가 서버 에러로 끝났다 → errors에 남기고, 같은 호출을 missing으로 되풀이 요청하지 않는다
+        self.save_a_and_b()
+        self.save("get_ad_performance",
+                  {"start_date": "2026-11-12", "end_date": T, "time_grain": "day",
+                   "group_by": ["media", "campaign_name", "ad_group_name", "ad_name"],
+                   "filters": {"media": ["M"], "ad_name": ["A", "B"]}},
+                  "Error executing tool get_ad_performance: upstream timeout")
+        out = self.run_prepare("creative-report", "--media", "M")
+        self.assertEqual(out["missing"], [])
+        self.assertEqual(len(out["errors"]), 1)
+        self.assertIn("upstream timeout", out["errors"][0]["response"])
 
     def test_overlapping_round_c_uses_newest_rows_once(self):
         # A가 두 응답에 다 있다 — 더하지 않고 가장 최근 응답(CTR 20%)만 쓴다
