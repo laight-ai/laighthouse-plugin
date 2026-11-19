@@ -41,14 +41,10 @@ RANGE_REPORT = tuple("assets/external_context/" + f for f in (
 EXTERNAL_REFS = ("references/mcp-tools.md",)
 
 BUNDLES = {
-    "creative-detailed": KIT + REPORT_REFS,
-    "creative-summary": KIT + REPORT_REFS,
-    "daily-detailed": KIT + KIT_INLINE + REPORT_REFS + TARGET_REFS,
-    "daily-summary": KIT + KIT_INLINE + REPORT_REFS + TARGET_REFS,
-    "monthly-detailed": KIT + KIT_INLINE + REPORT_REFS + TARGET_REFS,
-    "monthly-summary": KIT + KIT_INLINE + REPORT_REFS + TARGET_REFS,
-    "mtd-detailed": KIT + KIT_INLINE + REPORT_REFS + TARGET_REFS,
-    "mtd-summary": KIT + KIT_INLINE + REPORT_REFS + TARGET_REFS,
+    "creative-report": KIT + REPORT_REFS,
+    "daily-report": KIT + KIT_INLINE + REPORT_REFS + TARGET_REFS,
+    "monthly-report": KIT + KIT_INLINE + REPORT_REFS + TARGET_REFS,
+    "mtd-report": KIT + KIT_INLINE + REPORT_REFS + TARGET_REFS,
     "nextmonth-budget-planning": (),   # 결과 HTML 을 Claude 가 직접 쓴다 — 공용 파일 없음
     "naver-blog": RANGE_REPORT + EXTERNAL_REFS,
     "naver-news": RANGE_REPORT + EXTERNAL_REFS,

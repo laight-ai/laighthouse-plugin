@@ -660,19 +660,19 @@ def _prev_same_period(T):
     return f"{m1}~{m1.replace(day=min(T.day, calendar.monthrange(m1.year, m1.month)[1]))}"
 
 
-MONTH_TITLES = {"mtd-detailed": "MTD 보고서", "mtd-summary": "Executive MTD 보고서",
-                "monthly-detailed": "월간 보고서", "monthly-summary": "Executive 월간 보고서"}
+MONTH_TITLES = {"mtd-report": "MTD 보고서", "monthly-report": "월간 보고서"}
 
 
 def _plan_month_family(store, brand, T, override, skill):
-    """mtd-detailed / mtd-summary / monthly-detailed / monthly-summary — 6개월 month grain(day_offset) 공유 응답."""
+    """mtd-report / monthly-report — 라운드 A: 6개월 month grain(day_offset) 매체 응답(+ mtd는 당월 day grain)·목표·
+    프로모션, 라운드 B: 계층 표(전월~당월 month grain, 캠페인·광고그룹·광고)."""
     first = T.replace(day=1)
     m5, m1 = month_shift(T, -5), month_shift(T, -1)
     cur, base = ym(T), ym(m1)
-    detailed = skill.endswith("detailed")
-    promo_start = first if skill == "mtd-detailed" else first - timedelta(days=30)
+    mtd = skill == "mtd-report"
+    promo_start = first if mtd else first - timedelta(days=30)
     six = store.envelope(perf(m5, T, "month", ["media"], T.day))
-    day = store.envelope(perf(first, T, "day", ["media"])) if skill == "mtd-detailed" else None
+    day = store.envelope(perf(first, T, "day", ["media"])) if mtd else None
     tgt_text = store.text(target(cur, T))
     promo_text = store.text(promotions(promo_start, T))
     if not six:
@@ -682,9 +682,7 @@ def _plan_month_family(store, brand, T, override, skill):
         return ask
     keys, media_list = disc["metric_keys"], disc["media_list"]
     has_rev = bool(keys.get("revenue"))
-    camp = adg = ad = None
-    if detailed:
-        camp, adg, ad = _levels(store, m1, T, "month", T.day, media_list)
+    camp, adg, ad = _levels(store, m1, T, "month", T.day, media_list)
     tgt = parse_targets(tgt_text)
     promos = parse_promotions(promo_text) if promo_text else []
     folder = work_dir(brand, skill, T)
@@ -698,7 +696,8 @@ def _plan_month_family(store, brand, T, override, skill):
     compare = _compare_rows(six, media_list, base, cur, keys, disc["has_organic"], ("m1", "m0"))
 
     unmatched = []
-    if skill == "mtd-detailed":
+    b["s5"] = {"rows": compare}
+    if mtd:
         if day:
             b["s4"] = {"json_files": [save_envelope(folder, "day_media.json", day)],
                        "total_json_files": [save_envelope(folder, "mtd_media_total.json", period_envelope(six, cur))],
@@ -717,32 +716,28 @@ def _plan_month_family(store, brand, T, override, skill):
             row = {"name": m, "월_예산": t.get("cost"), "목표_매출": t.get("revenue") if has_rev else None}
             row.update({k: v.get(k) for k in ("cost", "revenue", "impression", "click") if k in v})
             rows6.append(row)
-        b["s6"] = {"rows": rows6}
-        b["s7"] = {"json_files": level_files}
-    elif skill == "monthly-detailed":
-        b["s4"] = {"rows": compare}
-        b["s5"] = {"json_files": level_files}
-    else:   # mtd-summary / monthly-summary
+        b["s7"] = {"rows": rows6}       # s6 캠페인 분석은 모델이 쓴다
+        b["s8"] = {"json_files": level_files}
+    else:   # monthly-report
         b["s4"] = {"json_files": [six_path]}
-        b["s5"] = {"rows": compare}
+        b["s6"] = {"json_files": level_files}
 
-    lb, lc = ("prev_same_period", "mtd") if skill.startswith("mtd") else ("prev_month", "this_month")
+    lb, lc = ("prev_same_period", "mtd") if mtd else ("prev_month", "this_month")
     total, by_media = _compare_facts(six, media_list, base, cur, keys, has_rev, (lb, lc))
     facts = {"mode": _mode(disc),
              "period": {lc: f"{first}~{T}", lb: _prev_same_period(T)},
              "pacing": _pacing(T, tgt, total[lc].get("cost"), total[lc].get("revenue"), has_rev),
              "total": total, "by_media": by_media,
-             "promotions": overlapping_promos(promos, first, T, lead_days=7 if skill == "mtd-detailed" else 30)}
-    if skill == "mtd-detailed":
-        for item, row in zip(facts["by_media"], b["s6"]["rows"]):
+             "promotions": overlapping_promos(promos, first, T, lead_days=7 if mtd else 30)}
+    if mtd:
+        for item, row in zip(facts["by_media"], b["s7"]["rows"]):
             item.update({"budget": row["월_예산"], "target_revenue": row.get("목표_매출"),
                          "burn_pct": kit.ratio(item[lc].get("cost"), row["월_예산"])})
         if day:
             roles = ["cost", "revenue" if has_rev else "click"]
             facts["daily_dips_total"] = total_daily_dips(day, keys, roles)
             facts["daily_dips_by_media"] = daily_dips(day, keys, roles)
-    else:
-        facts["monthly_trend"] = _monthly_trend(six, T, keys, has_rev)
+    facts["monthly_trend"] = _monthly_trend(six, T, keys, has_rev)
     org = _organic(six, keys, {lc: cur, lb: base}, disc["has_organic"])
     if org:
         facts["organic"] = org
@@ -753,14 +748,14 @@ def _plan_month_family(store, brand, T, override, skill):
 
 
 def _plan_day_family(store, brand, T, override, skill):
-    """daily-detailed / daily-summary — 7일 day grain 공유 응답 + 당월 month grain(목표 카드 실적)."""
+    """daily-report — 라운드 A: 7일 day·total grain + 당월 month grain(목표 카드 실적) + 목표·프로모션,
+    라운드 B: 계층 표(전일~기준일 day grain, 캠페인·광고그룹·광고)."""
     first = T.replace(day=1)
     d6, d1 = T - timedelta(days=6), T - timedelta(days=1)
-    detailed = skill == "daily-detailed"
-    promo_start = d6 if detailed else T - timedelta(days=7)
+    promo_start = T - timedelta(days=7)
     month = store.envelope(perf(first, T, "month", ["media"]))
     week = store.envelope(perf(d6, T, "day", ["media"]))
-    week_total = None if detailed else store.envelope(perf(d6, T, "total", ["media"]))
+    week_total = store.envelope(perf(d6, T, "total", ["media"]))
     tgt_text = store.text(target(ym(T), T))
     promo_text = store.text(promotions(promo_start, T))
     if not week:
@@ -770,13 +765,11 @@ def _plan_day_family(store, brand, T, override, skill):
         return ask
     keys, media_list = disc["metric_keys"], disc["media_list"]
     has_rev = bool(keys.get("revenue"))
-    camp = adg = ad = None
-    if detailed:
-        camp, adg, ad = _levels(store, d1, T, "day", None, media_list)
+    camp, adg, ad = _levels(store, d1, T, "day", None, media_list)
     tgt = parse_targets(tgt_text)
     promos = parse_promotions(promo_text) if promo_text else []
     folder = work_dir(brand, skill, T)
-    title = f"{brand} 데일리 보고서" if detailed else f"{brand} Executive 데일리 보고서"
+    title = f"{brand} 데일리 보고서"
     b = _base_common(brand, skill, title, T, disc)
     days = kit.day_keys(d6, T)
     month_rows = ad_rows(month, ym(T)) if month else []
@@ -785,20 +778,18 @@ def _plan_day_family(store, brand, T, override, skill):
     b["s3"] = dict(_s3_arrays(week, days, keys),
                    promotions=[{k: p[k] for k in ("title", "start_date", "end_date")} for p in promos])
     week_path = save_envelope(folder, "week_media.json", week)
-    if detailed:
-        b["s4"] = {"json_files": [week_path] + [save_envelope(folder, f"level{i}.json", e)
-                                                for i, e in ((2, camp), (3, adg), (4, ad)) if e]}
-    else:
-        b["s4"] = {"json_files": [week_path], "promotions": promos}
-        if week_total:
-            b["s4"]["total_json_files"] = [save_envelope(folder, "week_total.json", week_total)]
-        b["s5"] = {"rows": _compare_rows(week, media_list, str(d1), str(T), keys, disc["has_organic"], ("d1", "d0"))}
+    b["s4"] = {"json_files": [week_path], "promotions": promos}
+    if week_total:
+        b["s4"]["total_json_files"] = [save_envelope(folder, "week_total.json", week_total)]
+    b["s5"] = {"rows": _compare_rows(week, media_list, str(d1), str(T), keys, disc["has_organic"], ("d1", "d0"))}
+    b["s6"] = {"json_files": [week_path] + [save_envelope(folder, f"level{i}.json", e)
+                                            for i, e in ((2, camp), (3, adg), (4, ad)) if e]}
 
     total, by_media = _compare_facts(week, media_list, str(d1), str(T), keys, has_rev, ("d1", "d0"))
     facts = {"mode": _mode(disc), "period": {"d0": str(T), "d1": str(d1), "week": f"{d6}~{T}"},
              "total": total, "by_media": by_media,
              "daily_7d": [dict(date=d, **with_kpis(role_values(ad_rows(week, d), keys), has_rev)) for d in days],
-             "promotions": overlapping_promos(promos, d6 if detailed else T, T, lead_days=7)}
+             "promotions": overlapping_promos(promos, T, T, lead_days=7)}
     if month:
         mv = role_values(month_rows, keys)
         facts["pacing"] = _pacing(T, tgt, mv.get("cost"), mv.get("revenue"), has_rev)
@@ -815,7 +806,7 @@ def _bind(fn, skill):
 
 
 PLANS = {s: _bind(_plan_month_family, s) for s in MONTH_TITLES}
-PLANS.update({s: _bind(_plan_day_family, s) for s in ("daily-detailed", "daily-summary")})
+PLANS["daily-report"] = _bind(_plan_day_family, "daily-report")
 
 
 # ── creative (소재 단위 7일 total·day + 매체 total) ──────────────────────────────
@@ -849,7 +840,7 @@ def top5_day_call(d6, T, chosen, top5_keys):
 
 
 def _plan_creative(store, brand, T, override, skill, media=None, assets_dir=None):
-    """creative-detailed / creative-summary — 라운드 A(매체 total·매체 일별) → B(소재 total, 필터 없음: 매체 선택·랭킹)
+    """creative-report — 라운드 A(매체 total·매체 일별) → B(소재 total, 필터 없음: 매체 선택·랭킹)
     → C(상위 소재만 일별, filters media·ad_name). 전체 일별 시리즈는 매체 일별 응답에서 만든다."""
     d6 = T - timedelta(days=6)
     media_env = store.envelope(perf(d6, T, "total", ["media"]))
@@ -892,7 +883,7 @@ def _plan_creative(store, brand, T, override, skill, media=None, assets_dir=None
     if not rows:
         return {"ask_user": {"choose_media": candidates, "reason": f"{chosen}에 최근 7일 소재 행이 없다"}}
     rank = rank_mod.rank_main({"rows": rows, "metric_keys": keys, "chosen_media": chosen,
-                               "s5": skill == "creative-detailed"})
+                               "s5": True})
     rank_path = save_envelope(folder, "rank.json", rank)
     dates = kit.day_keys(d6, T)
     # 상위 소재 일별: 라운드 C(필터) 응답. 예전 흐름(필터 없는 소재 단위 일별)으로 받은 응답이 있으면 그것도 쓴다.
@@ -911,14 +902,14 @@ def _plan_creative(store, brand, T, override, skill, media=None, assets_dir=None
             drows = [r for r in day.get("rows") or [] if r.get("media") == chosen]
             dmk = series_mod.resolve_metric_keys(set(day.get("metrics") or []), keys)
             series["top5"] = series_mod.compute_top5(drows, dates, rank["top5_keys"], dmk)
-    title = f"{brand} 소재 보고서" if skill == "creative-detailed" else f"{brand} Executive 소재 보고서"
+    title = f"{brand} 소재 보고서"
     b = {"title": title, "target_date": str(T), "out": f"~/Downloads/laighthouse-reports/{brand}_{skill}_{T}.html",
          "metric_keys": keys, "currency": disc["currency"], "rank_file": rank_path.replace("\\", "/"),
-         "s1": {}, "s3": {}, "s4": {}, "s5": {}}
+         "s1": {}, "s3": {}, "s4": {}, "s5": {}, "s6": {}}
     if series:
         b["series_file"] = save_envelope(folder, "series.json", series).replace("\\", "/")
     else:
-        for k in ("s3", "s4") + (("s5",) if skill == "creative-summary" else ()):
+        for k in ("s3", "s4", "s5"):   # 일별 시리즈가 필요한 섹션 — s6(소재 누적 표)은 랭킹만으로 그린다
             b.pop(k)
     facts = {"mode": _mode(disc), "period": f"{d6}~{T}", "chosen_media": chosen, "candidates": candidates,
              "media_totals": rank.get("media_totals"), "eligibility": rank.get("eligibility"),
@@ -941,8 +932,8 @@ def _plan_creative(store, brand, T, override, skill, media=None, assets_dir=None
     return out
 
 
-PLANS.update({s: (lambda n: (lambda store, brand, T, override, **kw: _plan_creative(store, brand, T, override, n, **kw)))(s)
-              for s in ("creative-detailed", "creative-summary")})
+PLANS["creative-report"] = lambda store, brand, T, override, **kw: _plan_creative(
+    store, brand, T, override, "creative-report", **kw)
 
 # ── 진입점 ───────────────────────────────────────────────────────────────────
 
