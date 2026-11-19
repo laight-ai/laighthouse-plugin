@@ -194,7 +194,7 @@ def build_groups(s2):
         parts = [f'<div style="font-size:14px; font-weight:700; color:#0f172a;">[{_rich(g.get("title"))}]</div>']
         if g.get("lead"):
             parts.append(f'<div style="font-size:13px; color:#374151; line-height:1.7;">{_rich(g["lead"])}</div>')
-        for m in g.get("media") or []:
+        for m in [x for x in g.get("media") or [] if isinstance(x, dict)]:
             name = str(m.get("name") or "")
             dot = dots.setdefault(name, GROUP_MEDIA_DOTS[len(dots) % len(GROUP_MEDIA_DOTS)])
             box = [f'<div style="font-size:13px; font-weight:700; color:#0f172a; display:flex; align-items:center; gap:6px;">'
@@ -203,7 +203,7 @@ def build_groups(s2):
             if m.get("desc"):
                 box.append(f'<div style="font-size:13px; color:#374151; line-height:1.7;">{_rich(m["desc"])}</div>')
             unit = None
-            for b in m.get("bullets") or []:
+            for b in [x if isinstance(x, dict) else {"text": x} for x in m.get("bullets") or []]:   # 문자열 불릿도 받는다
                 u = b.get("unit")
                 if u and u != unit:
                     box.append(f'<div style="font-size:12px; font-weight:600; color:#64748b; margin-top:6px;">{_rich(u)}</div>')

@@ -3,7 +3,7 @@ name: mtd-report
 description: >
   브랜드 비종속 MTD 보고서 생성 스킬. "MTD 보고서", "mtd 보고서", "Executive MTD", "임원용 MTD 보고서",
   "실무자용 MTD 보고서", "executive mtd" 요청 시 사용 — 임원용·실무용 구분 없이 같은 보고서를 만든다.
-  당월 1일~기준일을 전월 동기와 비교해 목표 대비 진행·Executive Summary·월별 추이·매체별 일별 추이·매체 성과
+  당월 1일~기준일을 전월 동기와 비교해 목표 대비 진행·MTD Summary·월별 추이·매체별 일별 추이·매체 성과
   비교·캠페인 분석·매체별 예산·계층 표(매체·캠페인·광고그룹·광고)까지 8섹션으로 보여주는 HTML 보고서. 사용자가
   말한 브랜드의 매체·지표를 응답에서 알아내 어떤 브랜드에도 같은 방식으로 동작한다.
 metadata:
@@ -15,14 +15,14 @@ metadata:
 
 ## 역할
 
-사용자가 말한 브랜드의 **MTD 보고서**(HTML, 8섹션 고정: 목표 달성 현황 · Executive Summary · 월별 광고 성과 ·
+사용자가 말한 브랜드의 **MTD 보고서**(HTML, 8섹션 고정: 목표 달성 현황 · MTD Summary · 월별 광고 성과 ·
 매체별 일별 성과 추이 · 매체 성과 비교(전월 동기 vs 당월) · 캠페인 분석 · 광고 매체별 현황 · 계층 표)를 만든다.
 "임원용"·"실무자용"·"Executive"·"상세"라고 해도 이 보고서 하나다. weekly는 지원하지 않는다. 다른 보고서는 자매
 스킬(`daily-report`/`monthly-report`/`creative-report`)이다. 브랜드명은 모든 호출의 `brand_name`과 제목·파일명에
 **그대로** 쓴다.
 
 계산·렌더링은 전부 미리 검증된 스크립트가 한다. 모델이 할 일은 (1) MCP 호출, (2) 스크립트 실행, (3) 문장 두 개
-(`s2` Executive Summary·`s6` 캠페인 분석) 작성뿐이다. **MCP 응답 원문을 읽거나 옮겨 적거나 파일로 저장하지 않는다** — 플러그인
+(`s2` MTD Summary·`s6` 캠페인 분석) 작성뿐이다. **MCP 응답 원문을 읽거나 옮겨 적거나 파일로 저장하지 않는다** — 플러그인
 저장 훅이 응답 원본을 파일로 남기고 `prepare.py`가 그것을 읽는다. 스크립트 파일을 새로 만들거나 HTML을 직접 쓰지
 않는다. `references/`의 섹션 문서는 아래에서 지정한 것 말고는 읽지 않는다.
 
@@ -45,7 +45,7 @@ metadata:
    - `ask_user`가 있으면 필수 지표(광고비·노출·클릭) 키를 못 정한 것이다 — 후보를 보여 주고 사용자에게 한 번에
      묻고, 답을 `--metric-keys '{"cost":"…"}'`로 넘겨 재실행한다. 매출 지표가 없는 것은 질문 사유가 아니다(매출
      없음 모드 — 빌더가 알아서 노출·클릭·CTR·CPC로 바꾼다).
-3. **Executive Summary(`s2`)**: `guides/weekly-summary.md`(무엇을 어떻게 쓸지 — [소진]·[효율], 노션 Weekly Summary
+3. **MTD Summary(`s2`)**: `guides/weekly-summary.md`(무엇을 어떻게 쓸지 — [소진]·[효율], 노션 Weekly Summary
    가이드)와 `references/mtd-report-section-2-executive-summary.md`(가이드의 "이번주·전주"를 MTD로 읽는 대응표·근거·빌더
    입력)를 따라 prepare 출력의 **`digest`만** 근거로 쓴다. **`s6`**은 아래 규칙대로 `facts`만 근거로 쓴다. 그다음
    빌더를 1회 호출한다:

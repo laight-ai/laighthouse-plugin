@@ -62,7 +62,7 @@ generic 도구(`get_ad_performance`)와 `get_target_progress_v2`, `list_promotio
 - ⚠️ `get_target_progress_v2`: 라운드 A에서 `media`를 생략(전체 매체)해 **1회** 받은 응답을 쓴다 —
   section-1 카드는 첫 번째 표(`shared/references/target-achievement.md`), section-7 매체별 예산 표는 두 번째
   표의 매체 행(`campaign_name`이 `-`인 행)을 `media_list` 값과 맞춰 쓴다(대소문자 무시 일치, 안 맞는 목표 매체는
-  Executive Summary에 `⚠`로 알린다). 한 줄 메시지·0 표·에러는 전부 목표 없음이다. 응답의 `actual`은 어디에도
+  MTD Summary에 `⚠`로 알린다). 한 줄 메시지·0 표·에러는 전부 목표 없음이다. 응답의 `actual`은 어디에도
   쓰지 않는다 — 실적은 항상 `get_ad_performance`에서 가져온다.
 
 ---
@@ -141,7 +141,7 @@ generic 도구(`get_ad_performance`)와 `get_target_progress_v2`, `list_promotio
    매체 비교 rows(#1 응답의 전월·당월 행 — `mtd-report-section-5-channel-comparison.md`), section-7 매체별
    목표 원본 + 실적(#1 응답의 당월 행). section-4·section-8은 계산하지 않는다 — 응답을 그대로 넘긴다(section-8
    매체 레벨은 #1 응답 재사용).
-6. **section-2 Executive Summary(`groups`) + section-6 캠페인 분석 작성** — 추가 MCP 호출 없이 받은 응답만
+6. **section-2 MTD Summary(`groups`) + section-6 캠페인 분석 작성** — 추가 MCP 호출 없이 받은 응답만
    근거로 AI가 직접 작성(s2는 `guides/weekly-summary.md` + `mtd-report-section-2-executive-summary.md`의 대응표,
    s6은 `mtd-report-section-6-campaign-analysis.md`).
 7. **최종 빌드**: `assets/build_report.py`에 값 JSON(`metric_keys`, `has_organic`, `currency` 포함)을 heredoc으로
@@ -189,7 +189,7 @@ generic 도구(`get_ad_performance`)와 `get_target_progress_v2`, `list_promotio
 | 순서 | 섹션 | 파일 | 빌더 키 |
 |-----|------|------|--------|
 | 1 | 목표 달성 현황 | `mtd-report-section-1-target-achievement.md` | `s1` |
-| 2 | Executive Summary ([소진]·[효율]) | `mtd-report-section-2-executive-summary.md` | `s2` |
+| 2 | MTD Summary ([소진]·[효율]) | `mtd-report-section-2-executive-summary.md` | `s2` |
 | 3 | 월별 광고 성과 (6개월 혼합 차트) | `mtd-report-section-3-monthly-ad-performance.md` | `s3` |
 | 4 | 매체별 일별 성과 추이 (라인 — 지표 선택·매체 켜기/끄기) | `mtd-report-section-4-media-trend.md` | `s4` |
 | 5 | 매체 성과 비교 (전월 동기 vs 당월) | `mtd-report-section-5-channel-comparison.md` | `s5` |

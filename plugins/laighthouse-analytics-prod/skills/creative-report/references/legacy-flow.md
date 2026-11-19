@@ -131,7 +131,7 @@ MCP 데이터를 받아 **라이트하우스 스타일 소재 보고서**(HTML)�
 >   `currency` (실행 순서 2단계, 1회).
 > - **`assets/rank_creatives.py`** — (a) 매체 후보 확인(`candidates` 모드, 매체 선택 3),
 >   (b) total 응답 → section-1 최우수 소재 랭킹(최소 표본 기준 적용)·광고비 상위 5개 키와 표시
->   이름·썸네일 조회 대상(`lookups`)·Executive Summary 근거(`media_totals`/`top_by_cost`).
+>   이름·썸네일 조회 대상(`lookups`)·소재 Summary 근거(`media_totals`/`top_by_cost`).
 >   결과는 `out` 파일(`/tmp/creative_rank.json`)에 저장되고 stdout에는 요약이 나온다. 시리즈
 >   스크립트와 빌더는 이 파일을 `rank_file`로 읽는다 — **모델은 소재 행을 손으로 정렬·필터링하거나
 >   키·이름을 옮겨 적지 않는다.** total 응답이 캡처 스텁이면 `json_files`에 경로만 넘긴다.

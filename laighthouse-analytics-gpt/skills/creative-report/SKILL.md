@@ -3,7 +3,7 @@ name: creative-report
 description: >
   브랜드 비종속 소재 보고서 생성 스킬. "소재 보고서", "소재 분석 보고서", "creative report", "임원용 소재 보고서",
   "executive creative report", "실무자용 소재 보고서" 요청 시 사용 — 임원용·실무용 구분 없이 같은 보고서를 만든다.
-  소재(개별 광고 크리에이티브) 단위로 최근 7일 ROAS·CTR을 분석한다: 최우수 소재 카드, Executive Summary, 전체 일별
+  소재(개별 광고 크리에이티브) 단위로 최근 7일 ROAS·CTR을 분석한다: 최우수 소재 카드, 소재 Summary, 전체 일별
   추이, 광고비 상위 5개 소재의 일별 CTR·ROAS, 소재 단위 누적 성과 표(매출 지표가 없는 브랜드는 클릭·CTR·CPC 기준).
   사용자가 말한 브랜드의 매체·지표를 응답에서 알아내고, 소재 데이터가 있는 매체 하나를 골라 분석한다.
 metadata:

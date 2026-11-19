@@ -1,4 +1,4 @@
-# MTD Section 2: Executive Summary
+# MTD Section 2: MTD Summary
 
 **report_type:** `mtd-report` (항상 포함). 신규 MCP 호출 없음. **`assets/prepare.py` 출력의 `digest`**(와 `facts.pacing`)만
 근거로 실행 모델이 직접 쓴다 — 응답 파일을 열어 보지 않는다. 근거 수치가 없는 문장(원인 추정, 변경 이력, 예측)은 쓰지 않는다.
@@ -11,7 +11,7 @@
 
 standard 플러그인에는 weekly 보고서가 없고 MTD가 그 자리다 — 월 중간 진행 점검이라 Weekly의 [소진](월 예산 소진율 +
 기간 진행률)·[효율] 구조가 맞는다. 가이드의 섹션 이름 "Weekly Summary"는 이 보고서에서 두 번째 섹션
-**"Executive Summary"**(s2) 자리에 들어간다.
+**"MTD Summary"**(s2) 자리에 들어간다.
 
 ## 대응 관계 — 가이드의 말을 이렇게 읽는다
 

@@ -132,7 +132,7 @@ generic 도구(`get_ad_performance`)와 `get_target_progress_v2`, `list_promotio
 5. **계산**: 각 섹션 파일의 규칙대로 section-1 값 판정, section-3 역할별 7일 배열, section-5
    매체별 D-1/D-0 원본 수치(마지막 이틀 행만)를 산출한다. section-4는 계산하지 않는다 — 응답을
    그대로 넘긴다. section-6도 계산하지 않는다 — 응답을 그대로 넘긴다(비율 열은 빌더가 채운다).
-6. **section-2 Executive Summary 작성** — 신규 MCP 호출 없이 section-4/5 데이터와 공유
+6. **section-2 Daily Summary 작성** — 신규 MCP 호출 없이 section-4/5 데이터와 공유
    `list_promotions` 응답을 재사용해 AI가 직접 작성
    (`daily-report-section-2-executive-summary.md`의 규칙).
 7. **최종 빌드**: `assets/build_report.py`에 값 JSON(`metric_keys`, `has_organic`, `currency` 포함)을 heredoc
@@ -183,7 +183,7 @@ generic 도구(`get_ad_performance`)와 `get_target_progress_v2`, `list_promotio
 | 순서 | 섹션 | 파일 | 빌더 키 |
 |-----|------|------|--------|
 | 1 | 목표 달성 현황 (당월 MTD) | `daily-report-section-1-target-achievement.md` | `s1` |
-| 2 | Executive Summary | `daily-report-section-2-executive-summary.md` | `s2` |
+| 2 | Daily Summary | `daily-report-section-2-executive-summary.md` | `s2` |
 | 3 | 최근 7일 성과 (혼합 차트) | `daily-report-section-3-daily-performance-7days.md` | `s3` |
 | 4 | 매체별 성과 추이 (최근 7일, 라인 — 지표 선택·매체 켜기/끄기) | `daily-report-section-4-media-trend.md` | `s4` |
 | 5 | 매체별 성과 (D-1 vs D-0, 디스커버리된 매체 + Organic(있을 때)) | `daily-report-section-5-channel-performance.md` | `s5` |

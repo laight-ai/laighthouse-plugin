@@ -185,7 +185,7 @@ def build(base_path):
         tot0 = _ratios({r: sum(v.get(r, 0) for v in g0.values()) for r in atoms})
         tot1 = _ratios({r: sum(v.get(r, 0) for v in g1.values()) for r in atoms})
         out["전체"] = row("전체", tot0, tot1)
-        names = sorted(set(g0) | set(g1), key=lambda k: -((g0.get(k) or {}).get("cost") or 0))
+        names = sorted(set(g0) | set(g1), key=lambda k: (-((g0.get(k) or {}).get("cost") or 0), k))
         out["매체"] = [row(k[0], g0.get(k), g1.get(k)) for k in names[:MEDIA_TOP]]
     for name, dims, top in LEVELS:
         env = by_dims.get(frozenset(dims))

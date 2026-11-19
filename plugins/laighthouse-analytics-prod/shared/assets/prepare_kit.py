@@ -920,8 +920,11 @@ def _plan_creative(store, brand, T, override, skill, media=None, assets_dir=None
         return ask
     keys, media_list = disc["metric_keys"], disc["media_list"]
     tot = _level_env(store, d6, T, "total", CREATIVE_DIMS, None, media_list)
-    # 직전 같은 길이 기간(7일)의 소재 total — 소재 Summary의 직전 대비·신규·중단 근거(라운드 B)
-    prev = _level_env(store, d6 - timedelta(days=7), d6 - timedelta(days=1), "total", CREATIVE_DIMS, None, media_list)
+    # 직전 같은 길이 기간(7일)의 소재 total — 소재 Summary의 직전 대비·신규·중단 근거(라운드 B).
+    # 아직 안 받았으면 요청하고(missing), 에러로 끝났으면 errors에만 남기고 비교 없이 간다(같은 호출을 반복시키지 않게).
+    prev_call = perf(d6 - timedelta(days=7), d6 - timedelta(days=1), "total", CREATIVE_DIMS)
+    prev_text = store.text(prev_call)                  # 없으면 missing에 들어간다
+    prev = store.parse(prev_text, prev_call) if prev_text is not None else None   # 에러면 errors에만
     if not tot:
         return None
     rank_mod = _import_asset(assets_dir, "rank_creatives")

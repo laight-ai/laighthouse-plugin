@@ -161,7 +161,7 @@ def build(base_path):
             b["월 진행률"] = f"{T.day / calendar.monthrange(T.year, T.month)[1] * 100:.1f}%"
         out["예산"] = b
 
-    names = sorted(set(m_cur) | set(m_prev), key=lambda k: -(m_cur.get(k) or {}).get("cost", 0))
+    names = sorted(set(m_cur) | set(m_prev), key=lambda k: (-(m_cur.get(k) or {}).get("cost", 0), k))
     total_cost = t0.get("cost") or 0
     mb = si.get("media_budget") or {}
     media = []
@@ -185,8 +185,8 @@ def build(base_path):
         g0, g1 = group(env, ds, cur, atoms), group(env, ds, prev, atoms)
         keys_ = set(g0) | set(g1)
         c = lambda k, g: (g.get(k) or {}).get("cost", 0)  # noqa: E731
-        by_cost = sorted(keys_, key=lambda k: -c(k, g0))[:top]
-        by_move = sorted(keys_, key=lambda k: -abs(c(k, g0) - c(k, g1)))[:top]
+        by_cost = sorted(keys_, key=lambda k: (-c(k, g0), k))[:top]   # 같은 값이면 이름순(실행마다 같게)
+        by_move = sorted(keys_, key=lambda k: (-abs(c(k, g0) - c(k, g1)), k))[:top]
         pick = sorted(set(by_cost) | set(by_move), key=lambda k: (-c(k, g0), k))
         out[name] = [row(" / ".join(k), g0.get(k) or {}, g1.get(k) or {}) for k in pick]
         if len(keys_) > len(pick):

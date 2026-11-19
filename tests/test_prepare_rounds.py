@@ -215,6 +215,18 @@ class CreativeOverallSourceTest(PrepareRun):
         self.assertEqual(d["전체"]["직전 대비"]["광고비"], "+133.3%")
         self.assertEqual(d["일별 추이"]["집행일 수"], "7일 / 7일")
 
+    def test_previous_period_error_gives_digest_without_comparison(self):
+        # 직전 7일 호출이 에러로 끝나면 errors에만 남기고 다시 요청하지 않는다 — 소재 Summary는 비교 없이 만든다
+        self.save_rounds(with_media_day=True)
+        self.save("get_ad_performance",
+                  {"start_date": "2026-11-05", "end_date": "2026-11-11", "time_grain": "total",
+                   "group_by": ["media", "campaign_name", "ad_group_name", "ad_name"]},
+                  "Error executing tool get_ad_performance: upstream timeout")
+        out = self.run_prepare("creative-report", "--media", "M")
+        self.assertEqual(out["missing"], [])
+        self.assertEqual(len(out["errors"]), 1)
+        self.assertNotIn("직전 대비", out["digest"]["전체"])
+
     def save_round_c(self, names, rows_for, age_secs=0):
         ad = {"media": "M", "campaign_name": "C", "ad_group_name": "G"}
         dims4 = ["media", "campaign_name", "ad_group_name", "ad_name"]
