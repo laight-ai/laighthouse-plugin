@@ -8,7 +8,7 @@ conversion 역할이 있을 때만 전환/CPA). ⚠️ 파일명의 "daily"는 �
 
 > ℹ️ 표 HTML/검색/페이지네이션과 모드별 컬럼 선택·CTR·CPC·CPA·ROAS 계산·통화/% 포맷·광고비 내림차순 정렬·
 > `<thead>`/`<tr>` 생성은 전부 템플릿+빌더가 하고, 소재별 원본 수치 rows는 `rank_creatives.py`
-> (`"s5": true`)가 만든다 — 모델은 `s6: {}`와 최상위 `rank_file`·`metric_keys`(+`currency`)만
+> (`"table": true`)가 만든다 — 모델은 `s6: {}`와 최상위 `rank_file`·`metric_keys`(+`currency`)만
 > 넘긴다. `<th>` 라벨은 `metric_keys` 값 그대로
 > 렌더링되고, `conversion`이 없으면 전환·CPA 컬럼이 통째로 생략된다.
 
@@ -17,8 +17,8 @@ conversion 역할이 있을 때만 전환/CPA). ⚠️ 파일명의 "daily"는 �
 section-1이 호출한 `get_ad_performance`(`time_grain:"total"`,
 `filters:{"media":["<chosen_media>"]}`, 소재 단위, 최근 7일) 응답을 재사용한다 — **다시
 호출하지 않는다**. section-1은 랭킹 1·2위만 뽑았지만 이 섹션은 **모든 소재를 전부** 나열한다
-(같은 원본의 다른 가공). rows는 section-1의 `rank_creatives.py` 한 번 실행(`"s5": true`)이 출력
-파일의 `s5_rows`로 이미 만들어 둔다 — 모델이 행을 옮겨 적거나 거르지 않는다.
+(같은 원본의 다른 가공). rows는 section-1의 `rank_creatives.py` 한 번 실행(`"table": true`)이 출력
+파일의 `table_rows`로 이미 만들어 둔다 — 모델이 행을 옮겨 적거나 거르지 않는다.
 
 ## 매핑 규칙 (스크립트가 적용 — 참고용 스펙)
 
@@ -40,7 +40,7 @@ section-1이 호출한 `get_ad_performance`(`time_grain:"total"`,
 "s6": {}
 ```
 
-- `s6`는 빈 객체로 둔다 — 빌더가 `rank_file`의 `s5_rows`를 쓴다. 빌더가 계산하는 파생지표:
+- `s6`는 빈 객체로 둔다 — 빌더가 `rank_file`의 `table_rows`를 쓴다. 빌더가 계산하는 파생지표:
   CTR = 클릭÷노출×100(소수 2자리, 노출 0이면 N/A), CPC = 광고비÷클릭(매출 없음 모드만, 클릭 0이면
   `-`), CPA = 광고비÷전환(0/없음이면 `-`, conversion 역할이 있을 때만), ROAS = 매출÷광고비×100(매출
   있음 모드만, 광고비 0이면 `-`).

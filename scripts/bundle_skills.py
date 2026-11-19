@@ -41,7 +41,7 @@ RANGE_REPORT = tuple("assets/external_context/" + f for f in (
 EXTERNAL_REFS = ("references/mcp-tools.md",)
 
 BUNDLES = {
-    "creative-report": KIT + REPORT_REFS,
+    "creative-report": KIT + KIT_INLINE + REPORT_REFS,
     "daily-report": KIT + KIT_INLINE + REPORT_REFS + TARGET_REFS,
     "monthly-report": KIT + KIT_INLINE + REPORT_REFS + TARGET_REFS,
     "mtd-report": KIT + KIT_INLINE + REPORT_REFS + TARGET_REFS,

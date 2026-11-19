@@ -826,11 +826,7 @@ def build_tree(envelopes, base_period, cur_period, metric_keys, has_organic=True
     lower = {m.lower(): m for m in metrics}
     prio = [mk.get("cost"), mk.get("revenue"), lower.get("roas"), mk.get("click"), lower.get("ctr"),
             mk.get("conversion"), mk.get("impression"), lower.get("cpc")]
-    prio = [m for m in prio if m] + metrics
-    shown = []
-    for m in prio:
-        if m in filled and m not in shown and len(shown) < TREE_DEFAULT_COLS:
-            shown.append(m)
+    shown = [m for m in dict.fromkeys([m for m in prio if m] + metrics) if m in filled][:TREE_DEFAULT_COLS]
     return {"levels": LEVEL_LABELS[:depth],
             "metrics": [{"key": m, "unit": units.get(m) or (currency if m in money_keys else None),
                          "show": m in shown}

@@ -158,6 +158,7 @@ class Store:
     def __init__(self, brand):
         self.records = load_records(brand)
         self.missing, self.errors = [], []
+        self.run_start = None   # 이번 실행의 시작 — 찾은 라운드 A 응답 중 가장 최근 저장 시각 - FRESH_SECS
 
     def hook_ok(self, asked=False, now=None):
         """이번 실행의 응답이 저장되고 있는가. 같은 PC에 남은 예전 응답으로 "훅 있음"을 오판하지 않도록
@@ -168,14 +169,46 @@ class Store:
         return bool(self.records) and (recent or asked)
 
     def find(self, call, required=True):
-        """계획한 호출과 같은 최근 응답 → (텍스트, 레코드) | (None, None)."""
+        """계획한 호출과 같은 최근 응답 → (텍스트, 레코드) | (None, None).
+
+        라운드 B·C(계층·소재 단위 — group_by에 media 말고 다른 차원) 응답은 이번 실행의 것만 쓴다. 저장 응답은
+        24시간(MAX_AGE) 남아 있어 같은 인자의 예전 응답을 쓰면 그 사이 들어온 데이터가 빠진다. 계획은 라운드 A를
+        먼저 찾으므로, 찾은 라운드 A 응답보다 FRESH_SECS 넘게 먼저 저장된 라운드 B·C 응답은 없는 것으로 보고 다시 요청한다."""
         hits = [r for r in self.records if _matches(r, call)]
+        deep = call["tool"] == "get_ad_performance" and len(call.get("group_by") or []) > 1
+        if deep and self.run_start is not None:
+            hits = [r for r in hits if float(r.get("saved_at") or 0) >= self.run_start]
         if not hits:
             if required:
                 self.missing.append(describe(call))
             return None, None
         rec = hits[-1]
+        if not deep:
+            start = float(rec.get("saved_at") or 0) - FRESH_SECS
+            self.run_start = start if self.run_start is None else max(self.run_start, start)
         return response_text(rec), rec
+
+    def filter_values(self, call, key):
+        """call과 filters[key]만 다른 이번 실행 응답들 → [(봉투, 그 응답의 filters[key] 값 목록)].
+        라운드 C처럼 필터 값(소재명)을 모델이 옮겨 적는 호출을, 값이 일부 틀려도 맞은 만큼 쓰기 위해서다."""
+        out = []
+        for rec in self.records:
+            ti = rec.get("tool_input") or {}
+            vals = (ti.get("filters") or {}).get(key)
+            if not isinstance(vals, list) or rec["_tool"] != call["tool"]:
+                continue
+            probe = dict(call, filters=dict(call.get("filters") or {}, **{key: [str(v) for v in vals]}))
+            if not _same_perf(ti, probe):
+                continue
+            if self.run_start is not None and float(rec.get("saved_at") or 0) < self.run_start:
+                continue
+            try:
+                env = json.loads(response_text(rec))
+            except ValueError:
+                continue
+            if isinstance(env, dict) and isinstance(env.get("rows"), list):
+                out.append((env, [str(v) for v in vals]))
+        return out
 
     def envelope(self, call, required=True):
         """get_ad_performance 응답 봉투(dict) | None. 에러면 errors에 기록."""
@@ -900,16 +933,26 @@ def _plan_creative(store, brand, T, override, skill, media=None, assets_dir=None
     if not rows:
         return {"ask_user": {"choose_media": candidates, "reason": f"{chosen}에 최근 7일 소재 행이 없다"}}
     rank = rank_mod.rank_main({"rows": rows, "metric_keys": keys, "chosen_media": chosen,
-                               "s5": True})
+                               "table": True})
     rank_path = save_envelope(folder, "rank.json", rank)
     dates = kit.day_keys(d6, T)
     # 상위 소재 일별: 라운드 C(필터) 응답. 예전 흐름(필터 없는 소재 단위 일별)으로 받은 응답이 있으면 그것도 쓴다.
     c_call = top5_day_call(d6, T, chosen, rank.get("top5_keys") or [])
-    c_env = store.envelope(c_call, required=False) if c_call else None
     old_day = store.envelope(perf(d6, T, "day", CREATIVE_DIMS), required=False)
+    c_env = None
+    if c_call:
+        # 소재명을 옮겨 적다 일부 틀려도 맞게 받은 소재는 쓰고, 빠진 소재만 다시 요청한다.
+        parts = store.filter_values(c_call, "ad_name")
+        got, rows = set(), []
+        for env, vals in reversed(parts):            # 소재마다 가장 최근 응답의 행만(겹친 응답을 두 번 더하지 않게)
+            new = set(vals) - got
+            rows += [r for r in env["rows"] if str(r.get("ad_name")) in new]
+            got |= new
+        c_env = dict(parts[-1][0], rows=rows, row_count=len(rows)) if parts else None
+        left = [n for n in c_call["filters"]["ad_name"] if n not in got]
+        if left and not old_day:
+            store.missing.append(describe(dict(c_call, filters={"media": [chosen], "ad_name": left})))
     day = c_env or old_day
-    if c_call and not day:
-        store.missing.append(describe(c_call))
     series = None
     # 전체 일별은 매체 일별(라운드 A) 응답에서만 — 라운드 C는 상위 소재만이라 전체 합이 아니다.
     # 예전 흐름의 필터 없는 소재 단위 일별 응답은 전체 합이 맞으므로 대신 쓸 수 있다.

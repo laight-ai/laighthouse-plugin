@@ -42,8 +42,10 @@ class PrepareRun(unittest.TestCase):
         with open(os.path.join(self.folder, f"{self.n:03d}.json"), "w", encoding="utf-8") as f:
             json.dump(rec, f, ensure_ascii=False)
 
-    def perf(self, start, end, grain, group_by, rows, filters=None, metrics=METRICS, age_secs=0):
+    def perf(self, start, end, grain, group_by, rows, filters=None, metrics=METRICS, age_secs=0, day_offset=None):
         ti = {"start_date": start, "end_date": end, "time_grain": grain, "group_by": group_by}
+        if day_offset is not None:
+            ti["day_offset"] = day_offset
         if filters:
             ti["filters"] = filters
         dims = (["date"] if grain == "day" else []) + group_by
@@ -109,6 +111,68 @@ class HookDetectionTest(PrepareRun):
         out = self.run_prepare("daily-report")
         self.assertIn("note", out)
         self.assertNotIn("ask_user", out)
+
+
+class CurrentRunOnlyTest(PrepareRun):
+    """같은 인자의 예전 계층 응답(몇 시간 전)이 남아 있어도, 라운드 A를 새로 보낸 실행에서는 다시 요청한다."""
+
+    LEVELS = (["media", "campaign_name"], ["media", "campaign_name", "ad_group_name"],
+              ["media", "campaign_name", "ad_group_name", "ad_name"])
+
+    def save_round_a(self, age_secs):
+        row = {"media": "M", "광고비": 100, "노출": 1000, "클릭": 10, "매출": 500}
+        self.perf("2026-11-01", T, "month", ["media"], [dict(row, month="2026-11")], age_secs=age_secs)
+        self.perf("2026-11-12", T, "day", ["media"], [dict(row, date=d) for d in DAYS], age_secs=age_secs)
+        self.perf("2026-11-12", T, "total", ["media"], [row], age_secs=age_secs)
+        self.save("get_target_progress_v2", {"month": "2026-11", "as_of_date": T},
+                  "No all budget/target available for 2026-11.", age_secs)
+        self.save("list_promotions", {"start_date": "2026-11-11", "end_date": T}, "[]", age_secs)
+
+    def save_round_b(self, age_secs):
+        for dims in self.LEVELS:
+            row = {"media": "M", "campaign_name": "C", "ad_group_name": "G", "ad_name": "A",
+                   "광고비": 50, "노출": 500, "클릭": 5, "매출": 250}
+            self.perf("2026-11-17", T, "day", dims,
+                      [dict({k: row[k] for k in dims}, date=d, 광고비=50, 노출=500, 클릭=5, 매출=250)
+                       for d in ("2026-11-17", T)], age_secs=age_secs)
+
+    def test_old_round_b_is_requested_again(self):
+        self.save_round_a(age_secs=5 * 3600)
+        self.save_round_b(age_secs=5 * 3600)
+        self.save_round_a(age_secs=0)       # 이번 실행
+        out = self.run_prepare("daily-report")
+        self.assertEqual([m["group_by"] for m in out["missing"]], [list(d) for d in self.LEVELS])
+
+    def test_round_b_of_this_run_is_used(self):
+        self.save_round_a(age_secs=0)
+        self.save_round_b(age_secs=0)
+        out = self.run_prepare("daily-report")
+        self.assertEqual(out["missing"], [])
+        self.assertIn("campaigns_top_by_cost", out["facts"])
+
+
+class MonthlyPeriodTest(PrepareRun):
+    """monthly-report는 지난 달을 말일까지 본다(day_offset 31) — 기준일의 일로 자르면 30일 기준일 때 31일이 빠진다."""
+
+    def test_mid_month_requests_full_previous_months(self):
+        out = self.run_prepare_at("monthly-report", "2026-11-30")
+        six = [m for m in out["missing"] if m.get("group_by") == ["media"]]
+        self.assertEqual(six[0].get("day_offset"), 31)
+
+    def test_previous_month_period_runs_to_month_end(self):
+        row = {"media": "M", "광고비": 100, "노출": 1000, "클릭": 10, "매출": 500}
+        self.perf("2026-06-01", "2026-11-30", "month", ["media"],
+                  [dict(row, month=f"2026-{m:02d}") for m in range(6, 12)], day_offset=31)
+        out = self.run_prepare_at("monthly-report", "2026-11-30")
+        self.assertEqual(out["facts"]["period"]["prev_month"], "2026-10-01~2026-10-31")
+
+    def run_prepare_at(self, skill, t):
+        env = dict(os.environ, TMP=self.tmp.name, TEMP=self.tmp.name, TMPDIR=self.tmp.name, PYTHONIOENCODING="utf-8")
+        self.save("list_promotions", {"start_date": "2000-01-01", "end_date": "2000-01-01"}, "[]")   # 훅 동작 표시
+        r = subprocess.run([sys.executable, os.path.join(SKILLS, skill, "assets", "prepare.py"),
+                            "--brand", BRAND, "--target-date", t], capture_output=True, text=True, encoding="utf-8", env=env)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        return json.loads(r.stdout)
 
 
 class CreativeOverallSourceTest(PrepareRun):

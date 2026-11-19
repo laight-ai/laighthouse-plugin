@@ -176,6 +176,9 @@ __CHART_JS_INLINE__
 </div>
 
 <script>
+__REPORT_KIT_JS__
+</script>
+<script>
 /* ── 공통 유틸 ── */
 // 축 눈금 — 부동소수 오차(1.2000000000000002) 없이 소수 최대 2자리, 불필요한 0 제거
 function fmtTick(v){ return String(Number(Number(v).toFixed(2))); }
@@ -372,78 +375,9 @@ function downloadReport(){
   });
 })();
 
-/* ── Section 6: 소재 단위 누적 성과 표 — 검색 + 페이지네이션 ── */
-// 정적 HTML 한 번에 생성되는 보고서라 "검색창 입력/페이지 버튼 클릭 → 서버에 다시 물어본다"
-// 방식은 동작하지 않는다. 전체 행을 미리 <tr>...</tr> HTML 문자열 + 검색용 텍스트로 만들어
-// 심어두고, 검색·페이지 전환 모두 이 스크립트가 클라이언트에서 직접 처리한다.
-(function(){
-  const rows = __S6_ROWS_JSON__;
-  // rows: [{ search: "매체명 캠페인명 광고그룹명 광고명" (소문자), html: "<tr>...</tr>" }, ...]
-  // 7일 합산 광고비 내림차순으로 이미 정렬되어 있어야 한다.
-
-  const pageSize = 10;
-  const tbody = document.getElementById('assetPerfTableBody');
-  const pager = document.getElementById('assetPerfPager');
-  const count = document.getElementById('assetPerfCount');
-  if (!tbody || !pager) return;
-
-  let currentTerm = '';
-  let currentPage = 1;
-
-  function filteredRows() {
-    if (!currentTerm) return rows;
-    return rows.filter(r => r.search.includes(currentTerm));
-  }
-
-  function pagerButton(label, page, opts) {
-    opts = opts || {};
-    const disabled = opts.disabled ? 'disabled' : '';
-    const active = opts.active
-      ? 'background:#3b82f6; border-color:#3b82f6; color:white;'
-      : 'background:white; border-color:#e2e8f0; color:#64748b;';
-    return `<button ${disabled} style="border:1px solid #e2e8f0; border-radius:6px; min-width:28px; padding:0 6px; height:28px; font-size:12px; cursor:${opts.disabled?'default':'pointer'}; ${active}" onclick="window.__assetPerfGoto && window.__assetPerfGoto(${page})">${label}</button>`;
-  }
-
-  function render() {
-    const list = filteredRows();
-    const totalPages = Math.max(1, Math.ceil(list.length / pageSize));
-    currentPage = Math.min(Math.max(1, currentPage), totalPages);
-    const start = (currentPage - 1) * pageSize;
-    const pageRows = list.slice(start, start + pageSize);
-
-    tbody.innerHTML = pageRows.length
-      ? pageRows.map(r => r.html).join('')
-      : `<tr><td colspan="__S6_COLSPAN__" style="text-align:center; color:#94a3b8; padding:20px;">검색 결과가 없습니다.</td></tr>`;
-
-    // 페이지 번호 접기 — 1 … 4 5 [6] 7 8 … 47 (첫/끝 + 현재 ±2만 표시, 나머지는 …)
-    const pages = [];
-    for (let i = 1; i <= totalPages; i++) {
-      if (i === 1 || i === totalPages || Math.abs(i - currentPage) <= 2) pages.push(i);
-      else if (pages[pages.length - 1] !== '…') pages.push('…');
-    }
-    let html = pagerButton('‹', currentPage - 1, { disabled: currentPage === 1 });
-    pages.forEach(p => {
-      html += p === '…'
-        ? '<span style="width:20px; text-align:center; font-size:12px; color:#94a3b8;">…</span>'
-        : pagerButton(String(p), p, { active: p === currentPage });
-    });
-    html += pagerButton('›', currentPage + 1, { disabled: currentPage === totalPages });
-    pager.innerHTML = html;
-    if (count) {
-      count.textContent = list.length
-        ? `총 ${list.length.toLocaleString()}개 소재 중 ${(start + 1).toLocaleString()}–${(start + pageRows.length).toLocaleString()}`
-        : '';
-    }
-  }
-
-  window.__assetPerfGoto = function(page){ currentPage = page; render(); };
-  window.__assetPerfSearch = function(value){
-    currentTerm = (value || '').trim().toLowerCase();
-    currentPage = 1;
-    render();
-  };
-
-  render();
-})();
+/* ── Section 6: 소재 단위 누적 성과 표 — 검색 + 페이지 나누기(LHKit.pagedTable) ── */
+// rows: [{search: "매체 캠페인 광고그룹 광고" (소문자), html: "<tr>...</tr>"}] — 7일 광고비 내림차순으로 정렬돼 있다.
+LHKit.pagedTable({ rows: __S6_ROWS_JSON__, tbody: 'assetPerfTableBody', pager: 'assetPerfPager',
+                   count: 'assetPerfCount', colspan: __S6_COLSPAN__, unit: '소재', global: '__assetPerf' });
 </script>
 </body></html>

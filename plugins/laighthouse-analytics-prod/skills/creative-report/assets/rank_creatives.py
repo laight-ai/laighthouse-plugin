@@ -23,7 +23,7 @@
     "metric_keys": { ...discover.py 출력 그대로... }, # 필수 — revenue 유무로 모드를 정한다
     "chosen_media": "<chosen_media>",                 # 소재 누적 표(section-6) rows의 media 칸
     "media_total_cost": 1234567,                      # 선택 — 생략하면 total 응답 전체 행의 광고비 합
-    "s5": true,                                       # 선택 — 소재 누적 표(creative-report section-6) rows 포함
+    "table": true,                                    # 선택 — 소재 누적 표(creative-report section-6) rows 포함
     "out": "/tmp/creative_rank.json"                  # 필수 — 전체 결과 저장 경로(빌더·시리즈 스크립트가 읽음)
   }
   total 응답 = get_ad_performance(time_grain "total", group_by ["campaign_name","ad_group_name","ad_name"],
@@ -54,9 +54,9 @@
     "top5_keys": [{"campaign_name","ad_group_name","ad_name"}, ...],
     "top5_names": ["표시이름", ...],
     "top_by_cost": [{"name","cost","impression","click","ctr",("revenue","roas"|"cpc"),("conversion")}, ...10개],
-    "s5_rows": [...]            # "s5": true일 때만 — 빌더 section-6(소재 누적 표) rows 스키마 그대로
+    "table_rows": [...]         # "table": true일 때만 — 빌더 section-6(소재 누적 표) rows 스키마 그대로
   }
-  stdout: 위 JSON에서 s5_rows를 뺀 요약(Executive Summary 근거·lookups 확인용).
+  stdout: 위 JSON에서 table_rows를 뺀 요약(Executive Summary 근거·lookups 확인용).
 
 사용 예 (따옴표 있는 heredoc 하나 — 파일을 Read로 다시 열지 않는다):
   python3 assets/rank_creatives.py <<'PYEOF'
@@ -297,9 +297,9 @@ def rank_main(payload):
         "top5_names": display_names(top5),
         "top_by_cost": [compact(x, n) for x, n in zip(top10, display_names(top10))],
     }
-    if payload.get("s5"):
+    if payload.get("table"):
         media = payload.get("chosen_media") or ""
-        s5 = []
+        rows = []
         for x in recs:
             row = {"media": media, "campaign": x["campaign_name"] or "", "asset_group": x["ad_group_name"] or "",
                    "ad_name": base_name(x), "impression": x["impression"], "click": x["click"],
@@ -308,8 +308,8 @@ def rank_main(payload):
                 row["revenue"] = x["revenue_raw"]
             if has_conv:
                 row["conversion"] = x["conversion_raw"]
-            s5.append(row)
-        out["s5_rows"] = s5
+            rows.append(row)
+        out["table_rows"] = rows
     return out
 
 
@@ -379,10 +379,10 @@ def main():
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "w", encoding="utf-8") as f:
         json.dump(out, f, ensure_ascii=False)
-    summary = {k: v for k, v in out.items() if k != "s5_rows"}
+    summary = {k: v for k, v in out.items() if k != "table_rows"}
     summary["out"] = path
-    if "s5_rows" in out:
-        summary["s5_row_count"] = len(out["s5_rows"])
+    if "table_rows" in out:
+        summary["table_row_count"] = len(out["table_rows"])
     json.dump(summary, sys.stdout, ensure_ascii=False)
 
 
