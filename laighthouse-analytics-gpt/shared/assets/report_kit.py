@@ -745,7 +745,7 @@ def build_tree(envelopes, base_period, cur_period, metric_keys, has_organic=True
     (비율 지표를 하위 행에서 합산하지 않기 위해 레벨마다 따로 조회한다).
 
     currency: 단위가 null인 광고비·매출 역할 지표에 붙일 보고서 통화(discover.py의 currency).
-    반환: {"levels": [...], "metrics": [{"key", "unit"}], "base": 기간, "cur": 기간,
+    반환: {"levels": [...], "metrics": [{"key", "unit", "show"(처음에 펼쳐 보일 열)}], "base": 기간, "cur": 기간,
            "nodes": [[name, cur_values, base_values, children], ...]}
     값 배열은 metrics 순서, 없으면 null. 하위 레벨 봉투가 없으면 그 레벨 이하는 비어 있다.
     """

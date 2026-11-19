@@ -43,7 +43,7 @@ def _fresh_secs(default=1800):
         return default
 
 
-FRESH_SECS = _fresh_secs()   # 훅 판별 기준 — Store.hook_ok 참고
+FRESH_SECS = _fresh_secs()
 SPILL_RE = re.compile(r"Output has been saved to (\S+?)\.?\s*$", re.M)
 
 # ── 응답 저장소 ───────────────────────────────────────────────────────────────
@@ -916,24 +916,29 @@ def _plan_creative(store, brand, T, override, skill, media=None, assets_dir=None
     overall_env = media_day or old_day
     if not overall_env:
         store.missing.append(describe(media_day_call))
+    # 전체 일별(s3)과 상위 소재 일별(s4·s5)은 서로 다른 응답이라 따로 만든다 — 한쪽이 없어도 다른 쪽은 그린다.
+    if overall_env or (rank.get("top5_keys") and day):
+        series = {"dates": dates, "has_revenue": bool(keys.get("revenue"))}
     if overall_env:
         orows = [r for r in overall_env.get("rows") or [] if r.get("media") == chosen]
         mk = series_mod.resolve_metric_keys(set(overall_env.get("metrics") or []), keys)
-        series = {"dates": dates, "has_revenue": bool(mk.get("revenue")),
-                  "overall": series_mod.compute_overall(orows, dates, mk)}
-        if rank.get("top5_keys") and day:
-            drows = [r for r in day.get("rows") or [] if r.get("media") == chosen]
-            dmk = series_mod.resolve_metric_keys(set(day.get("metrics") or []), keys)
-            series["top5"] = series_mod.compute_top5(drows, dates, rank["top5_keys"], dmk)
+        series["overall"] = series_mod.compute_overall(orows, dates, mk)
+    if rank.get("top5_keys") and day:
+        drows = [r for r in day.get("rows") or [] if r.get("media") == chosen]
+        dmk = series_mod.resolve_metric_keys(set(day.get("metrics") or []), keys)
+        series["top5"] = series_mod.compute_top5(drows, dates, rank["top5_keys"], dmk)
     title = f"{brand} 소재 보고서"
     b = {"title": title, "target_date": str(T), "out": f"~/Downloads/laighthouse-reports/{brand}_{skill}_{T}.html",
          "metric_keys": keys, "currency": disc["currency"], "rank_file": rank_path.replace("\\", "/"),
          "s1": {}, "s3": {}, "s4": {}, "s5": {}, "s6": {}}
     if series:
         b["series_file"] = save_envelope(folder, "series.json", series).replace("\\", "/")
-    else:
-        for k in ("s3", "s4", "s5"):   # 일별 시리즈가 필요한 섹션 — s6(소재 누적 표)은 랭킹만으로 그린다
-            b.pop(k)
+    # 일별 시리즈가 없는 섹션은 뺀다("데이터 준비 중") — s6(소재 누적 표)은 랭킹만으로 그린다
+    if not (series or {}).get("overall"):
+        b.pop("s3")
+    if not (series or {}).get("top5"):
+        b.pop("s4")
+        b.pop("s5")
     facts = {"mode": _mode(disc), "period": f"{d6}~{T}", "chosen_media": chosen, "candidates": candidates,
              "media_totals": rank.get("media_totals"), "eligibility": rank.get("eligibility"),
              "best": rank.get("s1"), "top_by_cost": rank.get("top_by_cost"),
@@ -991,6 +996,8 @@ def main(skill, argv=None, assets_dir=None):
     if "facts" in result and not store.missing and os.path.exists(marker):
         os.remove(marker)   # 보고서 입력이 다 모였다 — 질문 대기 표식을 지운다
     if not store.hook_ok(asked=asked):
+        if os.path.exists(marker):
+            os.remove(marker)   # 폴백으로 간다 — 질문 대기 표식이 남아 다음 실행을 "훅 있음"으로 만들지 않게
         # 훅이 없는 호스트 — 큰 호출을 더 보내지 않도록 missing은 비우고 폴백 절차로 보낸다.
         result = {"note": (f"최근 저장된 응답이 없다({ROOT}) — 저장 훅이 동작하지 않는 환경이다. 큰 호출(계층 표·소재 단위)을 "
                            "보내지 말고 references/legacy-flow.md 절차로 진행한다(이미 받은 응답은 재사용).")}
