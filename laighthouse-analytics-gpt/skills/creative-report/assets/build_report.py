@@ -458,7 +458,7 @@ def main():
     if leftovers:
         raise SystemExit(f"치환 누락: {leftovers}")
 
-    html = kit.inline_assets(html)   # 공용 킷 JS(LHKit.pagedTable 등)
+    html = kit.inline_assets(html)   # 표 부품 JS(LHKit.pagedTable)
 
     # ── chart.js 인라인 (마지막 — 내용이 커서 치환 검증 후에 붙인다)
     with open(CHART_JS, encoding="utf-8") as f:

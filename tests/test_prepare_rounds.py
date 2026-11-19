@@ -35,6 +35,10 @@ class PrepareRun(unittest.TestCase):
     def tearDown(self):
         self.tmp.cleanup()
 
+    def mark_hook(self):
+        """다른 보고서의 방금 저장된 응답 — 저장 훅이 지금 동작한다는 표시(이 보고서의 호출과는 맞지 않는다)."""
+        self.save("list_promotions", {"start_date": "2000-01-01", "end_date": "2000-01-01"}, "[]")
+
     def save(self, tool, tool_input, response, age_secs=0):
         self.n += 1
         rec = {"tool_name": f"mcp__laighthouse__{tool}", "tool_input": dict(brand_name=BRAND, **tool_input),
@@ -51,11 +55,11 @@ class PrepareRun(unittest.TestCase):
         dims = (["date"] if grain == "day" else []) + group_by
         self.save("get_ad_performance", ti, envelope(grain, dims, rows, metrics), age_secs)
 
-    def run_prepare(self, skill, *args):
+    def run_prepare(self, skill, *args, target_date=T):
         env = dict(os.environ, TMP=self.tmp.name, TEMP=self.tmp.name, TMPDIR=self.tmp.name, PYTHONIOENCODING="utf-8")
         env.pop("LAIGHTHOUSE_PREPARE_FRESH_SECS", None)
         r = subprocess.run([sys.executable, os.path.join(SKILLS, skill, "assets", "prepare.py"),
-                            "--brand", BRAND, "--target-date", T, *args],
+                            "--brand", BRAND, "--target-date", target_date, *args],
                            capture_output=True, text=True, encoding="utf-8", env=env)
         self.assertEqual(r.returncode, 0, r.stderr)
         return json.loads(r.stdout)
@@ -155,7 +159,8 @@ class MonthlyPeriodTest(PrepareRun):
     """monthly-report는 지난 달을 말일까지 본다(day_offset 31) — 기준일의 일로 자르면 30일 기준일 때 31일이 빠진다."""
 
     def test_mid_month_requests_full_previous_months(self):
-        out = self.run_prepare_at("monthly-report", "2026-11-30")
+        self.mark_hook()
+        out = self.run_prepare("monthly-report", target_date="2026-11-30")
         six = [m for m in out["missing"] if m.get("group_by") == ["media"]]
         self.assertEqual(six[0].get("day_offset"), 31)
 
@@ -163,16 +168,8 @@ class MonthlyPeriodTest(PrepareRun):
         row = {"media": "M", "광고비": 100, "노출": 1000, "클릭": 10, "매출": 500}
         self.perf("2026-06-01", "2026-11-30", "month", ["media"],
                   [dict(row, month=f"2026-{m:02d}") for m in range(6, 12)], day_offset=31)
-        out = self.run_prepare_at("monthly-report", "2026-11-30")
+        out = self.run_prepare("monthly-report", target_date="2026-11-30")
         self.assertEqual(out["facts"]["period"]["prev_month"], "2026-10-01~2026-10-31")
-
-    def run_prepare_at(self, skill, t):
-        env = dict(os.environ, TMP=self.tmp.name, TEMP=self.tmp.name, TMPDIR=self.tmp.name, PYTHONIOENCODING="utf-8")
-        self.save("list_promotions", {"start_date": "2000-01-01", "end_date": "2000-01-01"}, "[]")   # 훅 동작 표시
-        r = subprocess.run([sys.executable, os.path.join(SKILLS, skill, "assets", "prepare.py"),
-                            "--brand", BRAND, "--target-date", t], capture_output=True, text=True, encoding="utf-8", env=env)
-        self.assertEqual(r.returncode, 0, r.stderr)
-        return json.loads(r.stdout)
 
 
 class CreativeOverallSourceTest(PrepareRun):
@@ -199,6 +196,62 @@ class CreativeOverallSourceTest(PrepareRun):
         out = self.run_prepare("creative-report", "--media", "M")
         self.assertEqual(out["missing"], [])
         self.assertEqual(out["facts"]["overall_daily"]["ctr_series"], [10.0] * 7)
+
+    def save_round_c(self, names, rows_for, age_secs=0):
+        ad = {"media": "M", "campaign_name": "C", "ad_group_name": "G"}
+        dims4 = ["media", "campaign_name", "ad_group_name", "ad_name"]
+        rows = [dict(ad, date=d, ad_name=n, **rows_for[n]) for n in names if n in rows_for for d in DAYS]
+        self.perf("2026-11-12", T, "day", dims4, rows, filters={"media": ["M"], "ad_name": names}, age_secs=age_secs)
+
+    def save_a_and_b(self):
+        dims4 = ["media", "campaign_name", "ad_group_name", "ad_name"]
+        self.perf("2026-11-12", T, "total", ["media"], [{"media": "M", "광고비": 700, "노출": 7000, "클릭": 700, "매출": 3500}])
+        self.perf("2026-11-12", T, "day", ["media"],
+                  [{"date": d, "media": "M", "광고비": 100, "노출": 1000, "클릭": 100, "매출": 500} for d in DAYS])
+        ad = {"media": "M", "campaign_name": "C", "ad_group_name": "G"}
+        self.perf("2026-11-12", T, "total", dims4,
+                  [dict(ad, ad_name="A", 광고비=400, 노출=5000, 클릭=300, 매출=2000),
+                   dict(ad, ad_name="B", 광고비=300, 노출=2000, 클릭=400, 매출=1500)])
+
+    def top5_ctr(self, out):
+        return {t["name"]: t["ctr_series"] for t in out["facts"]["top5"]}
+
+    def test_typo_in_round_c_uses_matched_creative_and_asks_only_for_the_rest(self):
+        # 라운드 C에 소재명을 "Bx"로 잘못 적었다 → A는 쓰고, B만 다시 요청한다
+        self.save_a_and_b()
+        self.save_round_c(["A", "Bx"], {"A": {"광고비": 10, "노출": 100, "클릭": 50, "매출": 20}})
+        out = self.run_prepare("creative-report", "--media", "M")
+        self.assertEqual(self.top5_ctr(out)["A"], [50.0] * 7)
+        self.assertEqual([m["filters"] for m in out["missing"]], [{"media": ["M"], "ad_name": ["B"]}])
+
+    def test_creative_missing_from_round_c_is_filled_from_unfiltered_day_response(self):
+        # 예전 흐름의 필터 없는 소재 일별 응답이 있으면 라운드 C에서 빠진 B를 거기서 채운다(0으로 그리지 않는다)
+        self.save_a_and_b()
+        ad = {"media": "M", "campaign_name": "C", "ad_group_name": "G"}
+        self.perf("2026-11-12", T, "day", ["media", "campaign_name", "ad_group_name", "ad_name"],
+                  [dict(ad, date=d, ad_name=n, 광고비=10, 노출=100, 클릭=c, 매출=20) for n, c in (("A", 50), ("B", 30))
+                   for d in DAYS])
+        self.save_round_c(["A", "Bx"], {"A": {"광고비": 10, "노출": 100, "클릭": 40, "매출": 20}})
+        out = self.run_prepare("creative-report", "--media", "M")
+        self.assertEqual(self.top5_ctr(out), {"A": [40.0] * 7, "B": [30.0] * 7})
+        self.assertEqual(out["missing"], [])
+
+    def test_overlapping_round_c_uses_newest_rows_once(self):
+        # A가 두 응답에 다 있다 — 더하지 않고 가장 최근 응답(CTR 20%)만 쓴다
+        self.save_a_and_b()
+        self.save_round_c(["A", "B"], {"A": {"광고비": 10, "노출": 100, "클릭": 50, "매출": 20},
+                                       "B": {"광고비": 10, "노출": 100, "클릭": 10, "매출": 20}}, age_secs=60)
+        self.save_round_c(["A"], {"A": {"광고비": 10, "노출": 100, "클릭": 20, "매출": 20}})
+        out = self.run_prepare("creative-report", "--media", "M")
+        self.assertEqual(self.top5_ctr(out)["A"], [20.0] * 7)
+        self.assertEqual(out["missing"], [])
+
+    def test_round_c_from_an_earlier_run_is_not_used(self):
+        # 다섯 시간 전 라운드 C는 이번 실행(방금 보낸 라운드 A) 것이 아니다 → 다시 요청한다
+        self.save_round_c(["A", "B"], {"A": {"광고비": 10, "노출": 100, "클릭": 50, "매출": 20}}, age_secs=5 * 3600)
+        self.save_a_and_b()
+        out = self.run_prepare("creative-report", "--media", "M")
+        self.assertEqual([m["filters"] for m in out["missing"]], [{"media": ["M"], "ad_name": ["A", "B"]}])
 
     def test_missing_media_day_leaves_overall_empty(self):
         # 매체 일별이 없으면 전체 일별을 비우고 다시 부르게 한다 — 상위 소재 합(50%)으로 채우지 않는다

@@ -939,20 +939,22 @@ def _plan_creative(store, brand, T, override, skill, media=None, assets_dir=None
     # 상위 소재 일별: 라운드 C(필터) 응답. 예전 흐름(필터 없는 소재 단위 일별)으로 받은 응답이 있으면 그것도 쓴다.
     c_call = top5_day_call(d6, T, chosen, rank.get("top5_keys") or [])
     old_day = store.envelope(perf(d6, T, "day", CREATIVE_DIMS), required=False)
-    c_env = None
+    day = old_day
     if c_call:
-        # 소재명을 옮겨 적다 일부 틀려도 맞게 받은 소재는 쓰고, 빠진 소재만 다시 요청한다.
+        # 소재명을 옮겨 적다 일부 틀려도 맞게 받은 소재는 쓰고, 빠진 소재만 예전 흐름 응답으로 채우거나 다시 요청한다.
         parts = store.filter_values(c_call, "ad_name")
-        got, rows = set(), []
+        got, c_rows = set(), []
         for env, vals in reversed(parts):            # 소재마다 가장 최근 응답의 행만(겹친 응답을 두 번 더하지 않게)
             new = set(vals) - got
-            rows += [r for r in env["rows"] if str(r.get("ad_name")) in new]
+            c_rows += [r for r in env["rows"] if str(r.get("ad_name")) in new]
             got |= new
-        c_env = dict(parts[-1][0], rows=rows, row_count=len(rows)) if parts else None
         left = [n for n in c_call["filters"]["ad_name"] if n not in got]
-        if left and not old_day:
+        if old_day:
+            c_rows += [r for r in old_day.get("rows") or [] if str(r.get("ad_name")) in left]
+        elif left:
             store.missing.append(describe(dict(c_call, filters={"media": [chosen], "ad_name": left})))
-    day = c_env or old_day
+        if c_rows:
+            day = dict(parts[-1][0] if parts else old_day, rows=c_rows, row_count=len(c_rows))
     series = None
     # 전체 일별은 매체 일별(라운드 A) 응답에서만 — 라운드 C는 상위 소재만이라 전체 합이 아니다.
     # 예전 흐름의 필터 없는 소재 단위 일별 응답은 전체 합이 맞으므로 대신 쓸 수 있다.
