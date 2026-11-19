@@ -184,6 +184,7 @@ class CreativeOverallSourceTest(PrepareRun):
     """매체 M의 전체 일별 CTR은 10%(클릭 100 / 노출 1,000), 상위 소재 A만 보면 50%(50 / 100)."""
 
     def save_rounds(self, with_media_day):
+        self.save_prev_total()
         dims4 = ["media", "campaign_name", "ad_group_name", "ad_name"]
         self.perf("2026-11-12", T, "total", ["media"],
                   [{"media": "M", "광고비": 700, "노출": 7000, "클릭": 700, "매출": 3500}])
@@ -211,7 +212,14 @@ class CreativeOverallSourceTest(PrepareRun):
         rows = [dict(ad, date=d, ad_name=n, **rows_for[n]) for n in names if n in rows_for for d in DAYS]
         self.perf("2026-11-12", T, "day", dims4, rows, filters={"media": ["M"], "ad_name": names}, age_secs=age_secs)
 
+    def save_prev_total(self):
+        # 직전 같은 길이 기간(11/5~11/11)의 소재 total — 소재 Summary의 직전 대비 근거(라운드 B)
+        ad = {"media": "M", "campaign_name": "C", "ad_group_name": "G"}
+        self.perf("2026-11-05", "2026-11-11", "total", ["media", "campaign_name", "ad_group_name", "ad_name"],
+                  [dict(ad, ad_name="A", 광고비=300, 노출=4000, 클릭=200, 매출=1500)])
+
     def save_a_and_b(self):
+        self.save_prev_total()
         dims4 = ["media", "campaign_name", "ad_group_name", "ad_name"]
         self.perf("2026-11-12", T, "total", ["media"], [{"media": "M", "광고비": 700, "노출": 7000, "클릭": 700, "매출": 3500}])
         self.perf("2026-11-12", T, "day", ["media"],

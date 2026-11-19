@@ -750,18 +750,21 @@ def _plan_month_family(store, brand, T, override, skill):
 
     unmatched = []
     b["s5"] = {"rows": compare}
+    by_media_tgt = {}
+    for name, t in tgt["by_media"].items():
+        hit = match_media(name, media_list)
+        if hit:
+            by_media_tgt[hit] = t
+        else:
+            unmatched.append(name)
+    # 요약 근거(digest.py)용 — 계층 응답·브랜드/매체 목표. 섹션 입력과 별도로 둔다.
+    b["summary_input"] = {"levels": level_files, "periods": {"cur": cur, "base": base},
+                          "budget": tgt["all"], "media_budget": by_media_tgt}
     if mtd:
         if day:
             b["s4"] = {"json_files": [save_envelope(folder, "day_media.json", day)],
                        "total_json_files": [save_envelope(folder, "mtd_media_total.json", period_envelope(six, cur))],
                        "promotions": promos}
-        by_media_tgt = {}
-        for name, t in tgt["by_media"].items():
-            hit = match_media(name, media_list)
-            if hit:
-                by_media_tgt[hit] = t
-            else:
-                unmatched.append(name)
         rows6 = []
         for m in media_list:
             v = role_values([r for r in cur_rows if r["media"] == m], keys)
@@ -838,6 +841,8 @@ def _plan_day_family(store, brand, T, override, skill):
     b["s5"] = {"rows": _compare_rows(week, media_list, str(d1), str(T), keys, disc["has_organic"], ("d1", "d0"))}
     b["s6"] = {"json_files": [week_path] + [save_envelope(folder, f"level{i}.json", e)
                                             for i, e in ((2, camp), (3, adg), (4, ad)) if e]}
+    # 요약 근거(digest.py)용 — 계층 응답(매체 레벨은 7일 응답)과 비교 기간
+    b["summary_input"] = {"levels": b["s6"]["json_files"], "periods": {"cur": str(T), "base": str(d1)}}
 
     total, by_media = _compare_facts(week, media_list, str(d1), str(T), keys, has_rev, ("d1", "d0"))
     facts = {"mode": _mode(disc), "period": {"d0": str(T), "d1": str(d1), "week": f"{d6}~{T}"},
@@ -885,6 +890,11 @@ def _halves(series, head=3):
     return {"first3_avg": a, "last4_avg": b, "change_pct": change(b, a)}
 
 
+def period_rows(env, media):
+    """봉투에서 한 매체의 행만 남긴 사본 — 요약 근거(digest.py)가 읽는다."""
+    return dict(env, rows=[r for r in env.get("rows") or [] if r.get("media") == media])
+
+
 def top5_day_call(d6, T, chosen, top5_keys):
     """라운드 C — 상위 소재만의 소재 단위 일별 호출. 소재명이 없는 소재는 필터로 받을 수 없어 뺀다(그 시리즈는 빈다)."""
     names = sorted({k["ad_name"] for k in top5_keys if k.get("ad_name")})
@@ -907,6 +917,8 @@ def _plan_creative(store, brand, T, override, skill, media=None, assets_dir=None
         return ask
     keys, media_list = disc["metric_keys"], disc["media_list"]
     tot = _level_env(store, d6, T, "total", CREATIVE_DIMS, None, media_list)
+    # 직전 같은 길이 기간(7일)의 소재 total — 소재 Summary의 직전 대비·신규·중단 근거(라운드 B)
+    prev = _level_env(store, d6 - timedelta(days=7), d6 - timedelta(days=1), "total", CREATIVE_DIMS, None, media_list)
     if not tot:
         return None
     rank_mod = _import_asset(assets_dir, "rank_creatives")
@@ -995,7 +1007,13 @@ def _plan_creative(store, brand, T, override, skill, media=None, assets_dir=None
     title = f"{brand} 소재 보고서"
     b = {"title": title, "target_date": str(T), "out": f"~/Downloads/laighthouse-reports/{brand}_{skill}_{T}.html",
          "metric_keys": keys, "currency": disc["currency"], "rank_file": rank_path.replace("\\", "/"),
-         "s1": {}, "s3": {}, "s4": {}, "s5": {}, "s6": {}}
+         "s1": {}, "s3": {}, "s4": {}, "s5": {}, "s6": {},
+         "chosen_media": chosen, "period": f"{d6}~{T}", "prev_period": f"{d6 - timedelta(days=7)}~{d6 - timedelta(days=1)}",
+         "tot_file": save_envelope(folder, "creative_total.json", period_rows(tot, chosen)).replace("\\", "/")}
+    if prev:
+        b["prev_file"] = save_envelope(folder, "creative_prev_total.json", period_rows(prev, chosen)).replace("\\", "/")
+    if media_day:
+        b["media_day_file"] = save_envelope(folder, "media_day.json", period_rows(media_day, chosen)).replace("\\", "/")
     if series:
         b["series_file"] = save_envelope(folder, "series.json", series).replace("\\", "/")
     # 일별 시리즈가 없는 섹션은 뺀다("데이터 준비 중") — s6(소재 누적 표)은 랭킹만으로 그린다
@@ -1047,6 +1065,9 @@ def main(skill, argv=None, assets_dir=None):
     result = PLANS[skill](store, a.brand, T, override, **kw) or {}
     if "facts" in result:
         result["facts"] = clean(result["facts"])
+        # 요약 근거 — 스킬의 assets/digest.py가 있으면 base.json으로 만든다(Summary 작성 가이드가 쓰는 수치)
+        if assets_dir and os.path.exists(os.path.join(assets_dir, "digest.py")) and result.get("base"):
+            result["digest"] = _import_asset(assets_dir, "digest").build(result["base"])
     result["missing"] = store.missing
     result["errors"] = store.errors
     marker = _asked_marker(a.brand, skill, T)
