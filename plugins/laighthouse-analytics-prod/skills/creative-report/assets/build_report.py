@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """creative-report 최종 보고서 조립기 — 미리 검증된 asset 스크립트.
 
-`assets/report-template.html`(섹션 1~5 마크업·스크립트가 전부 들어있는 단일 진실 공급원)에
+`assets/report-template.html`(섹션 1~6 마크업·스크립트가 전부 들어있는 단일 진실 공급원)에
 값을 치환하고 `chart.umd.min.js`를 인라인해서 **최종 HTML 한 파일을 한 번의 호출로** 만든다.
 모델은 HTML을 한 글자도 타이핑하지 않는다 — 아래 값 JSON만 heredoc으로 넘기면 된다.
 
@@ -16,7 +16,7 @@
   "title": "{브랜드명} 소재 보고서",                                                      # 필수
   "target_date": "YYYY-MM-DD",                                                       # 필수
   "skeleton": true,          # 선택 — true면 모든 섹션을 "데이터 준비 중"으로 채운 스켈레톤 생성
-                             #        (실행 순서의 필수 체크포인트용. s1~s5는 무시된다)
+                             #        (실행 순서의 필수 체크포인트용. s1~s6은 무시된다)
   "metric_keys": { ... },    # 디스커버리(discover.py) 출력 그대로 — revenue 유무로 모드를 정한다
                              # (generic-report-pattern.md 7절). 생략하면 series 파일의
                              # has_revenue를 쓴다. 클릭 라벨은 click 키 값 그대로 쓴다.
@@ -45,14 +45,17 @@
   },
   "s3": {},                  # 키가 존재하면 series의 overall(ctr_series + roas_series|click_series)로 렌더링
   "s4": {},                  # rank_file의 top5_names 사용 (직접 줄 때: {"names": [...]}) — top5.ctr_series
-  "s5": {}                   # names는 s4와 공유, top5.roas_series(매출 없음: top5.click_series) 사용
+  "s5": {},                  # names는 s4와 공유, top5.roas_series(매출 없음: top5.click_series) 사용
+  "s6": {}                   # 소재 단위 누적 성과 표 — 빈 객체면 rank_file의 s5_rows(rank_creatives "s5": true 출력)를 쓴다.
+                             # 직접 줄 때: {"rows": [{media, campaign, asset_group, ad_name, impression, click, cost,
+                             #             revenue(매출 있음만, 없으면 null), conversion(있을 때만)}]} 또는 {"rows_file": "<경로>"}
                              # (s3/s4/s5에 개별 "series_file"/"series"를 넣으면 그 섹션만 그걸 쓴다)
 }
 
 - 모드: 매출 있음 → section-1 왼쪽 카드 "ROAS 최우수 소재", section-3 둘째 차트 "전체 ROAS",
   section-5 "일별 ROAS". 매출 없음 → 각각 "클릭 최우수 소재", "전체 클릭", "일별 클릭". 제목·각주·
   단위는 빌더가 바꾼다 — 모델은 모드에 맞는 s1 배열(roas 또는 click)만 넣는다.
-- s1~s5 중 키 자체가 없거나 null인 섹션은 "데이터 준비 중" 카드로 렌더링된다(섹션 생략 없음).
+- s1~s6 중 키 자체가 없거나 null인 섹션은 "데이터 준비 중" 카드로 렌더링된다(섹션 생략 없음).
 - 라벨: series 출력의 dates(없으면 target_date 기준 7일)로 빌더가 자동 생성 —
   section-3은 "M/D(요일)", section-4/5는 "M/D" 형식.
 - 출력(stdout): {"out": 절대경로, "bytes": 크기, "sections": {"s1": "ok"|"placeholder", ...},
@@ -427,7 +430,7 @@ def main():
     html = html.replace("__S4_CTR_SERIES_JSON__", kit.js_json(s4_series))
     html = html.replace("__S5_JSON__", kit.js_json({"unit": second_unit, "series": s5_series}))
 
-    # ── section 6: 소재 단위 누적 성과 표 (rank_file의 s6_rows 또는 직접 넘긴 rows/rows_file)
+    # ── section 6: 소재 단위 누적 성과 표 (rank_file의 s5_rows 또는 직접 넘긴 rows/rows_file)
     s6 = section_data("s6")
     rows = load_rows(s6)
     if rows is None and s6 is not None and rank and "s5_rows" in rank:

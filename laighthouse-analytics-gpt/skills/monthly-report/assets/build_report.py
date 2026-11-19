@@ -4,9 +4,8 @@
 `assets/report-template.html`(섹션 1~6 마크업·스크립트가 전부 들어있는 단일 진실 공급원)에
 값을 치환하고 `chart.umd.min.js`와 공용 킷(`shared/assets/report_kit.*`)을 인라인해서
 **최종 HTML 한 파일을 한 번의 호출로** 만든다. 모델은 HTML을 한 글자도 타이핑하지 않는다 —
-아래 값 JSON만 heredoc으로 넘기면 된다. 모드 분기(매출 있음/없음, Organic 있음/없음)는
-와 계층 표 생성은
-전부 공용 킷이 한다(`shared/references/generic-report-pattern.md` 7·8절).
+아래 값 JSON만 heredoc으로 넘기면 된다. 모드 분기(매출 있음/없음, Organic 있음/없음)와 계층 표
+생성은 전부 공용 킷이 한다(`shared/references/generic-report-pattern.md` 7·8절).
 
 사용법 (단 한 번의 Bash 호출, 응답을 받은 그 자리에서):
   python3 assets/build_report.py <<'PYEOF'
@@ -125,8 +124,11 @@ def build_month_labels(target):
 
 
 def mtd_footnote(target):
-    return (f"<div>* 이번달({target.year % 100}년 {target.month}월)의 데이터는 1일부터 기준일인 "
-            f"{target.month}월 {target.day}일까지의 수치이며, 이전 달도 같은 일자까지로 잘라 비교합니다.</div>")
+    """월별 각주 — 지난 달들은 말일까지 전체(day_offset 31), 이번 달은 기준일까지."""
+    if kit.is_month_end(target):
+        return "<div>* 모든 월은 1일부터 말일까지 한 달 전체 수치입니다.</div>"
+    return (f"<div>* 이번달({target.year % 100}년 {target.month}월)은 1일부터 기준일인 "
+            f"{target.month}월 {target.day}일까지(진행 중), 지난 달들은 말일까지 한 달 전체 수치입니다.</div>")
 
 
 def has_zero_fill(*arrays):
@@ -134,7 +136,9 @@ def has_zero_fill(*arrays):
 
 
 def tree_note(m1_label, m0_label, target):
-    return (f"* 각 값 아래 증감은 {m1_label} 대비 {m0_label} 변화입니다(두 달 모두 1일~{target.day}일, "
+    period = ("두 달 모두 1일~말일" if kit.is_month_end(target)
+              else f"{m1_label}은 말일까지 전체, {m0_label}은 1일~{target.day}일")
+    return (f"* 각 값 아래 증감은 {m1_label} 대비 {m0_label} 변화입니다({period}, "
             "비율 지표는 %p). 시작은 매체 단위이며 ▶를 눌러 캠페인·광고그룹·광고로 펼칠 수 있습니다. "
             "지표 헤더를 누르면 정렬되고(기본: 광고비 내림차순), '지표 선택'으로 표시할 컬럼을 고를 수 있습니다. "
             "데이터 수집 체계에 따라 일부 캠페인의 데이터가 누락될 수 있습니다.")

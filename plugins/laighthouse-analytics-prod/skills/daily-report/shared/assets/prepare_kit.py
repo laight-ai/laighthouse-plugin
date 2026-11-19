@@ -892,11 +892,15 @@ def _plan_creative(store, brand, T, override, skill, media=None, assets_dir=None
     dates = kit.day_keys(d6, T)
     # 상위 소재 일별: 라운드 C(필터) 응답. 예전 흐름(필터 없는 소재 단위 일별)으로 받은 응답이 있으면 그것도 쓴다.
     c_call = top5_day_call(d6, T, chosen, rank.get("top5_keys") or [])
-    day = (store.envelope(c_call, required=False) if c_call else None) or         store.envelope(perf(d6, T, "day", CREATIVE_DIMS), required=False)
+    c_env = store.envelope(c_call, required=False) if c_call else None
+    old_day = store.envelope(perf(d6, T, "day", CREATIVE_DIMS), required=False)
+    day = c_env or old_day
     if c_call and not day:
         store.missing.append(describe(c_call))
     series = None
-    overall_env = media_day or day
+    # 전체 일별은 매체 일별(라운드 A) 응답에서만 — 라운드 C는 상위 소재만이라 전체 합이 아니다.
+    # 예전 흐름의 필터 없는 소재 단위 일별 응답은 전체 합이 맞으므로 대신 쓸 수 있다.
+    overall_env = media_day or old_day
     if overall_env:
         orows = [r for r in overall_env.get("rows") or [] if r.get("media") == chosen]
         mk = series_mod.resolve_metric_keys(set(overall_env.get("metrics") or []), keys)
@@ -960,7 +964,8 @@ def main(skill, argv=None, assets_dir=None):
         result["facts"] = clean(result["facts"])
     result["missing"] = store.missing
     result["errors"] = store.errors
-    if not store.hook_ok():
+    if not store.hook_ok() and "ask_user" not in result:
+        # ask_user(지표 키·매체 질문)는 라운드 A 응답을 찾았다는 뜻 — 답을 기다리느라 시간이 지나도 훅 없음으로 보지 않는다.
         # 훅이 없는 호스트(또는 이번 실행 응답이 저장되지 않음) — 큰 호출을 더 보내지 않도록 missing은 비우고 폴백 절차로 보낸다.
         result = {"note": (f"저장된 응답이 없다({ROOT}) — 저장 훅이 동작하지 않는 환경이다. 큰 호출(계층 표·소재 단위)을 "
                            "보내지 말고 references/legacy-flow.md 절차로 진행한다(이미 받은 응답은 재사용).")}

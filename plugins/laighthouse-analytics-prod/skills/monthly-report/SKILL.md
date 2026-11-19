@@ -71,7 +71,7 @@ Summary(`s2`) 작성뿐이다. **MCP 응답 원문을 읽거나 옮겨 적거나
 
 ## `facts` 읽는 법
 
-`mode` · `pacing` · `total`(당월 vs 전월 같은 일자까지, `change_pct`) · `by_media` · `monthly_trend`(최근 6개월 — 분기
+`mode` · `pacing` · `total`(당월(기준일까지) vs 전월(말일까지 전체), `change_pct`) · `by_media` · `monthly_trend`(최근 6개월 — 분기
 비교도 여기서) · `organic`(있을 때만) · `promotions`(당월과 겹치거나 직전 30일 안에 끝난 것) ·
 `campaigns_top_by_cost`(당월 광고비 상위 12개, `eff_shift`=효율 ±20% 이상, `pick_score`=광고비×변화 폭) ·
 `campaigns_efficiency_shift`(상위 밖 효율 급변) · `top_campaign_ad_groups`(상위 캠페인의 광고그룹 당월·전월,
