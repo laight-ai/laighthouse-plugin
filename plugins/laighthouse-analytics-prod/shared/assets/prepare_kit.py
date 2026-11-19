@@ -33,9 +33,16 @@ import report_kit as kit
 ROOT = os.path.join(tempfile.gettempdir(), "laighthouse_mcp_responses")
 WORK_ROOT = os.path.join(tempfile.gettempdir(), "laighthouse_prepare")
 MAX_AGE = 24 * 3600
-# 훅 판별: 이 브랜드의 저장 응답 중 이 시간 안에 저장된 것이 하나도 없으면(그리고 계층·소재 단위 응답도 못 찾았으면)
-# 이번 실행의 응답이 저장되지 않은 것 — 같은 PC에 남은 예전 응답으로 "훅 있음"을 오판하지 않는다.
-FRESH_SECS = int(os.environ.get("LAIGHTHOUSE_PREPARE_FRESH_SECS") or 1800)
+
+
+def _fresh_secs(default=1800):
+    try:
+        return int(os.environ.get("LAIGHTHOUSE_PREPARE_FRESH_SECS") or default)
+    except ValueError:
+        return default
+
+
+FRESH_SECS = _fresh_secs()   # 훅 판별 기준 — Store.hook_ok 참고
 SPILL_RE = re.compile(r"Output has been saved to (\S+?)\.?\s*$", re.M)
 
 # ── 응답 저장소 ───────────────────────────────────────────────────────────────
@@ -152,12 +159,13 @@ class Store:
         self.missing, self.errors = [], []
         self.deep_hit = False   # 계층·소재 단위(group_by에 media 말고 다른 차원) 응답을 하나라도 찾았는가
 
-    def hook_ok(self, now=None):
-        """이번 실행의 응답이 저장되고 있는가 — 최근 FRESH_SECS 안의 응답이 있거나, 라운드 B 응답을 이미 찾았으면 True.
-        (매체 질문 등으로 사용자 답을 기다리는 사이 시간이 지나도 라운드 B 응답이 있으면 오판하지 않는다.)"""
+    def hook_ok(self, answered=False, now=None):
+        """이번 실행의 응답이 저장되고 있는가. 같은 PC에 남은 예전 응답으로 "훅 있음"을 오판하지 않도록
+        최근 FRESH_SECS 안에 저장된 응답이 있어야 True다. 다만 사용자 답을 기다리느라 시간이 지난 경우는 예외다 —
+        라운드 B 응답을 이미 찾았거나(매체 질문은 라운드 B 뒤에 나온다), 지표 키 질문에 답한 재실행(answered)이면 True."""
         now = time.time() if now is None else now
         recent = any(now - float(r.get("saved_at") or 0) <= FRESH_SECS for r in self.records)
-        return bool(self.records) and (recent or self.deep_hit)
+        return bool(self.records) and (recent or self.deep_hit or answered)
 
     def find(self, call, required=True):
         """계획한 호출과 같은 최근 응답 → (텍스트, 레코드) | (None, None)."""
@@ -964,10 +972,10 @@ def main(skill, argv=None, assets_dir=None):
         result["facts"] = clean(result["facts"])
     result["missing"] = store.missing
     result["errors"] = store.errors
-    if not store.hook_ok() and "ask_user" not in result:
-        # ask_user(지표 키·매체 질문)는 라운드 A 응답을 찾았다는 뜻 — 답을 기다리느라 시간이 지나도 훅 없음으로 보지 않는다.
-        # 훅이 없는 호스트(또는 이번 실행 응답이 저장되지 않음) — 큰 호출을 더 보내지 않도록 missing은 비우고 폴백 절차로 보낸다.
-        result = {"note": (f"저장된 응답이 없다({ROOT}) — 저장 훅이 동작하지 않는 환경이다. 큰 호출(계층 표·소재 단위)을 "
+    # ask_user(질문 중)·--metric-keys(질문에 답한 재실행)는 라운드 A 응답이 저장된 것을 이미 확인한 실행이다.
+    if not store.hook_ok(answered=bool(a.metric_keys)) and "ask_user" not in result:
+        # 훅이 없는 호스트 — 큰 호출을 더 보내지 않도록 missing은 비우고 폴백 절차로 보낸다.
+        result = {"note": (f"최근 저장된 응답이 없다({ROOT}) — 저장 훅이 동작하지 않는 환경이다. 큰 호출(계층 표·소재 단위)을 "
                            "보내지 말고 references/legacy-flow.md 절차로 진행한다(이미 받은 응답은 재사용).")}
     # 소재 스크립트 import가 sys.stdout을 다시 감쌀 수 있어 fd 1에 바로 쓴다(Windows cp949 콘솔에서도 UTF-8).
     sys.stdout.flush()

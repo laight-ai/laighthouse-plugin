@@ -83,6 +83,14 @@ class HookDetectionTest(PrepareRun):
         self.assertNotIn("note", out)
         self.assertIn("ask_user", out)
 
+    def test_rerun_with_answered_metric_keys_still_asks_for_round_b(self):
+        # 질문에 30분 넘게 늦게 답해 --metric-keys로 다시 돌려도, 라운드 A가 저장된 실행이므로 라운드 B를 요청한다
+        self.save_round_a(["spend_x", "imps_x", "taps_x"])
+        out = self.run_prepare("daily-report", "--metric-keys",
+                               '{"cost": "spend_x", "impression": "imps_x", "click": "taps_x"}')
+        self.assertNotIn("note", out)
+        self.assertIn(["media", "campaign_name"], [m.get("group_by") for m in out["missing"]])
+
 
 class CreativeOverallSourceTest(PrepareRun):
     """매체 M의 전체 일별 CTR은 10%(클릭 100 / 노출 1,000), 상위 소재 A만 보면 50%(50 / 100)."""

@@ -3,7 +3,7 @@
 
 `creative-report`가 `assets/`에 두고 쓴다.
 실행 중 모델이 이 파일을 만들거나 수정하지 않는다. 모델은 소재 행을 손으로
-정렬·필터링하지 않는다 — 랭킹·상위 5개·표시 이름·section-5 rows는 전부 이 스크립트가 낸다.
+정렬·필터링하지 않는다 — 랭킹·상위 5개·표시 이름·소재 누적 표(section-6) rows는 전부 이 스크립트가 낸다.
 
 두 가지 모드가 있다.
 
@@ -21,7 +21,7 @@
   {
     "json_files": ["<total 응답 캡처 스텁 경로>"],   # 또는 "json": "<응답 원문>" / "rows": [...]
     "metric_keys": { ...discover.py 출력 그대로... }, # 필수 — revenue 유무로 모드를 정한다
-    "chosen_media": "<chosen_media>",                 # section-5 rows의 media 칸
+    "chosen_media": "<chosen_media>",                 # 소재 누적 표(section-6) rows의 media 칸
     "media_total_cost": 1234567,                      # 선택 — 생략하면 total 응답 전체 행의 광고비 합
     "s5": true,                                       # 선택 — 소재 누적 표(creative-report section-6) rows 포함
     "out": "/tmp/creative_rank.json"                  # 필수 — 전체 결과 저장 경로(빌더·시리즈 스크립트가 읽음)
@@ -40,7 +40,7 @@
   - 상위 5개(section-3/4/5 차트): 광고비 내림차순 5개 — 최소 표본 기준 **미적용**(전체 소재).
   - 표시 이름: `ad_name`이 비었거나 "-"이면 "<ad_group_name> (소재명 없음)". 같은 목록(최우수 카드
     1·2위 쌍, 상위 5개) 안에서 표시 이름이 겹치면 " (<ad_group_name>)"을(그래도 겹치면
-    " (<campaign_name>)"을) 덧붙인다. section-5 표의 광고 칸도 같은 소재명 폴백을 쓴다.
+    " (<campaign_name>)"을) 덧붙인다. section-6 표의 광고 칸도 같은 소재명 폴백을 쓴다.
 
   출력 파일(`out`) JSON:
   {
@@ -54,7 +54,7 @@
     "top5_keys": [{"campaign_name","ad_group_name","ad_name"}, ...],
     "top5_names": ["표시이름", ...],
     "top_by_cost": [{"name","cost","impression","click","ctr",("revenue","roas"|"cpc"),("conversion")}, ...10개],
-    "s5_rows": [...]            # "s5": true일 때만 — 빌더 section-5 rows 스키마 그대로
+    "s5_rows": [...]            # "s5": true일 때만 — 빌더 section-6(소재 누적 표) rows 스키마 그대로
   }
   stdout: 위 JSON에서 s5_rows를 뺀 요약(Executive Summary 근거·lookups 확인용).
 
@@ -212,7 +212,7 @@ def rank_main(payload):
                "click": _num(r, mk["click"])}
         if has_rev:
             rec["revenue"] = _num(r, mk["revenue"])            # null → 0 (합계·ROAS용)
-            rec["revenue_raw"] = r.get(mk["revenue"])          # section-5 표시용 원본
+            rec["revenue_raw"] = r.get(mk["revenue"])          # section-6 표시용 원본
         if has_conv:
             rec["conversion_raw"] = r.get(mk["conversion"])
             rec["conversion"] = _num(r, mk["conversion"])

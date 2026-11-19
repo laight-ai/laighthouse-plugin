@@ -123,7 +123,7 @@ def build_month_labels(target):
     return labels
 
 
-def mtd_footnote(target):
+def month_footnote(target):
     """월별 각주 — 지난 달들은 말일까지 전체(day_offset 31), 이번 달은 기준일까지."""
     if kit.is_month_end(target):
         return "<div>* 모든 월은 1일부터 말일까지 한 달 전체 수치입니다.</div>"
@@ -213,7 +213,7 @@ def main():
         labels = s3.get("labels") or build_month_labels(target)
         s3_spec = kit.perf_chart_spec(labels, s3, modes)
         scale = s3.get("revenue") if modes.has_revenue else s3.get("click")
-        notes = [mtd_footnote(target)]
+        notes = [month_footnote(target)]
         if not modes.has_revenue:
             notes.append(S3_NO_REVENUE_NOTE)
         if has_zero_fill(s3.get("cost") or s3.get("ad_cost"), scale):
@@ -232,7 +232,7 @@ def main():
         s4_labels = s4.get("labels") or labels or build_month_labels(target)
         s4_spec = kit.trend_section_spec(s4, s4_labels, kit.month_keys(target), modes, currency)
         totals = kit.trend_default_totals(s4_spec)
-        notes = [mtd_footnote(target)]
+        notes = [month_footnote(target)]
         trend_note = kit.media_trend_footnote(modes, s4_spec["total_label"])
         if trend_note:
             notes.append(trend_note)
