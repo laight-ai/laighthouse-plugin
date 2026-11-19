@@ -792,6 +792,8 @@ def build_tree(envelopes, base_period, cur_period, metric_keys, has_organic=True
                     else:
                         bucket[m] = v
 
+    _derive_ratios(values, metrics, metric_keys or {})
+
     # 조상 경로 보장 (하위 레벨에만 있는 경로도 트리에 걸리게)
     for path in list(values):
         for k in range(1, len(path)):
@@ -835,6 +837,39 @@ def build_tree(envelopes, base_period, cur_period, metric_keys, has_organic=True
                         for m in metrics],
             "cost": cost_key, "base": base_period, "cur": cur_period,
             "nodes": [node(p) for p in roots]}
+
+
+# 비율 지표 이름(소문자) → (분자 역할, 분모 역할). 하위 레벨을 기본 지표만 받았을 때(훅 없는 폴백) 빈칸을 채운다.
+RATIO_ROLES = {"roas": ("revenue", "cost"), "ctr": ("click", "impression"), "cpc": ("cost", "click")}
+
+
+def _derive_ratios(values, metrics, metric_keys):
+    """값이 없는 비율 지표(roas·ctr·cpc)를 역할 합으로 채운다 — 서버 값이 있는 행에서 배율(% 표기면 100)을 알아낸
+    경우에만. 서버 값이 있는 셀은 건드리지 않으므로 지표 전체를 받은 표는 그대로다."""
+    for m in metrics:
+        roles = RATIO_ROLES.get(m.lower())
+        if not roles:
+            continue
+        num_k, den_k = (metric_keys.get(r) for r in roles)
+        if not num_k or not den_k:
+            continue
+        scale = None
+        for b in values.values():
+            for slot in b.values():
+                v, n, d = slot.get(m), slot.get(num_k), slot.get(den_k)
+                if isinstance(v, (int, float)) and v and n and d:
+                    r = v / (n / d)
+                    scale = next((c for c in (1, 100) if abs(r - c) <= c * 0.01), None)   # 배수 또는 % 표기
+                    break
+            if scale:
+                break
+        if not scale:
+            continue
+        for b in values.values():
+            for slot in b.values():
+                n, d = slot.get(num_k), slot.get(den_k)
+                if m not in slot and isinstance(n, (int, float)) and isinstance(d, (int, float)) and d:
+                    slot[m] = n / d * scale
 
 
 def tree_json(tree):

@@ -33,6 +33,9 @@ import report_kit as kit
 ROOT = os.path.join(tempfile.gettempdir(), "laighthouse_mcp_responses")
 WORK_ROOT = os.path.join(tempfile.gettempdir(), "laighthouse_prepare")
 MAX_AGE = 24 * 3600
+# 훅 판별: 이 브랜드의 저장 응답 중 이 시간 안에 저장된 것이 하나도 없으면(그리고 계층·소재 단위 응답도 못 찾았으면)
+# 이번 실행의 응답이 저장되지 않은 것 — 같은 PC에 남은 예전 응답으로 "훅 있음"을 오판하지 않는다.
+FRESH_SECS = int(os.environ.get("LAIGHTHOUSE_PREPARE_FRESH_SECS") or 1800)
 SPILL_RE = re.compile(r"Output has been saved to (\S+?)\.?\s*$", re.M)
 
 # ── 응답 저장소 ───────────────────────────────────────────────────────────────
@@ -147,6 +150,14 @@ class Store:
     def __init__(self, brand):
         self.records = load_records(brand)
         self.missing, self.errors = [], []
+        self.deep_hit = False   # 계층·소재 단위(group_by에 media 말고 다른 차원) 응답을 하나라도 찾았는가
+
+    def hook_ok(self, now=None):
+        """이번 실행의 응답이 저장되고 있는가 — 최근 FRESH_SECS 안의 응답이 있거나, 라운드 B 응답을 이미 찾았으면 True.
+        (매체 질문 등으로 사용자 답을 기다리는 사이 시간이 지나도 라운드 B 응답이 있으면 오판하지 않는다.)"""
+        now = time.time() if now is None else now
+        recent = any(now - float(r.get("saved_at") or 0) <= FRESH_SECS for r in self.records)
+        return bool(self.records) and (recent or self.deep_hit)
 
     def find(self, call, required=True):
         """계획한 호출과 같은 최근 응답 → (텍스트, 레코드) | (None, None)."""
@@ -156,6 +167,8 @@ class Store:
                 self.missing.append(describe(call))
             return None, None
         rec = hits[-1]
+        if len(call.get("group_by") or []) > 1:
+            self.deep_hit = True
         return response_text(rec), rec
 
     def envelope(self, call, required=True):
@@ -827,10 +840,20 @@ def _halves(series, head=3):
     return {"first3_avg": a, "last4_avg": b, "change_pct": change(b, a)}
 
 
+def top5_day_call(d6, T, chosen, top5_keys):
+    """라운드 C — 상위 소재만의 소재 단위 일별 호출. 소재명이 없는 소재는 필터로 받을 수 없어 뺀다(그 시리즈는 빈다)."""
+    names = sorted({k["ad_name"] for k in top5_keys if k.get("ad_name")})
+    if not names:
+        return None
+    return perf(d6, T, "day", CREATIVE_DIMS, filters={"media": [chosen], "ad_name": names})
+
+
 def _plan_creative(store, brand, T, override, skill, media=None, assets_dir=None):
-    """creative-detailed / creative-summary — 필터 없는 소재 단위 7일 응답에서 매체를 고르고 랭킹·시리즈를 만든다."""
+    """creative-detailed / creative-summary — 라운드 A(매체 total·매체 일별) → B(소재 total, 필터 없음: 매체 선택·랭킹)
+    → C(상위 소재만 일별, filters media·ad_name). 전체 일별 시리즈는 매체 일별 응답에서 만든다."""
     d6 = T - timedelta(days=6)
     media_env = store.envelope(perf(d6, T, "total", ["media"]))
+    media_day = store.envelope(perf(d6, T, "day", ["media"]))
     if not media_env:
         return None
     disc, ask = _discover([media_env], override)
@@ -838,7 +861,6 @@ def _plan_creative(store, brand, T, override, skill, media=None, assets_dir=None
         return ask
     keys, media_list = disc["metric_keys"], disc["media_list"]
     tot = _level_env(store, d6, T, "total", CREATIVE_DIMS, None, media_list)
-    day = _level_env(store, d6, T, "day", CREATIVE_DIMS, None, media_list)
     if not tot:
         return None
     rank_mod = _import_asset(assets_dir, "rank_creatives")
@@ -873,14 +895,22 @@ def _plan_creative(store, brand, T, override, skill, media=None, assets_dir=None
                                "s5": skill == "creative-detailed"})
     rank_path = save_envelope(folder, "rank.json", rank)
     dates = kit.day_keys(d6, T)
+    # 상위 소재 일별: 라운드 C(필터) 응답. 예전 흐름(필터 없는 소재 단위 일별)으로 받은 응답이 있으면 그것도 쓴다.
+    c_call = top5_day_call(d6, T, chosen, rank.get("top5_keys") or [])
+    day = (store.envelope(c_call, required=False) if c_call else None) or         store.envelope(perf(d6, T, "day", CREATIVE_DIMS), required=False)
+    if c_call and not day:
+        store.missing.append(describe(c_call))
     series = None
-    if day:
-        drows = [r for r in day.get("rows") or [] if r.get("media") == chosen]
-        mk = series_mod.resolve_metric_keys(set(day.get("metrics") or []), keys)
+    overall_env = media_day or day
+    if overall_env:
+        orows = [r for r in overall_env.get("rows") or [] if r.get("media") == chosen]
+        mk = series_mod.resolve_metric_keys(set(overall_env.get("metrics") or []), keys)
         series = {"dates": dates, "has_revenue": bool(mk.get("revenue")),
-                  "overall": series_mod.compute_overall(drows, dates, mk)}
-        if rank.get("top5_keys"):
-            series["top5"] = series_mod.compute_top5(drows, dates, rank["top5_keys"], mk)
+                  "overall": series_mod.compute_overall(orows, dates, mk)}
+        if rank.get("top5_keys") and day:
+            drows = [r for r in day.get("rows") or [] if r.get("media") == chosen]
+            dmk = series_mod.resolve_metric_keys(set(day.get("metrics") or []), keys)
+            series["top5"] = series_mod.compute_top5(drows, dates, rank["top5_keys"], dmk)
     title = f"{brand} 소재 보고서" if skill == "creative-detailed" else f"{brand} Executive 소재 보고서"
     b = {"title": title, "target_date": str(T), "out": f"~/Downloads/laighthouse-reports/{brand}_{skill}_{T}.html",
          "metric_keys": keys, "currency": disc["currency"], "rank_file": rank_path.replace("\\", "/"),
@@ -935,8 +965,8 @@ def main(skill, argv=None, assets_dir=None):
         result["facts"] = clean(result["facts"])
     result["missing"] = store.missing
     result["errors"] = store.errors
-    if not store.records:
-        # 훅이 없는 호스트 — 큰 호출을 더 보내지 않도록 missing은 비우고 폴백 절차로 보낸다.
+    if not store.hook_ok():
+        # 훅이 없는 호스트(또는 이번 실행 응답이 저장되지 않음) — 큰 호출을 더 보내지 않도록 missing은 비우고 폴백 절차로 보낸다.
         result = {"note": (f"저장된 응답이 없다({ROOT}) — 저장 훅이 동작하지 않는 환경이다. 큰 호출(계층 표·소재 단위)을 "
                            "보내지 말고 references/legacy-flow.md 절차로 진행한다(이미 받은 응답은 재사용).")}
     # 소재 스크립트 import가 sys.stdout을 다시 감쌀 수 있어 fd 1에 바로 쓴다(Windows cp949 콘솔에서도 UTF-8).
