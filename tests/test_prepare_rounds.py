@@ -147,6 +147,13 @@ class CurrentRunOnlyTest(PrepareRun):
         out = self.run_prepare("daily-report")
         self.assertEqual([m["group_by"] for m in out["missing"]], [list(d) for d in self.LEVELS])
 
+    def test_round_b_saved_just_before_round_a_is_used(self):
+        # 한 메시지로 같이 보내면 라운드 B가 라운드 A보다 몇 초 먼저 저장될 수 있다 — 이번 실행 것으로 쓴다
+        self.save_round_b(age_secs=10)
+        self.save_round_a(age_secs=0)
+        out = self.run_prepare("daily-report")
+        self.assertEqual(out["missing"], [])
+
     def test_round_b_of_this_run_is_used(self):
         self.save_round_a(age_secs=0)
         self.save_round_b(age_secs=0)
@@ -290,6 +297,14 @@ class CreativeOverallSourceTest(PrepareRun):
         self.assertEqual(out["missing"], [])
         self.assertEqual(len(out["errors"]), 1)
         self.assertEqual(out["errors"][0]["call"]["filters"]["ad_name"], ["B"])
+
+    def test_typo_and_error_together_do_not_ask_again(self):
+        # ["A", "Bx"] 호출이 에러 → A를 못 채워 s4·s5를 빼므로 B를 다시 요청하지 않는다. 에러에는 A만 남긴다
+        self.save_a_and_b()
+        self.save_round_c_error(["A", "Bx"])
+        out = self.run_prepare("creative-report", "--media", "M")
+        self.assertEqual(out["missing"], [])
+        self.assertEqual([e["call"]["filters"]["ad_name"] for e in out["errors"]], [["A"]])
         self.assertNotIn("top5", out["facts"])
 
     def test_overlapping_round_c_uses_newest_rows_once(self):

@@ -963,9 +963,10 @@ def _plan_creative(store, brand, T, override, skill, media=None, assets_dir=None
         for env, vals, probe, text in parts:
             lost = set(vals) & set(left)
             if env is None and lost - failed:
-                store.error(probe, text)
+                store.error(dict(probe, filters=dict(probe["filters"], ad_name=sorted(lost))), text)
                 failed |= lost
-        ask = [n for n in left if n not in failed]
+        # 에러로 못 채운 소재가 있으면 s4·s5를 빼므로, 나머지 소재를 더 받아도 쓰이지 않는다 — 다시 요청하지 않는다
+        ask = [] if failed else left
         if ask:
             store.missing.append(describe(dict(c_call, filters={"media": [chosen], "ad_name": ask})))
         if not failed and (ok or c_rows):
