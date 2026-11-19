@@ -7,7 +7,7 @@ description: >
   비교·캠페인 분석·매체별 예산·계층 표(매체·캠페인·광고그룹·광고)까지 8섹션으로 보여주는 HTML 보고서. 사용자가
   말한 브랜드의 매체·지표를 응답에서 알아내 어떤 브랜드에도 같은 방식으로 동작한다.
 metadata:
-  version: "4.0.1"
+  version: "4.1.0"
 ---
 
 > ⚡ thinking은 짧게. MCP 라운드 A → `prepare.py` → 라운드 B → `prepare.py` → 문장 작성 + `build_report.py` → 게시,
@@ -26,7 +26,7 @@ metadata:
 **그대로** 쓴다.
 
 계산·렌더링은 전부 미리 검증된 스크립트가 한다. 모델이 할 일은 (1) MCP 호출, (2) 스크립트 실행, (3) 문장 두 개
-(`s2` 카드·`s6` 캠페인 분석) 작성뿐이다. **MCP 응답 원문을 읽거나 옮겨 적거나 파일로 저장하지 않는다** — 플러그인
+(`s2` Executive Summary·`s6` 캠페인 분석) 작성뿐이다. **MCP 응답 원문을 읽거나 옮겨 적거나 파일로 저장하지 않는다** — 플러그인
 저장 훅이 응답 원본을 파일로 남기고 `prepare.py`가 그것을 읽는다. 스크립트 파일을 새로 만들거나 HTML을 직접 쓰지
 않는다. `references/`의 섹션 문서는 아래에서 지정한 것 말고는 읽지 않는다.
 
@@ -42,18 +42,23 @@ metadata:
    - `note`(저장된 응답 없음)가 나오면 저장 훅이 없는 환경(웹 Chat, 훅 미승인)이다 → **라운드 B를 보내지 말고**
      `references/legacy-flow.md` 절차로 진행한다(받은 라운드 A 응답은 재사용).
    - 아니면 `missing`에 라운드 B(계층 표 3레벨)가 나온다 → **라운드 B**를 한 메시지에서 동시에 보내고 prepare.py를
-     재실행한다. 출력 JSON의 `base`(경로)·`facts`를 쓴다.
+     재실행한다. 출력 JSON의 `base`(경로)·`digest`(s2 근거)·`facts`(s6 근거)를 쓴다.
    - 그 밖의 `missing`은 그 호출만 다시 보내고 재실행한다.
    - `errors`는 그 섹션이 "데이터 준비 중"으로 나간다는 뜻이다. 계층 표 레벨이 `over 50,000 rows`로 거절됐으면
      그 레벨만 매체마다 `filters: {"media": ["<매체>"]}`로 다시 부르고 재실행한다(prepare.py가 합친다).
    - `ask_user`가 있으면 필수 지표(광고비·노출·클릭) 키를 못 정한 것이다 — 후보를 보여 주고 사용자에게 한 번에
      묻고, 답을 `--metric-keys '{"cost":"…"}'`로 넘겨 재실행한다. 매출 지표가 없는 것은 질문 사유가 아니다(매출
      없음 모드 — 빌더가 알아서 노출·클릭·CTR·CPC로 바꾼다).
-3. `references/mtd-report-section-2-executive-summary.md`(카드 규칙)와 아래 `s6` 규칙대로 `facts`만 근거로 쓰고,
+3. **Executive Summary(`s2`)**: `guides/weekly-summary.md`(무엇을 어떻게 쓸지 — [소진]·[효율], 노션 Weekly Summary
+   가이드)와 `references/mtd-report-section-2-executive-summary.md`(가이드의 "이번주·전주"를 MTD로 읽는 대응표·근거·빌더
+   입력)를 따라 prepare 출력의 **`digest`만** 근거로 쓴다. **`s6`**은 아래 규칙대로 `facts`만 근거로 쓴다. 그다음
    빌더를 1회 호출한다:
    ```
    python3 assets/build_report.py <<'PYEOF'
-   {"base": "<prepare가 준 base 경로>", "s2": {"bullets": [{"text": "…", "tone": "green|red|neutral"}, …]},
+   {"base": "<prepare가 준 base 경로>", "s2": {"groups": [
+     {"title": "소진", "lead": "…", "media": [{"name": "<매체>", "desc": "…",
+       "bullets": [{"unit": "캠페인", "label": "<캠페인>", "text": "…", "tone": "red|yellow|green|neutral"}, …]}, …]},
+     {"title": "효율", "lead": "…", "media": [ … ]}]},
     "s6": {"campaign_analysis": "…"}}
    PYEOF
    ```
@@ -76,7 +81,7 @@ metadata:
 거절되면 그때만 `get_brand_list`로 가장 비슷한 이름을 찾아 맞는지 사용자에게 묻는다(`shared/references/mcp-tools.md`
 공통 규칙). 확인받은 이름은 이후 모든 호출의 `brand_name`과 `prepare.py --brand`, 제목·파일명에 쓴다.
 
-## `facts` 읽는 법
+## `facts` 읽는 법 (s6)
 
 `mode`(매출 있음/없음·Organic·전환 여부·통화) · `pacing`(월 진행률 vs 예산 소진률, 목표 예산·매출·ROAS) ·
 `total`(MTD vs 전월 동기, 증감률 %) · `by_media`(매체별 예산·소진률·실적·전월 동기 대비) · `monthly_trend`(최근
@@ -89,11 +94,14 @@ metadata:
 (ROAS·CTR %, CPC·CPA 통화). **facts에 없는 수치는 쓰지 않는다** — facts 수치끼리의 단순 비교(배수·차이·%p)는
 써도 된다. 숫자 표기: 금액·개수는 천 단위 쉼표, 비율은 소수 1자리(CTR은 2자리), 금액에는 `mode.currency`.
 
-## `s2.bullets` — 카드 4개 (규칙은 `references/mtd-report-section-2-executive-summary.md`)
+## `digest` 읽는 법 (s2)
 
-효율 vs 목표 → 페이싱 → 매체 특이사항 → 규모 특이사항·가설, 이 순서로 카드 4개(꼭 필요할 때만 5개). `tone`은
-`green`(개선) | `red`(하락·점검) | `neutral`. 목표 미등록·소진 속도 비정상·`target_media_unmatched` 같은 주의
-항목은 문장 맨 앞에 `⚠`. Organic은 `mode.has_organic`일 때만 언급한다. 강조 수치에 `<strong>` 사용 가능.
+`기간`(당월 1일~기준일 · 전월 동기) · `전체`(당월·전월 동기 값과 `전월 동기 대비`) · `예산`(월예산·소진율·월 진행률, 목표
+예산이 있을 때만) · `매체`(당월·전월 동기·변화·`광고비비중`, 매체 목표가 있으면 `월예산`·`소진율`) ·
+`매체-캠페인`·`매체-캠페인-광고그룹`·`매체-캠페인-광고그룹-광고`(당월 광고비 상위 + 광고비 변동 상위 행) · `… 생략`.
+값은 화면에 쓸 문자열로 이미 만들어져 있다. **digest 값을 그대로 옮기고 다시 계산하지 않는다. digest에 없는 수치는 쓰지
+않는다.** 가이드의 "이번주"는 당월 1일~기준일, "전주"는 전월 동기, "기간 진행률"은 `예산.월 진행률`로 읽는다(대응표는
+section-2 문서). 매출·ROAS 키가 없으면 매출·ROAS를, 조회수·CPV 키가 없으면 조회수·CPV를 언급하지 않는다.
 
 ## `s6.campaign_analysis` — 캠페인 2~4개 서술
 

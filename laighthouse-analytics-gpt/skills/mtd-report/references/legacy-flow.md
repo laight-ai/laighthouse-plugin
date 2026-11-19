@@ -141,10 +141,11 @@ generic 도구(`get_ad_performance`)와 `get_target_progress_v2`, `list_promotio
    매체 비교 rows(#1 응답의 전월·당월 행 — `mtd-report-section-5-channel-comparison.md`), section-7 매체별
    목표 원본 + 실적(#1 응답의 당월 행). section-4·section-8은 계산하지 않는다 — 응답을 그대로 넘긴다(section-8
    매체 레벨은 #1 응답 재사용).
-6. **section-2 Executive Summary(`bullets`) + section-6 캠페인 분석 작성** — 추가 MCP 호출 없이 받은 응답만
-   근거로 AI가 직접 작성(`mtd-report-section-2-executive-summary.md`, `mtd-report-section-6-campaign-analysis.md`).
+6. **section-2 Executive Summary(`groups`) + section-6 캠페인 분석 작성** — 추가 MCP 호출 없이 받은 응답만
+   근거로 AI가 직접 작성(s2는 `guides/weekly-summary.md` + `mtd-report-section-2-executive-summary.md`의 대응표,
+   s6은 `mtd-report-section-6-campaign-analysis.md`).
 7. **최종 빌드**: `assets/build_report.py`에 값 JSON(`metric_keys`, `has_organic`, `currency` 포함)을 heredoc으로
-   넘겨 최종 HTML을 생성한다. 입력 키: `s1`(목표 카드) · `s2.bullets` · `s3`(6개월 배열) · `s4`(#2 응답 `json` +
+   넘겨 최종 HTML을 생성한다. 입력 키: `s1`(목표 카드) · `s2.groups` · `s3`(6개월 배열) · `s4`(#2 응답 `json` +
    `promotions`) · `s5.rows`(`m1`/`m0` 키) · `s6.campaign_analysis` · `s7.rows`(매체별 예산) · `s8`(`json`: #1 응답 +
    캠페인·광고그룹 응답). 출력 경로(`out`)는 `~/Downloads/laighthouse-reports/{브랜드명}_mtd-report_{기준_일자}.html`
    (디렉터리는 빌더가 만든다).
@@ -188,7 +189,7 @@ generic 도구(`get_ad_performance`)와 `get_target_progress_v2`, `list_promotio
 | 순서 | 섹션 | 파일 | 빌더 키 |
 |-----|------|------|--------|
 | 1 | 목표 달성 현황 | `mtd-report-section-1-target-achievement.md` | `s1` |
-| 2 | Executive Summary (카드) | `mtd-report-section-2-executive-summary.md` | `s2` |
+| 2 | Executive Summary ([소진]·[효율]) | `mtd-report-section-2-executive-summary.md` | `s2` |
 | 3 | 월별 광고 성과 (6개월 혼합 차트) | `mtd-report-section-3-monthly-ad-performance.md` | `s3` |
 | 4 | 매체별 일별 성과 추이 (라인 — 지표 선택·매체 켜기/끄기) | `mtd-report-section-4-media-trend.md` | `s4` |
 | 5 | 매체 성과 비교 (전월 동기 vs 당월) | `mtd-report-section-5-channel-comparison.md` | `s5` |

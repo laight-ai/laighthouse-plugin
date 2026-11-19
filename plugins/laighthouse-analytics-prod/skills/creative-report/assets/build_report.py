@@ -37,10 +37,10 @@
                              #   "roas":  [ {"name", "value": 388.1, "thumbnail_url"} ]  # 매출 있음 (소수 1자리)
                              #   "click": [ {"name", "value": 5321, "thumbnail_url"} ]   # 매출 없음 (7일 합)
                              #   "ctr":   [ {"name", "value": 2.41, "thumbnail_url"} ]   # 공통 (소수 2자리)
-  "s2": {                    # Executive Summary — 불릿 배열. tone이 점(●) 색을 정한다:
-    "bullets": [             #   "good"(평균 대비 뚜렷한 고성과)=초록, "bad"(비효율/액션 필요)=빨강,
-      {"text": "문장... <strong>2.4%</strong> ...", "tone": "good"},                #   "neutral"=회색-갈색
-      {"text": "문장...", "tone": "bad"}
+  "s2": {                    # 소재 Summary — guides/creative-summary.md의 출력 형식. head는 굵게 쓰는 대상,
+    "bullets": [             #   text는 <strong>만 허용. tone이 점(●) 색: red·green·yellow·neutral(예전 good/bad도 받음)
+      {"head": "전체", "text": "광고비 <strong>₩1,276,037</strong>로 …", "tone": "neutral"},
+      {"head": "Meta / 예산_단일 이미지", "text": "…", "tone": "green"}
     ]                        # (문자열 배열/"executive_summary" 문자열도 허용 — 전부 neutral 처리)
   },
   "s3": {},                  # 키가 존재하면 series의 overall(ctr_series + roas_series|click_series)로 렌더링
@@ -93,7 +93,9 @@ import rank_creatives  # noqa: E402 — 같은 assets/의 랭킹 계산기 (rank
 WEEKDAY_KO = ["월", "화", "수", "목", "금", "토", "일"]
 PLACEHOLDER_CARD = '<div class="card"><p style="color:#94a3b8;font-size:13px;">데이터 준비 중</p></div>'
 
-DOT_COLORS = {"good": "#16a34a", "bad": "#dc2626", "neutral": "#78716c"}
+# 불릿 점 색 — 가이드(guides/creative-summary.md)의 tone. 예전 이름 good/bad도 받는다.
+DOT_COLORS = {"green": "#16a34a", "red": "#dc2626", "yellow": "#ca8a04", "neutral": "#78716c",
+              "good": "#16a34a", "bad": "#dc2626"}
 
 # 모드별 문구 (generic-report-pattern.md 7절 — 소재 보고서: 매출 있음 ROAS·CTR / 매출 없음 클릭·CTR)
 S1_A_TITLE = {True: "ROAS 최우수 소재 (최근 7일 기준)", False: "클릭 최우수 소재 (최근 7일 기준)"}
@@ -121,7 +123,7 @@ IMG_CELL = (
 BULLET_CARD = (
     '<div style="border:1px solid #e2e8f0; border-radius:8px; padding:16px 18px; display:flex; gap:10px; align-items:flex-start;">\n'
     '        <span style="color:{color}; font-size:14px; line-height:1.6;">●</span>\n'
-    '        <span style="font-size:13px; color:#374151; line-height:1.6;">{text}</span>\n'
+    '        <span style="font-size:13px; color:#374151; line-height:1.6;">{head}{text}</span>\n'
     '      </div>'
 )
 
@@ -217,19 +219,23 @@ def s1_rank_tokens(html, prefix, ranks, metric_label, kind):
 
 
 def build_bullets(s2):
-    """bullets: [{"text","tone"|"color"}] / 문자열 배열 / "executive_summary" 문자열 전부 허용."""
+    """bullets: [{"head","text","tone"|"color"}] / 문자열 배열 / "executive_summary" 문자열 전부 허용.
+    head는 굵게 쓰는 대상(전체 또는 "매체 / 소재"), text는 <strong>만 허용(가이드 출력 형식)."""
     items = s2.get("bullets")
     if items is None and s2.get("executive_summary"):
         items = [ln for ln in s2["executive_summary"].split("\n") if ln.strip()]
     cards = []
     for item in items or []:
+        head = ""
         if isinstance(item, str):
             text, color = item.strip(), DOT_COLORS["neutral"]
         else:
             text = (item.get("text") or "").strip()
             color = item.get("color") or DOT_COLORS.get(item.get("tone"), DOT_COLORS["neutral"])
+            if str(item.get("head") or "").strip():
+                head = f'<strong style="color:#1e293b;">{esc(str(item["head"]).strip())}</strong> — '
         if text:
-            cards.append(BULLET_CARD.format(color=color, text=text))
+            cards.append(BULLET_CARD.format(color=color, head=head, text=text))
     return "\n      ".join(cards)
 
 

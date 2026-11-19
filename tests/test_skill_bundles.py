@@ -40,7 +40,9 @@ for name, mod in list(sys.modules.items()):
     if f and not os.path.abspath(f).startswith(prefixes):
         assert os.path.abspath(f).startswith(skill_root + os.sep), f"{name}: 스킬 폴더 밖 {f}"
 kit = sys.modules.get("report_kit")
-for tpl in glob.glob(os.path.join(skill_root, "assets", "*.html")):
+with open(script, encoding="utf-8") as fh:
+    uses_kit = kit is not None or "report_kit" in fh.read()   # digest.py처럼 템플릿을 다루지 않는 모듈은 템플릿 검사를 하지 않는다
+for tpl in glob.glob(os.path.join(skill_root, "assets", "*.html")) if uses_kit else []:
     with open(tpl, encoding="utf-8") as fh:
         html = fh.read()
     if "__REPORT_KIT_" in html:

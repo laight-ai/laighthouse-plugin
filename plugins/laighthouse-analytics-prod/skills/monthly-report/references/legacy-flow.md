@@ -134,8 +134,9 @@ generic 도구(`get_ad_performance`)와 `get_target_progress_v2`, `list_promotio
 6. **계산**: section-1 값(`target-achievement.md`), section-3 역할별 6개월 배열(광고 매체 행 합),
    section-5 매체별 M-1/M0 역할 원본 수치(디스커버리 순서의 매체 + Organic(있을 때)). section-4(6개월 응답)와
    section-6은 계산하지 않는다 — 응답을 그대로 넘긴다.
-7. **section-2 Executive Summary 작성** — `list_promotions` 외 신규 MCP 호출 없이 다른 섹션
-   응답만 재사용해 AI가 직접 작성 (`monthly-report-section-2-executive-summary.md`의 규칙 — `bullets` 카드 4~5개).
+7. **section-2 Executive Summary 작성** — 신규 MCP 호출 없이 받은 응답만 근거로 AI가 직접 작성한다. 내용은
+   `guides/executive-summary.md`([소진]·[효율]), 입력 형식(`s2.groups`)과 digest가 없을 때의 고르는 기준은
+   `monthly-report-section-2-executive-summary.md`를 따른다.
 8. **최종 빌드**: `assets/build_report.py`에 값 JSON(`metric_keys`, `has_organic`, `currency` 포함)
    을 heredoc으로 넘겨 최종 HTML을 생성한다. 출력 경로(`out`)는
    `~/Downloads/laighthouse-reports/{브랜드명}_monthly-report_{기준_일자}.html`
@@ -185,7 +186,7 @@ generic 도구(`get_ad_performance`)와 `get_target_progress_v2`, `list_promotio
 | 순서 | 섹션 | 파일 | 빌더 키 |
 |-----|------|------|--------|
 | 1 | 목표 달성 현황 (당월) | `monthly-report-section-1-target-achievement.md` | `s1` |
-| 2 | Executive Summary (카드 4~5개) | `monthly-report-section-2-executive-summary.md` | `s2` |
+| 2 | Executive Summary ([소진]·[효율]) | `monthly-report-section-2-executive-summary.md` | `s2` |
 | 3 | 월별 광고 성과 (최근 6개월, 혼합 차트) | `monthly-report-section-3-monthly-ad-performance.md` | `s3` |
 | 4 | 매체별 성과 추이 (최근 6개월) | `monthly-report-section-4-media-trend.md` | `s4` |
 | 5 | 매체 성과 비교 (M-1 vs M0, 디스커버리된 매체 + Organic(있을 때)) | `monthly-report-section-5-channel-performance.md` | `s5` |
@@ -193,6 +194,6 @@ generic 도구(`get_ad_performance`)와 `get_target_progress_v2`, `list_promotio
 
 - section-3의 6개월 공유 응답(`group_by:["media"]`)을 section-4(그대로)·section-5(M-1/M0 두 달 행)와 section-6
   계층 표의 매체 레벨이 재사용한다. section-6의 캠페인·광고그룹 레벨은 레벨마다 따로 조회한다.
-  section-2는 `list_promotions` 1회 외에 신규 호출 없이 재사용만 한다.
+  section-2는 신규 호출 없이 재사용만 한다.
 - 섹션 데이터가 준비 안 되면 해당 `s*` 키를 빌더 입력에서 뺀다 → "데이터 준비 중" 카드로
   렌더링된다. 섹션을 임의로 생략하는 개념은 없다 — 항상 6개 전부.
