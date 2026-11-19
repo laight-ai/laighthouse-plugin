@@ -114,7 +114,7 @@ def build_month_labels(target):
     for i in range(-5, 1):
         y, m = month_shift(target.year, target.month, i)
         label = f"{y % 100}년 {m}월"
-        if i == 0:
+        if i == 0 and not kit.is_month_end(target):
             label += " (진행 중)"
         labels.append(label)
     return labels

@@ -468,7 +468,7 @@ def media_trend_from_envelopes(labels, period_keys, envelopes, metric_keys, has_
 
     keys = [str(k) for k in period_keys]
     idx = {k: i for i, k in enumerate(keys)}
-    by_media = {}
+    by_media, seen = {}, set()
     for env in envelopes:
         for row in env.get("rows") or []:
             period = str(row.get("date") or row.get("month") or "")[:len(keys[0])] if keys else ""
@@ -480,6 +480,14 @@ def media_trend_from_envelopes(labels, period_keys, envelopes, metric_keys, has_
                 v = row.get(m)
                 if isinstance(v, (int, float)):
                     slot[m][idx[period]] = v
+                    if v:
+                        seen.add(m)
+    # 기간 내내 값이 없거나 0뿐인 지표는 메뉴에서 뺀다(그릴 선이 없다) — 역할 지표는 남긴다.
+    metrics = [m for m in metrics if m in seen or m in roles]
+    for vals in by_media.values():
+        for m in list(vals):
+            if m not in metrics:
+                del vals[m]
     for vals in by_media.values():
         for m in metrics:
             if unit_of[m] != "%":
@@ -554,6 +562,12 @@ def month_keys(target, n=6):
         if m == 0:
             y, m = y - 1, 12
     return out[::-1]
+
+
+def is_month_end(d):
+    """d 가 그 달의 마지막 날이면 True — 당월이 끝난 달이라 "(진행 중)"을 붙이지 않는다."""
+    from datetime import timedelta
+    return (d + timedelta(days=1)).month != d.month
 
 
 def day_keys(first, last):
@@ -679,6 +693,7 @@ def compare_rows_html(rows, modes, currency="₩", base_key="d1", cur_key="d0"):
 
 LEVEL_DIMS = ["media", "campaign_name", "ad_group_name", "ad_name"]
 LEVEL_LABELS = ["매체", "캠페인", "광고그룹", "광고"]
+TREE_DEFAULT_COLS = 6   # 계층 표가 처음 펼쳐 보이는 지표 열 수 (나머지는 "지표 선택" 메뉴)
 UNSET_LABEL = "(미지정)"
 
 
@@ -802,8 +817,21 @@ def build_tree(envelopes, base_period, cur_period, metric_keys, has_organic=True
         return [path[-1], arr(values[path]["cur"]), arr(values[path]["base"]), [node(k) for k in kids]]
 
     roots = sorted(children.get((), []), key=sort_key)
+    # 처음에 펼쳐 보일 열: 값이 하나라도 있는 지표 중 광고비·매출·ROAS·클릭·CTR·전환·노출·CPC 순으로 TREE_DEFAULT_COLS개.
+    # 나머지는 "지표 선택" 메뉴에 남긴다 — 열이 많으면 1280px 화면에서 오른쪽이 잘린다.
+    filled = {m for b in values.values() for slot in b.values() for m, v in slot.items() if v is not None}
+    mk = metric_keys or {}
+    lower = {m.lower(): m for m in metrics}
+    prio = [mk.get("cost"), mk.get("revenue"), lower.get("roas"), mk.get("click"), lower.get("ctr"),
+            mk.get("conversion"), mk.get("impression"), lower.get("cpc")]
+    prio = [m for m in prio if m] + metrics
+    shown = []
+    for m in prio:
+        if m in filled and m not in shown and len(shown) < TREE_DEFAULT_COLS:
+            shown.append(m)
     return {"levels": LEVEL_LABELS[:depth],
-            "metrics": [{"key": m, "unit": units.get(m) or (currency if m in money_keys else None)}
+            "metrics": [{"key": m, "unit": units.get(m) or (currency if m in money_keys else None),
+                         "show": m in shown}
                         for m in metrics],
             "cost": cost_key, "base": base_period, "cur": cur_period,
             "nodes": [node(p) for p in roots]}

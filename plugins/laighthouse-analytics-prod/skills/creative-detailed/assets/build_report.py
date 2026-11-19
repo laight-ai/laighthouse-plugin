@@ -119,7 +119,6 @@ S1_IMG_TMPL = (
 )
 
 # section-5 셀 템플릿 — 식별열은 안 잘림 원칙(고정폭+break-word), 지표열은 nowrap
-S5_TD_ID = '<td style="border:1px solid #e2e8f0; padding:10px 14px; text-align:center; white-space:nowrap;">{}</td>'
 S5_TD_TEXT = ('<td style="border:1px solid #e2e8f0; padding:10px 14px; text-align:left; white-space:normal; '
               'overflow-wrap:break-word; line-height:1.4;">{}</td>')
 S5_TD_NUM = '<td style="border:1px solid #e2e8f0; padding:12px 14px; text-align:center; white-space:nowrap;">{}</td>'
@@ -128,8 +127,9 @@ S5_TH = ('<th style="border:1px solid #e2e8f0; padding:12px 14px; text-align:cen
          'white-space:nowrap; width:{width}px;">{label}</th>')
 S5_TH_TEXT = ('<th style="border:1px solid #e2e8f0; padding:12px 14px; text-align:center; background:#f8fafc; '
               'width:{width}px;">{label}</th>')
-S5_ID_HEADERS = [("매체", 90, S5_TH), ("캠페인", 200, S5_TH_TEXT), ("광고그룹", 180, S5_TH_TEXT), ("광고", 200, S5_TH_TEXT)]
-S5_METRIC_WIDTH = 115
+# 매체는 보고서 제목에 있는 한 매체뿐이라 열로 두지 않는다. 960px 카드에서 광고비·매출·ROAS가 첫 화면에 보이도록 폭을 줄인다.
+S5_ID_HEADERS = [("캠페인", 160, S5_TH_TEXT), ("광고그룹", 130, S5_TH_TEXT), ("광고", 200, S5_TH_TEXT)]
+S5_METRIC_WIDTH = 100
 
 
 def esc(v):
@@ -208,33 +208,33 @@ def s5_columns(modes):
 
 
 def _s5_spec(modes, currency):
-    """[(라벨, 행 → 셀 문자열)] — 매출 있음: 노출·클릭·CTR·광고비·매출·(전환·CPA)·ROAS,
-    매출 없음: 노출·클릭·CTR·광고비·CPC·(전환·CPA)."""
+    """[(라벨, 행 → 셀 문자열)] — 매출 있음: 광고비·매출·ROAS·노출·클릭·CTR·(전환·CPA),
+    매출 없음: 광고비·CPC·노출·클릭·CTR·(전환·CPA). 광고비·성과 열을 앞에 둬 좁은 화면에서도 먼저 보이게 한다."""
     money = lambda v: kit.fmt_money(v, currency)  # noqa: E731
     conv_label = modes.label("conversion") if modes.has_conversion else None
 
     def ctr(r):
         return kit.fmt_pct(r["click"] / r["impression"] * 100, 2) if r["impression"] > 0 else "N/A"
 
-    spec = [
+    spec = [(modes.label("cost"), lambda r: money(r["cost"]))]
+    if modes.has_revenue:
+        spec += [
+            (modes.label("revenue"), lambda r: money(r["revenue"]) if r["revenue"] is not None else "-"),
+            ("ROAS", lambda r: kit.fmt_pct(r["revenue"] / r["cost"] * 100)
+             if (r["revenue"] is not None and r["cost"] > 0) else "-"),
+        ]
+    else:
+        spec.append(("CPC", lambda r: money(r["cost"] / r["click"]) if r["click"] > 0 else "-"))
+    spec += [
         (modes.label("impression"), lambda r: kit.fmt_count(r["impression"])),
         (modes.label("click"), lambda r: kit.fmt_count(r["click"])),
         ("CTR", ctr),
-        (modes.label("cost"), lambda r: money(r["cost"])),
     ]
-    if modes.has_revenue:
-        spec.append((modes.label("revenue"),
-                     lambda r: money(r["revenue"]) if r["revenue"] is not None else "-"))
-    else:
-        spec.append(("CPC", lambda r: money(r["cost"] / r["click"]) if r["click"] > 0 else "-"))
     if conv_label:
         spec += [
             (conv_label, lambda r: kit.fmt_count(r["conversion"]) if r["conversion"] is not None else "-"),
             (f"{conv_label} CPA", lambda r: money(r["cost"] / r["conversion"]) if r["conversion"] else "-"),
         ]
-    if modes.has_revenue:
-        spec.append(("ROAS", lambda r: kit.fmt_pct(r["revenue"] / r["cost"] * 100)
-                     if (r["revenue"] is not None and r["cost"] > 0) else "-"))
     return spec
 
 
@@ -258,7 +258,6 @@ def build_s5_rows(rows, modes, currency):
             "conversion": r.get("conversion"),  # None = 값 없음
         }
         cells = [
-            S5_TD_ID.format(esc(r.get("media", ""))),
             S5_TD_TEXT.format(esc(r.get("campaign", ""))),
             S5_TD_TEXT.format(esc(r.get("asset_group", ""))),
             S5_TD_TEXT.format(esc(r.get("ad_name", ""))),

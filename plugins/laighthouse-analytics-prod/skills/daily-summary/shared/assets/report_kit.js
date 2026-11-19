@@ -247,7 +247,7 @@
     const costIdx = Math.max(0, M.findIndex(m => m.key === data.cost));
     const state = {
       sortIdx: costIdx, sortDir: -1, query: '',
-      visible: new Set(M.map((_, i) => i)),
+      visible: new Set(M.map((_, i) => i).filter(i => M[i].show !== false)),
       open: new Set(), shown: {},
     };
 
@@ -259,7 +259,7 @@
           <button type="button" class="lh-tree-colbtn">지표 선택 (<span class="lh-cnt"></span>/${M.length})</button>
           <div class="lh-tree-colmenu" hidden>
             <div class="lh-tree-colacts"><button type="button" data-act="all">전체 선택</button><button type="button" data-act="none">전체 해제</button></div>
-            ${M.map((m, i) => `<label><input type="checkbox" data-i="${i}" checked> ${esc(m.key)}</label>`).join('')}
+            ${M.map((m, i) => `<label><input type="checkbox" data-i="${i}"${state.visible.has(i) ? " checked" : ""}> ${esc(m.key)}</label>`).join('')}
           </div>
         </div>
         <div class="lh-tree-acts"><button type="button" data-act="collapse">모두 접기</button></div>
