@@ -152,7 +152,8 @@ class CurrentRunOnlyTest(PrepareRun):
         self.save_round_b(age_secs=0)
         out = self.run_prepare("daily-report")
         self.assertEqual(out["missing"], [])
-        self.assertIn("campaigns_top_by_cost", out["facts"])
+        # 이번 실행의 라운드 B 값(캠페인 C, 기준일 광고비 50)이 쓰였다
+        self.assertEqual([(c["campaign"], c["cur"]["cost"]) for c in out["facts"]["campaigns_top_by_cost"]], [("C", 50)])
 
 
 class MonthlyPeriodTest(PrepareRun):
@@ -267,6 +268,29 @@ class CreativeOverallSourceTest(PrepareRun):
         self.save_round_c_error(["A", "B"])
         out = self.run_prepare("creative-report", "--media", "M")
         self.assertEqual(self.top5_ctr(out), {"A": [50.0] * 7, "B": [30.0] * 7})
+        self.assertEqual(out["missing"], [])
+        self.assertEqual(out["errors"], [])   # 채워졌으니 "데이터 준비 중"으로 알리지 않는다
+
+    def test_retry_after_round_c_error_leaves_no_error(self):
+        # 에러 뒤 같은 소재로 다시 보내 성공했다 → 앞선 에러는 남기지 않는다
+        self.save_a_and_b()
+        self.save_round_c_error(["A", "B"])
+        self.save_round_c(["A", "B"], {"A": {"광고비": 10, "노출": 100, "클릭": 50, "매출": 20},
+                                       "B": {"광고비": 10, "노출": 100, "클릭": 30, "매출": 20}})
+        out = self.run_prepare("creative-report", "--media", "M")
+        self.assertEqual(out["errors"], [])
+        self.assertEqual(self.top5_ctr(out), {"A": [50.0] * 7, "B": [30.0] * 7})
+
+    def test_partial_round_c_error_does_not_draw_failed_creative_as_zero(self):
+        # A는 받았고 B 호출은 에러 → B를 0으로 그리지 않도록 상위 소재 차트를 빼고 B 에러만 알린다
+        self.save_a_and_b()
+        self.save_round_c(["A"], {"A": {"광고비": 10, "노출": 100, "클릭": 50, "매출": 20}})
+        self.save_round_c_error(["B"])
+        out = self.run_prepare("creative-report", "--media", "M")
+        self.assertEqual(out["missing"], [])
+        self.assertEqual(len(out["errors"]), 1)
+        self.assertEqual(out["errors"][0]["call"]["filters"]["ad_name"], ["B"])
+        self.assertNotIn("top5", out["facts"])
 
     def test_overlapping_round_c_uses_newest_rows_once(self):
         # A가 두 응답에 다 있다 — 더하지 않고 가장 최근 응답(CTR 20%)만 쓴다

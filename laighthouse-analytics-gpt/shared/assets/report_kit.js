@@ -1,9 +1,8 @@
 /* 보고서 공용 킷 JS — report_kit.py 가 만든 스펙을 그린다. 빌더가 템플릿에 인라인한다.
- * window.LHKit에 이 파일이 더하는 것: configure, fmt, mixedChart, trendChart(=stackChart), promoBrackets, treeTable
- * (report_table.js 등 다른 부품도 같은 객체에 더한다)
+ * window.LHKit에 더하는 것: configure, fmt, mixedChart, trendChart(=stackChart), promoBrackets, treeTable
  */
 (function () {
-  const K = window.LHKit = window.LHKit || {};   // report_table.js 등 다른 부품과 순서 상관없이 합친다
+  const K = window.LHKit = window.LHKit || {};
   let CURRENCY = '₩';
   const ZERO_DEC = ['₩', '¥', '원', 'KRW', 'JPY'];
   const SUFFIX = ['원', 'KRW', 'USD', 'JPY', 'EUR'];

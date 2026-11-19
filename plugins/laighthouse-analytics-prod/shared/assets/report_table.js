@@ -1,5 +1,5 @@
 /* 보고서 표 부품 JS — 검색 + 페이지 나누기 표. 빌더가 템플릿에 인라인한다(report_kit.inline_assets).
- * 전역: window.LHKit.pagedTable (report_kit.js와 함께 써도 되고 따로 써도 된다)
+ * window.LHKit에 더하는 것: pagedTable
  */
 (function () {
   const K = window.LHKit = window.LHKit || {};
