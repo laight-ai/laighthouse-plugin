@@ -7,7 +7,7 @@ description: >
   추이, 광고비 상위 5개 소재의 일별 CTR·ROAS, 소재 단위 누적 성과 표(매출 지표가 없는 브랜드는 클릭·CTR·CPC 기준).
   사용자가 말한 브랜드의 매체·지표를 응답에서 알아내고, 소재 데이터가 있는 매체 하나를 골라 분석한다.
 metadata:
-  version: "4.0.0"
+  version: "4.0.1"
 ---
 
 > ⚡ thinking은 짧게. MCP 라운드 A → `prepare.py` → 라운드 B·C → `prepare.py` → 썸네일 조회 → 문장 작성 + `build_report.py` → 게시, 이 순서로만 진행한다.

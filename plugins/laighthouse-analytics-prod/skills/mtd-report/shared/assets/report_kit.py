@@ -14,7 +14,7 @@
 - `media_trend_spec`      — 매체별 추이 라인 스펙 (지표 선택·매체 켜기/끄기, Organic은 있을 때만)
 - `compare_thead_html`/`compare_rows_html` — 매체 성과 비교 표(기준 기간 vs 비교 기간) <thead>/<tbody>
 - `build_tree`            — 매체→캠페인→광고그룹→광고 계층 표 데이터 (ELT 봉투 → 트리 JSON)
-- `inline_assets`         — 템플릿의 __REPORT_KIT_JS__ / __REPORT_KIT_CSS__ 치환
+- `inline_assets`         — 템플릿의 __REPORT_KIT_JS__ / __REPORT_KIT_CSS__ / __REPORT_TABLE_JS__ 치환
 """
 import json
 import os
@@ -826,11 +826,7 @@ def build_tree(envelopes, base_period, cur_period, metric_keys, has_organic=True
     lower = {m.lower(): m for m in metrics}
     prio = [mk.get("cost"), mk.get("revenue"), lower.get("roas"), mk.get("click"), lower.get("ctr"),
             mk.get("conversion"), mk.get("impression"), lower.get("cpc")]
-    prio = [m for m in prio if m] + metrics
-    shown = []
-    for m in prio:
-        if m in filled and m not in shown and len(shown) < TREE_DEFAULT_COLS:
-            shown.append(m)
+    shown = [m for m in dict.fromkeys([m for m in prio if m] + metrics) if m in filled][:TREE_DEFAULT_COLS]
     return {"levels": LEVEL_LABELS[:depth],
             "metrics": [{"key": m, "unit": units.get(m) or (currency if m in money_keys else None),
                          "show": m in shown}
@@ -885,8 +881,9 @@ def js_json(value):
 
 
 def inline_assets(html):
-    """템플릿의 __REPORT_KIT_CSS__ / __REPORT_KIT_JS__ 를 킷 파일 내용으로 치환."""
-    for token, name in (("__REPORT_KIT_CSS__", "report_kit.css"), ("__REPORT_KIT_JS__", "report_kit.js")):
+    """템플릿의 __REPORT_KIT_CSS__ / __REPORT_KIT_JS__ / __REPORT_TABLE_JS__ 를 킷 파일 내용으로 치환."""
+    for token, name in (("__REPORT_KIT_CSS__", "report_kit.css"), ("__REPORT_KIT_JS__", "report_kit.js"),
+                        ("__REPORT_TABLE_JS__", "report_table.js")):
         if token in html:
             with open(os.path.join(KIT_DIR, name), encoding="utf-8") as f:
                 html = html.replace(token, f.read())

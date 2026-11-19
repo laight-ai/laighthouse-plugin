@@ -123,8 +123,8 @@ naver 전용 계열, v1 target_progress, 리포트 공유 계열)은 **서버에
 - ⚠️ **`actual` 열은 쓰지 않는다** — `media: all`에서 목표는 목표가 저장된 매체만 합산되지만
   실적은 마트 전체라 범위가 다르다. 실적(소진액·매출)은 항상 `get_ad_performance`의 광고 매체
   행 합에서 가져온다.
-- 호출 정책: 합계 카드는 **전체 매체 1회**. 매체별 목표 표가 있는 스킬(`mtd-detailed`
-  section-6)만 `media_list`의 값마다 1회씩 추가 호출한다(`generic-report-pattern.md` 5절).
+- 호출 정책: 합계 카드는 **전체 매체 1회**. 매체별 목표 표가 있는 스킬(`mtd-report`
+  section-7)만 `media_list`의 값마다 1회씩 추가 호출한다(`generic-report-pattern.md` 5절).
 - ⚠️ 운영 서버에 PR #280이 배포되기 전에는 `media`가 enum(naver/google/meta/tiktok)이라
   `null` 호출이 스키마 에러를 낸다 — 이 경우도 **목표 없음**으로 처리하고 보고서를 계속 만든다.
 

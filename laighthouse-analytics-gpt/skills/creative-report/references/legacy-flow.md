@@ -197,7 +197,7 @@ MCP 데이터를 받아 **라이트하우스 스타일 소재 보고서**(HTML)�
 4. ⏱ **필수 체크포인트 — 스켈레톤 선(先) 게시.** 3단계 응답 수신 즉시
    `python3 assets/build_report.py`를 `{"skeleton": true, ...}`로 1회 호출해 전 섹션 "데이터
    준비 중" 골격을 만들고 게시한다(아래 9단계와 같은 출력 경로/Artifact — 이후 재게시로 교체).
-5. **랭킹 (`assets/rank_creatives.py`, 1회)**: 3단계 응답과 `metric_keys`, `chosen_media`, `"s5": true`를
+5. **랭킹 (`assets/rank_creatives.py`, 1회)**: 3단계 응답과 `metric_keys`, `chosen_media`, `"table": true`를
    넘겨 `/tmp/creative_rank.json`에 저장한다(호출 형식은 section-1 파일). stdout 요약의 `lookups`(최대 4개)마다
    `get_ad_creative_info`를 **`source` 없이** `{"brand_name": "<brand>", "name_query": "<lookups[i].ad_name>"}`로
    호출하고, section-1 파일의 **썸네일 매칭 규칙**으로 고른 `image_url`을 `thumbnails`로 빌더에 넘긴다(에러/불일치는 `null`).

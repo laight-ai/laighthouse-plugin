@@ -41,7 +41,7 @@ RANGE_REPORT = tuple("assets/external_context/" + f for f in (
 EXTERNAL_REFS = ("references/mcp-tools.md",)
 
 BUNDLES = {
-    "creative-report": KIT + REPORT_REFS,
+    "creative-report": KIT + ("assets/report_table.js",) + REPORT_REFS,   # 소재 표는 표 부품 JS만 인라인한다
     "daily-report": KIT + KIT_INLINE + REPORT_REFS + TARGET_REFS,
     "monthly-report": KIT + KIT_INLINE + REPORT_REFS + TARGET_REFS,
     "mtd-report": KIT + KIT_INLINE + REPORT_REFS + TARGET_REFS,

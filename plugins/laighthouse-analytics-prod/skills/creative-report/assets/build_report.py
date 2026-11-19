@@ -46,7 +46,7 @@
   "s3": {},                  # 키가 존재하면 series의 overall(ctr_series + roas_series|click_series)로 렌더링
   "s4": {},                  # rank_file의 top5_names 사용 (직접 줄 때: {"names": [...]}) — top5.ctr_series
   "s5": {},                  # names는 s4와 공유, top5.roas_series(매출 없음: top5.click_series) 사용
-  "s6": {}                   # 소재 단위 누적 성과 표 — 빈 객체면 rank_file의 s5_rows(rank_creatives "s5": true 출력)를 쓴다.
+  "s6": {}                   # 소재 단위 누적 성과 표 — 빈 객체면 rank_file의 table_rows(rank_creatives "table": true 출력)를 쓴다.
                              # 직접 줄 때: {"rows": [{media, campaign, asset_group, ad_name, impression, click, cost,
                              #             revenue(매출 있음만, 없으면 null), conversion(있을 때만)}]} 또는 {"rows_file": "<경로>"}
                              # (s3/s4/s5에 개별 "series_file"/"series"를 넣으면 그 섹션만 그걸 쓴다)
@@ -428,11 +428,11 @@ def main():
     html = html.replace("__S4_CTR_SERIES_JSON__", kit.js_json(s4_series))
     html = html.replace("__S5_JSON__", kit.js_json({"unit": second_unit, "series": s5_series}))
 
-    # ── section 6: 소재 단위 누적 성과 표 (rank_file의 s5_rows 또는 직접 넘긴 rows/rows_file)
+    # ── section 6: 소재 단위 누적 성과 표 (rank_file의 table_rows 또는 직접 넘긴 rows/rows_file)
     s6 = section_data("s6")
     rows = load_rows(s6)
-    if rows is None and s6 is not None and rank and "s5_rows" in rank:
-        rows = rank["s5_rows"]
+    if rows is None and s6 is not None and rank and "table_rows" in rank:
+        rows = rank["table_rows"]
     t_modes = modes if payload.get("metric_keys") else kit.Modes({"revenue": "매출"} if has_revenue else {})
     if rows:
         status["s6"] = "ok"
@@ -457,6 +457,8 @@ def main():
     ] if t in html]
     if leftovers:
         raise SystemExit(f"치환 누락: {leftovers}")
+
+    html = kit.inline_assets(html)   # 표 부품 JS(LHKit.pagedTable)
 
     # ── chart.js 인라인 (마지막 — 내용이 커서 치환 검증 후에 붙인다)
     with open(CHART_JS, encoding="utf-8") as f:
