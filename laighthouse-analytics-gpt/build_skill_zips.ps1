@@ -22,7 +22,7 @@
 
 .EXAMPLE
     .\build_skill_zips.ps1
-    .\build_skill_zips.ps1 -Skill daily-detailed
+    .\build_skill_zips.ps1 -Skill daily-report
 #>
 [CmdletBinding()]
 param(

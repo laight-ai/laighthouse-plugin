@@ -1,6 +1,6 @@
 # 매체별 성과 추이 (공용 규칙)
 
-daily-summary·mtd-summary·monthly-summary·mtd-detailed의 "매체별 성과 추이" 섹션이 공유하는 규칙이다.
+daily-report·mtd-report·monthly-report의 "매체별 성과 추이" 섹션이 공유하는 규칙이다.
 스킬별 섹션 파일은 **기간**과 **재사용할 응답**만 정하고 나머지는 이 파일을 따른다.
 
 ## 무엇을 보여주나

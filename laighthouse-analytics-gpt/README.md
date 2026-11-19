@@ -8,7 +8,7 @@
 
 | 배포 형태 | 대상 | 스킬 | MCP | 훅 |
 |---|---|---|---|---|
-| **플러그인** (`.codex-plugin/plugin.json` + `.mcp.json` + `hooks/` + `skills/`) | ChatGPT 데스크톱 Work 모드, Codex CLI, ChatGPT 안의 Codex — 로컬 마켓플레이스로 설치 | 8개 일괄 | 플러그인에 포함 | PostToolUse 캡처 훅 동작 |
+| **플러그인** (`.codex-plugin/plugin.json` + `.mcp.json` + `hooks/` + `skills/`) | ChatGPT 데스크톱 Work 모드, Codex CLI, ChatGPT 안의 Codex — 로컬 마켓플레이스로 설치 | 4개 일괄 | 플러그인에 포함 | PostToolUse 캡처 훅 동작 |
 | **스킬 zip** (`build_skill_zips.ps1` 산출물) | chatgpt.com 웹 일반 Chat — 개인/워크스페이스 스킬로 업로드 | 하나씩 업로드 | ChatGPT 설정에서 커넥터로 별도 연결 | 없음 (사전 예방 규칙으로 대체) |
 
 스킬 본문은 두 형태에서 **같은 파일**을 쓰며, 대용량 응답 처리만 실행 시점에 "훅 스텁이 왔는지"로
@@ -62,36 +62,28 @@ laighthouse-plugin/
     │   │   └── gpt-large-response-guardrail.md   # 훅 스텁 / 원본 분기 규칙
     │   └── assets/                    # 공용 렌더링 킷 report_kit.py/.js/.css — 빌더가 <스킬>/shared/assets 에서 찾음
     └── skills/
-        ├── daily-detailed/        # 데일리 보고서(HTML, 실무 상세)
+        ├── daily-report/          # 데일리 보고서(HTML — 요약 섹션 + 계층 표)
         │   ├── SKILL.md
         │   ├── agents/openai.yaml
         │   ├── assets/
-        │   └── daily-detailed-section-*.md
-        ├── daily-summary/         # Executive 데일리 보고서(HTML, 임원용 요약)
-        ├── mtd-detailed/          # MTD 보고서(HTML, 실무 상세)
-        ├── mtd-summary/           # Executive MTD 보고서(HTML, 임원용 요약)
-        ├── monthly-detailed/      # 월간 보고서(HTML, 실무 상세)
-        ├── monthly-summary/       # Executive 월간 보고서(HTML, 임원용 요약)
-        ├── creative-detailed/     # 소재 보고서(HTML, 실무 상세)
-        └── creative-summary/      # Executive 소재 보고서(HTML, 임원용 요약)
+        │   └── references/daily-report-section-*.md
+        ├── mtd-report/            # MTD 보고서(HTML — 요약 섹션 + 캠페인 분석·예산·계층 표)
+        ├── monthly-report/        # 월간 보고서(HTML — 요약 섹션 + 계층 표)
+        └── creative-report/       # 소재 보고서(HTML — 상위 소재 추이 + 소재 누적 표)
 ```
 
 ## 포함된 스킬
 
 | 스킬 | 설명 |
 |------|------|
-| `daily-detailed` | 브리즘 데일리 보고서(HTML, 실무 상세) 렌더링 |
-| `daily-summary` | 브리즘 Executive 데일리 보고서(HTML, 임원용 핵심 요약) 렌더링 |
-| `mtd-detailed` | 브리즘 MTD 보고서(HTML, 실무 상세) 렌더링 |
-| `mtd-summary` | 브리즘 Executive MTD 보고서(HTML, 임원용 핵심 요약) 렌더링 |
-| `monthly-detailed` | 브리즘 월간 보고서(HTML, 실무 상세) 렌더링 |
-| `monthly-summary` | 브리즘 Executive 월간 보고서(HTML, 임원용 핵심 요약) 렌더링 |
-| `creative-detailed` | 브리즘 소재 보고서(HTML, 실무 상세) 렌더링 |
-| `creative-summary` | 브리즘 Executive 소재 보고서(HTML, 임원용 핵심 요약) 렌더링 |
+| `daily-report` | 데일리 보고서(HTML) 렌더링 — 임원용·실무용 구분 없이 하나(요약 섹션 + 계층 표) |
+| `mtd-report` | MTD 보고서(HTML) 렌더링 — 요약 섹션 + 캠페인 분석·매체별 예산·계층 표 |
+| `monthly-report` | 월간 보고서(HTML) 렌더링 — 요약 섹션 + 계층 표 |
+| `creative-report` | 소재 보고서(HTML) 렌더링 — 최우수 소재·상위 소재 추이·소재 누적 표 |
 
 ## 설치 A — 플러그인 (ChatGPT 데스크톱 Work 모드 / Codex)
 
-스킬 8개 + MCP 서버 + 캡처 훅이 한 번에 설치됩니다. OpenAI 심사 없이 로컬 마켓플레이스로 배포하는
+스킬 4개 + MCP 서버 + 캡처 훅이 한 번에 설치됩니다. OpenAI 심사 없이 로컬 마켓플레이스로 배포하는
 경로이며, **ChatGPT 데스크톱 앱 또는 Codex에서만** 됩니다(웹 chatgpt.com은 설치 B 참고).
 
 1. 이 레포를 클론합니다. 레포 루트의 `.agents/plugins/marketplace.json`이 이 폴더를 플러그인으로
@@ -131,11 +123,11 @@ ChatGPT Skills는 Business/Enterprise/Healthcare/Edu 요금제에서(워크스�
 참조하는 `shared/references/...`가 전부 깨집니다. 반드시 빌드 스크립트를 거치세요.
 
 ```powershell
-.\build_skill_zips.ps1                      # 8개 전부
-.\build_skill_zips.ps1 -Skill daily-detailed # 하나만
+.\build_skill_zips.ps1                      # 4개 전부
+.\build_skill_zips.ps1 -Skill daily-report # 하나만
 ```
 
-`~/Downloads/laighthouse-gpt-skills/<skill-name>.zip` 8개가 생성됩니다. 스크립트는 스킬
+`~/Downloads/laighthouse-gpt-skills/<skill-name>.zip` 4개가 생성됩니다. 스크립트는 스킬
 폴더에 `shared/references/*`를 **같은 경로 그대로** 주입한 뒤, 만들어진 zip을 다시 열어
 OpenAI Skills 규격(단일 최상위 폴더 / `SKILL.md` 1개 / 50MB·500파일·단일 25MB 한도)과
 본문의 `shared/references` 참조가 번들 안에서 실제로 해석되는지까지 검증합니다.
@@ -146,7 +138,7 @@ OpenAI Skills 규격(단일 최상위 폴더 / `SKILL.md` 1개 / 50MB·500파일
 ### 2. 업로드
 
 Sidebar → Plugins → Skills → Create → Upload from your computer에서 zip을 **하나씩**
-올립니다. zip 하나에 `SKILL.md`가 정확히 하나여야 해서 8개를 한 번에 묶을 수 없습니다.
+올립니다. zip 하나에 `SKILL.md`가 정확히 하나여야 해서 4개를 한 번에 묶을 수 없습니다.
 
 MCP 도구(`get_ad_performance` 등)는 ChatGPT 설정에서 `laighthouse` MCP 서버를 커넥터로
 먼저 연결해야 스킬이 호출할 수 있습니다.

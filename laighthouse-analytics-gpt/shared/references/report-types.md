@@ -10,14 +10,13 @@
 
 | report_type | 스킬 | 대상 | 섹션 수 |
 |---|---|---|---|
-| `daily` (실무 상세) | `daily-detailed` | 일자별 성과, 매체→광고 계층 표로 D-1 vs D-0 비교 | 4 |
-| `daily` (임원 요약) | `daily-summary` | 매체 단위 D-1 vs D-0 | 5 |
-| `mtd` (실무 상세) | `mtd-detailed` | 월초~기준일 누적, 계층 표로 전월 동기 비교 | 7 |
-| `mtd` (임원 요약) | `mtd-summary` | 월초~기준일 누적, 전월 동기 비교 | 5 |
-| `monthly` (실무 상세) | `monthly-detailed` | 월 단위, 계층 표로 M-1 vs M0 | 5 |
-| `monthly` (임원 요약) | `monthly-summary` | 월 단위, M-1 vs M0 + 분기 비교 | 5 |
-| `creative` (실무 상세) | `creative-detailed` | 소재 단위(디스커버리로 선택한 매체 1개), 최근 7일 | 5 |
-| `creative` (임원 요약) | `creative-summary` | 소재 단위(디스커버리로 선택한 매체 1개), 최근 7일 | 5 |
+| `daily` | `daily-report` | 일자별 성과 — 최근 7일 추이, 매체 비교·매체→광고 계층 표로 D-1 vs D-0 | 6 |
+| `mtd` | `mtd-report` | 월초~기준일 누적 — 전월 동기 비교, 캠페인 분석, 매체별 예산, 계층 표 | 8 |
+| `monthly` | `monthly-report` | 월 단위 — 6개월 추이, M-1 vs M0 매체 비교·계층 표 | 6 |
+| `creative` | `creative-report` | 소재 단위(디스커버리로 선택한 매체 1개), 최근 7일 — 상위 소재 추이·소재 누적 표 | 6 |
+
+- 임원용(요약)·실무용(상세)을 따로 두지 않는다(4.0.0에서 8개 스킬을 4개로 합쳤다). 요약은 앞 섹션
+  (목표·Executive Summary·추이·매체 비교)이, 상세는 뒤의 계층 표가 맡는다.
 
 - 섹션 구성·MCP 호출 명세는 각 스킬 폴더의 `SKILL.md`와 섹션 파일이 단일 소스다.
 - MCP 도구 인벤토리와 응답 형식은 `shared/references/mcp-tools.md` 참고 — 서버 개편(ELT
