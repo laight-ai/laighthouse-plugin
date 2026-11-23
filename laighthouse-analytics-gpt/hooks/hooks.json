@@ -24,13 +24,13 @@
         ]
       },
       {
-        "matcher": ".*(get_ad_performance|get_target_progress_v2|list_promotions)$",
+        "matcher": ".*(get_ad_performance|get_external_context)$",
         "hooks": [
           {
             "type": "command",
             "command": "python3 \"${PLUGIN_ROOT}/hooks/save_responses.py\"",
             "timeout": 30,
-            "statusMessage": "보고서용 응답 원본 저장 중"
+            "statusMessage": "응답 원본 저장 중"
           }
         ]
       }

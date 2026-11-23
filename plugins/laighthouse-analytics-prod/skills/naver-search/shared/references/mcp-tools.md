@@ -1,10 +1,7 @@
 # MCP 도구 라우팅 규칙 (laighthouse 서버 — 전 스킬 공용)
 
-`laighthouse` MCP 서버가 제공하는 도구 인벤토리와 사용 규칙의 단일 소스(single source of
-truth)다. 서버가 ELT 기반으로 개편되면서(2026-08) 도구 수가 대폭 줄었다 — **스킬이 쓰는 도구는 아래 5개가
-전부다**(서버에는 헬스체크용 `ping`이 추가로 등록되어 있으나 스킬은 쓰지 않는다). 여기 없는 도구 이름(예전의 daily/range/monthly 표 도구 3종, SKU 매출 계열,
-naver 전용 계열, v1 target_progress, 리포트 공유 계열)은 **서버에서 제거되어 더 이상
-존재하지 않는다** — 호출하면 unknown tool 에러다.
+`laighthouse` MCP 서버 도구 중 이 플러그인 스킬이 쓰는 것의 규칙이다. 외부 요인 스킬은 `get_external_context`(규칙은 각 스킬
+SKILL.md와 `shared/assets/external_context/`)와, 날씨 스킬만 `get_ad_performance`를 함께 쓴다. 브랜드 이름이 거절되면 `get_brand_list`를 쓴다.
 예외로 `nextmonth-budget-planning` 스킬은 미디어믹스 도구 셋(`list_media_mix_metrics`·`create_media_mix_job`·`list_media_mix_jobs`·`get_media_mix_job`. `list_media_mix_jobs` 는 조직에 따라 도구 목록에 없을 수 있다)을 쓴다 —
 규칙은 그 스킬의 SKILL.md에 있다.
 
@@ -74,67 +71,9 @@ naver 전용 계열, v1 target_progress, 리포트 공유 계열)은 **서버에
     브랜드에 `media` 차원이 없어 호출이 실패하면 `group_by:["source"]`로 폴백해 `source`
     값을 매체 목록으로 쓴다. 표시명은 응답 값 그대로(접미사·번역 없음).
 
-## 2. `get_ad_creative_info` — 소재 메타데이터/이미지
+## 2. `get_brand_list` — 브랜드 목록 (불변)
 
-```json
-{ "brand_name": "<brand>", "name_query": "<ad_name 값>" }
-```
-
-- ⚠️ `source`는 ELT 쪽에서 **닫힌 목록**이다(`google_ads`/`kakao_keyword_ad`/`kakao_moment`/
-  `meta_ads`/`naver_search_ads`/`tiktok_ads` — 그 밖의 값은 400 에러). 마트의 `source` 차원 값
-  (예: `naver_gfa_display`, 테넌트명)과도 일치하지 않으므로 **스킬은 `source`를 넣지 않는다**.
-  `name_query`(서버에서 대소문자 무시 부분 일치)에 소재명을 넣고, 응답 `items[]` 중 `ad_name`이
-  정확히 일치하는(항목에 `adgroup_name`/`campaign_name`이 있으면 그것도 일치하는) 항목의
-  `image_url`을 쓴다. 에러·빈 결과·불일치는 썸네일 없음(null)으로 처리한다. `limit`은 일치 항목을
-  잘라낼 수 있어 쓰지 않는다.
-- 응답은 JSON: `{"source": "elt", "items": [...]}` — 각 항목은 광고 메타데이터 행이며 서버
-  계산 `image_url`을 포함한다. ⚠️ **이미지 URL은 IP 화이트리스트 뒤에 있다** — 허용되지 않은
-  네트워크에서는 이미지가 보이지 않을 수 있다(오류 아님).
-- 예전 시그니처(`meta: [{account_id, creative_id}]` 배열,
-  `thumbnail_image_url`/`thumbnail_image_data_url` 필드)는 폐기됐다.
-
-## 3. `get_target_progress_v2` — 월 목표 대비 진행 (report-backend PR #280 계약)
-
-```json
-{ "brand_name": "<brand>", "month": "YYYY-MM", "media": null, "as_of_date": "YYYY-MM-DD",
-  "cost_metric": "<광고비 키>", "revenue_metric": "<매출 키>" }
-```
-
-- `cost_metric`/`revenue_metric`(선택): 실적을 읽을 마트 지표 이름. `get_ad_performance` 응답에서 고른
-  광고비·매출 지표 키를 넘긴다(매출 지표가 없으면 `revenue_metric` 생략). 생략하면
-  서버가 내장 후보(`광고비`/`cost`, `매출_AB`/`revenue`/`매출`)로 찾는다. 마트에 없는 이름을 주면
-  유효한 목록을 담은 ValueError. 매출 지표가 없으면 표는 그대로 오고 매출·ROAS 실적만 `-`다.
-  구버전 서버가 이 인자를 거절하면 두 인자를 빼고 1회 재호출한다.
-
-- `media`: **생략/`null`/`""`/`"all"` → 전체 매체**(목표 합산 + 브랜드 전체 실적, 헤더
-  `media: all`). 이름을 주면 대소문자 무시 + 한국어 별칭(양방향)으로 그 달 마트가 서빙한 매체와
-  매칭한다 — `get_ad_performance` 응답의 `media` 값을 **그대로** 넣으면 된다(`.lower()` 불필요).
-  예전의 naver/google/meta/tiktok 네 값 제한은 없어졌다.
-- **이 도구만 여전히 markdown 표를 반환한다** — 행(cost/revenue/roas) × 열(target|actual|
-  progress_ratio). 표 대신 **한 줄 평문**이 오는 두 경우는 오류가 아니라 "목표 없음"이다:
-  - `No {media} budget/target available for {month}.` (전체 매체면 `No all budget/...`)
-  - 마트 전제 미충족(광고비 지표 없음, `media` 차원 없음) 안내 한 줄
-- 매칭되는 매체가 없으면 0 표(target 0)가 온다 → 역시 목표 없음.
-- ⚠️ ROAS류 수치는 비율값(예: 0.87, 5.06)이므로 ×100 후 표시한다 (0.87 → 87%).
-- ⚠️ **`actual` 열은 쓰지 않는다** — `media: all`에서 목표는 목표가 저장된 매체만 합산되지만
-  실적은 마트 전체라 범위가 다르다. 실적(소진액·매출)은 항상 `get_ad_performance`의 광고 매체
-  행 합에서 가져온다.
-- 호출 정책: 전체 목표는 **전체 매체 1회**, 매체별 목표가 필요할 때만 매체마다 1회씩 추가 호출한다.
-- ⚠️ 운영 서버에 PR #280이 배포되기 전에는 `media`가 enum(naver/google/meta/tiktok)이라
-  `null` 호출이 스키마 에러를 낸다 — 이 경우도 **목표 없음**으로 처리하고 계속한다.
-
-## 4. `get_brand_list` — 브랜드 목록 (불변)
-
-## 5. `list_promotions` — 프로모션 목록 (불변)
-
-```json
-{ "brand_name": "<brand>", "start_date": "YYYY-MM-DD", "end_date": "YYYY-MM-DD" }
-```
-
-- 응답은 **프로모션 객체의 JSON 배열**이다 — 각 항목의 `{title, start_date, end_date}`(그 외
-  `sales_channel`/`info`/`promotion_type`(`자사`/`타사`) 등)를 그대로 쓴다(구버전 필드명은 `date_begin`/`date_end`).
-- ⚠️ 브랜드에 프로모션 캘린더가 켜져 있지 않으면 `Promotion calendar is not enabled for brand
-  '<name>'` ValueError가 난다 — **오류가 아니라 "프로모션 없음"**(`[]`)으로 처리하고 계속한다.
+- 서버가 `Unknown brand`로 거절할 때만 쓴다(아래 공통 규칙).
 
 ## 공통 규칙
 
