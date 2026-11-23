@@ -185,12 +185,12 @@ function Test-SkillZip {
 
 # --- 실행 -------------------------------------------------------------------
 
-if (-not (Test-Path -LiteralPath $SkillsDir)) {
-    throw "skills/ 디렉터리를 찾을 수 없습니다: $SkillsDir"
-}
 # skills/ 를 Claude판에서 다시 만든다
 & python (Join-Path $Root 'sync_from_claude.py')
 if ($LASTEXITCODE -ne 0) { throw "sync_from_claude.py 실패" }
+if (-not (Test-Path -LiteralPath $SkillsDir)) {
+    throw "skills/ 디렉터리를 찾을 수 없습니다: $SkillsDir"
+}
 if (-not (Test-Path -LiteralPath $OutDir)) {
     New-Item -ItemType Directory -Path $OutDir -Force | Out-Null
 }

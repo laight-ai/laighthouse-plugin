@@ -20,6 +20,3 @@ dependencies:
     - type: "mcp"
       value: "create_media_mix_job"
       description: "확인받은 조건으로 미디어믹스 job을 새로 실행합니다."
-    - type: "mcp"
-      value: "get_brand_list"
-      description: "접근 가능한 브랜드 목록을 조회합니다(브랜드명이 거절됐을 때만)."

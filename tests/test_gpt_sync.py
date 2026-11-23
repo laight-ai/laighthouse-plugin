@@ -1,5 +1,7 @@
 """laighthouse-analytics-gpt/skills/가 Claude Code판 스킬과 맞는지 — sync_from_claude.py --check."""
+import json
 import os
+import re
 import subprocess
 import sys
 
@@ -28,3 +30,18 @@ def test_gpt_note_only_on_external_skills_right_under_title():
             first = body.split("\n", 1)[0]
             after_title = body.split("\n", 1)[1].lstrip("\n") if first.startswith("# ") else body
             assert after_title.startswith("> 🧩 **ChatGPT/Codex 환경**"), name
+
+
+def save_matchers(hooks_json):
+    with open(hooks_json, encoding="utf-8") as f:
+        hooks = json.load(f)["hooks"]["PostToolUse"]
+    return [e["matcher"] for e in hooks if any("save_responses.py" in h["command"] for h in e["hooks"])]
+
+
+def test_save_hook_stores_what_remaining_skills_read_in_both_editions():
+    # 외부 요인 스킬은 저장 훅이 남긴 get_external_context(날씨는 get_ad_performance도) 응답을 prepare.py로 읽는다
+    for hooks_json in (os.path.join(ROOT, "plugins", "laighthouse-analytics-prod", "hooks", "hooks.json"),
+                       os.path.join(ROOT, "laighthouse-analytics-gpt", "hooks", "hooks.json")):
+        matchers = save_matchers(hooks_json)
+        for tool in ("mcp__laighthouse__get_external_context", "mcp__laighthouse__get_ad_performance"):
+            assert any(re.search(m, tool) for m in matchers), (hooks_json, tool)
