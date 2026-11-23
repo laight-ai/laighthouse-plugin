@@ -6,8 +6,8 @@
     OpenAI Skills 규격상 zip 하나에는 "단일 최상위 폴더"와 "정확히 하나의 SKILL.md"만
     들어갈 수 있다. 따라서 skills/ 아래 스킬마다 zip을 하나씩 만든다.
 
-    스킬 폴더(gpt/skills/<스킬>)는 자기완결적이다 — references/·assets/가 폴더 안에 있다.
-    gpt/skills/ 는 sync_from_claude.py 가 레포 루트의 Claude판에서 만든 사본이므로,
+    스킬 폴더(skills/<스킬>)는 자기완결적이다 — references/·assets/가 폴더 안에 있다.
+    skills/ 는 sync_from_claude.py 가 plugins/laighthouse-analytics-prod/skills/(Claude판)에서 만든 사본이므로,
     빌드 전에 sync 를 먼저 돌린다(이 스크립트가 자동으로 실행한다).
 
     Compress-Archive 는 엔트리 경로에 백슬래시를 넣어 업로드 측에서 폴더 구조가
@@ -21,7 +21,7 @@
 
 .EXAMPLE
     .\build_skill_zips.ps1
-    .\build_skill_zips.ps1 -Skill daily-detailed
+    .\build_skill_zips.ps1 -Skill naver-search
 #>
 [CmdletBinding()]
 param(
@@ -151,7 +151,7 @@ function Test-SkillZip {
             [void]$problems.Add("SKILL.md 위치가 '$($manifests[0].FullName)'")
         }
 
-        # 5. 규격 한도
+        # 4. 규격 한도
         if ($entries.Count -gt $MaxFileCount) {
             [void]$problems.Add("파일 수 $($entries.Count)개 > $MaxFileCount")
         }
@@ -160,17 +160,15 @@ function Test-SkillZip {
             [void]$problems.Add("25MB 초과 파일 $($tooBig.Count)건")
         }
 
-        # 6. 본문이 참조하는 references/·assets/ 경로가 실제로 번들에 있는지
+        # 5. SKILL.md 가 참조하는 references/·assets/·shared/ 경로가 실제로 번들에 있는지
         $entryNames = @{}
         foreach ($e in $entries) { $entryNames[$e.FullName] = $true }
 
-        $textEntries = @($entries | Where-Object { $_.FullName -like '*.md' -or $_.FullName -like '*.py' })
-        foreach ($md in $textEntries) {
+        foreach ($md in @($entries | Where-Object { $_.FullName -eq "$SkillName/SKILL.md" })) {
             $reader = New-Object System.IO.StreamReader($md.Open(), [System.Text.Encoding]::UTF8)
             try { $text = $reader.ReadToEnd() } finally { $reader.Dispose() }
 
-            if (-not $md.FullName.EndsWith('SKILL.md')) { continue }
-            foreach ($m in [regex]::Matches($text, '(?<![\w/])(references|assets)/[A-Za-z0-9._-]+\.(md|py|js|css)')) {
+            foreach ($m in [regex]::Matches($text, '(?<![\w/])(shared/)?(references|assets)/[A-Za-z0-9._/-]+\.(md|py|js|css)')) {
                 $target = "$SkillName/" + $m.Value
                 if (-not $entryNames.ContainsKey($target)) {
                     [void]$problems.Add("$($md.FullName) 이 참조하는 $($m.Value) 가 번들에 없음")
@@ -190,7 +188,7 @@ function Test-SkillZip {
 if (-not (Test-Path -LiteralPath $SkillsDir)) {
     throw "skills/ 디렉터리를 찾을 수 없습니다: $SkillsDir"
 }
-# gpt/skills/ 를 Claude판에서 다시 만든다
+# skills/ 를 Claude판에서 다시 만든다
 & python (Join-Path $Root 'sync_from_claude.py')
 if ($LASTEXITCODE -ne 0) { throw "sync_from_claude.py 실패" }
 if (-not (Test-Path -LiteralPath $OutDir)) {

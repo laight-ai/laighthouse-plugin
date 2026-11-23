@@ -43,6 +43,12 @@ NOTE = {
 }
 
 
+def family(name):
+    """외부 요인 보고서 스킬(range_report.py를 번들하는 스킬)이면 "external", 아니면 None."""
+    files = bundle_skills.BUNDLES.get(name, ())
+    return "external" if "assets/external_context/range_report.py" in files else None
+
+
 def add_note(path, note):
     with open(path, encoding="utf-8") as f:
         text = f.read()
@@ -65,7 +71,7 @@ def build_skill(name, out):
     if os.path.exists(meta):
         os.makedirs(os.path.join(dst, "agents"), exist_ok=True)
         shutil.copyfile(meta, os.path.join(dst, "agents", "openai.yaml"))
-    note = NOTE.get(bundle_skills.family(name))
+    note = NOTE.get(family(name))
     if note:
         add_note(os.path.join(dst, "SKILL.md"), note)
 
@@ -74,14 +80,21 @@ def skill_names():
     return sorted(n for n in os.listdir(SRC) if os.path.isdir(os.path.join(SRC, n)))
 
 
+def same_content(x, y):
+    """줄바꿈(CRLF·LF)만 다른 파일은 같다고 본다 — Windows 체크아웃(autocrlf)과 Linux CI에서 결과가 같게."""
+    with open(x, "rb") as f, open(y, "rb") as g:
+        return f.read().replace(b"\r\n", b"\n") == g.read().replace(b"\r\n", b"\n")
+
+
 def differences(a, b):
     """두 폴더 트리의 다른 파일(상대 경로) 목록."""
     out = []
-    cmp = filecmp.dircmp(a, b, ignore=["__pycache__"])
-    stack = [("", cmp)]
+    stack = [("", filecmp.dircmp(a, b, ignore=["__pycache__"]))]
     while stack:
         rel, c = stack.pop()
-        out += [os.path.join(rel, f) for f in c.left_only + c.right_only + c.diff_files + c.funny_files]
+        out += [os.path.join(rel, f) for f in c.left_only + c.right_only + c.common_funny + c.funny_files]
+        out += [os.path.join(rel, f) for f in c.common_files
+                if not same_content(os.path.join(c.left, f), os.path.join(c.right, f))]
         stack += [(os.path.join(rel, d), sub) for d, sub in c.subdirs.items()]
     return sorted(out)
 

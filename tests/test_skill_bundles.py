@@ -81,8 +81,7 @@ class TestSkillAloneLikeCowork(unittest.TestCase):
                 if not name.endswith(".py"):
                     continue
                 with self.subTest(skill=skill, script=name):
-                    args = ["--help"]
-                    r = self.run_py("-c", PROBE, os.path.join(root, "assets", name), root, *args)
+                    r = self.run_py("-c", PROBE, os.path.join(root, "assets", name), root, "--help")
                     self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
 
     def test_text_paths_stay_inside_the_skill(self):
