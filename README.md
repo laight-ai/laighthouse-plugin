@@ -1,11 +1,10 @@
 # laighthouse-plugin
 
-Laighthouse Analytics 플러그인을 위한 Claude Code 플러그인 마켓플레이스 저장소입니다. MCP로 연동된 라이트하우스에 적재된 데이터를 성과 보고서 형태로 렌더링하는 스킬들을 제공합니다.
+Laighthouse Analytics 플러그인을 위한 Claude Code 플러그인 마켓플레이스 저장소입니다. MCP로 연동된 라이트하우스 데이터로 외부 요인 분석, 예산 계획, 화면 사용 안내를 하는 스킬과, `get_ad_performance` 응답 해석을 돕는 훅을 제공합니다.
+성과 보고서 스킬(daily·mtd·monthly·creative-report)은 5.0.0에서 제거했습니다.
 
-> **ChatGPT Skills판**: 같은 보고서 로직을 ChatGPT Skills용으로 이식한 버전이
-> [`laighthouse-analytics-gpt/`](laighthouse-analytics-gpt/README.md)에 있습니다(향후 별도
-> 저장소로 분리 예정). Claude Code판과의 차이(스킬 매니페스트 형식, 훅 부재에 따른 대용량
-> 응답 대응 방식)는 해당 폴더의 README를 참고하세요.
+> **ChatGPT/Codex판**: Claude Code판 스킬을 그대로 옮긴 버전이 [`laighthouse-analytics-gpt/`](laighthouse-analytics-gpt/README.md)에
+> 있습니다. `python3 laighthouse-analytics-gpt/sync_from_claude.py`가 Claude Code판 스킬 폴더를 복사해 만듭니다(직접 고치지 않습니다).
 
 ## 구조
 
@@ -20,18 +19,16 @@ laighthouse-plugin/
         ├── README.md
         ├── hooks/                 # PostToolUse·SessionStart 훅 (대용량 응답 캡처·응답 저장·get_ad_performance 도메인 규칙 주입)
         ├── shared/                # 스킬 간 공유 원본 (스킬 폴더마다 필요한 부분을 사본으로 넣는다)
-        │   ├── references/        # MCP 도구 규칙·브랜드 비종속 패턴·목표 카드 규칙
-        │   └── assets/            # 공용 렌더링 킷 report_kit.py/.js/.css (카드·차트·비교 표·계층 표)
+        │   ├── references/        # MCP 도구 규칙
+        │   └── assets/            # 외부 요인 보고서 킷(external_context/)
         └── skills/
-            ├── daily-report/      #  데일리 보고서(HTML — 요약 섹션 + 계층 표)
-            ├── mtd-report/        #  MTD 보고서(HTML — 요약 섹션 + 캠페인 분석·예산·계층 표)
-            ├── monthly-report/    #  월간 보고서(HTML — 요약 섹션 + 계층 표)
-            ├── creative-report/   #  소재 보고서(HTML — 상위 소재 추이 + 소재 누적 표)
             ├── naver-search/      #  외부 요인: 네이버 검색량(HTML, 날짜 범위)
             ├── naver-news/        #  외부 요인: 네이버 뉴스 언급·주요 기사(HTML, 날짜 범위)
             ├── naver-blog/        #  외부 요인: 네이버 블로그 언급·주요 글(HTML, 날짜 범위)
             ├── weather-impact/    #  외부 요인: 서울 날씨 + 광고 클릭 겹치기(HTML, 날짜 범위)
-            └── nextmonth-budget-planning/  #  월간 미디어믹스 결과(HTML, Claude 가 직접 작성)
+            ├── nextmonth-budget-planning/  #  월간 미디어믹스 결과(HTML, Claude 가 직접 작성)
+            ├── app-guide/         #  라이트하우스 화면 사용법
+            └── skill-catalog/     #  스킬 목록
 ```
 
 **스킬 폴더는 혼자서 돌아야 합니다.** Claude Desktop Cowork는 스킬 폴더를 하나씩 따로 올리고 플러그인
@@ -41,7 +38,7 @@ laighthouse-plugin/
 `scripts/bundle_skills.py`의 목록을 확인하고 `python3 scripts/bundle_skills.py`로 사본을 다시 만듭니다.
 사본이 어긋나면 `tests/test_skill_bundles.py`가 실패합니다.
 
-세 플러그인이 함께 쓰는 파일(외부 요인 킷과 스킬 4개, nextmonth-budget-planning, app-guide, 훅 두 개)의 원본은
+세 플러그인이 함께 쓰는 파일(외부 요인 킷과 스킬 4개, nextmonth-budget-planning, app-guide, 훅)의 원본은
 laighthouse-plugin-common 레포입니다. 어느 파일을 어느 태그로 가져오는지는 `common.json`에 적혀 있습니다. 공통 레포에서
 고치고 태그를 붙인 뒤 `common.json`의 `version`을 바꾸고 `python3 ../laighthouse-plugin-common/sync.py`로 가져온 뒤
 `python3 scripts/bundle_skills.py`를 실행합니다. 사본이 어긋나면 CI(`.github/workflows/common-check.yml`)가 실패합니다.
@@ -52,14 +49,10 @@ laighthouse-plugin-common 레포입니다. 어느 파일을 어느 태그로 가
 
 ### laighthouse-analytics-prod
 
-라이트하우스 MCP 연동 데이터를 성과 보고서로 렌더링하는 플러그인입니다.
+라이트하우스 MCP 연동 데이터로 외부 요인 분석·예산 계획·화면 사용 안내를 하는 플러그인입니다.
 
 | 스킬 | 설명 |
 |------|------|
-| `daily-report` | 데일리 보고서(HTML) 렌더링 — 임원용·실무용 구분 없이 하나(요약 섹션 + 계층 표) |
-| `mtd-report` | MTD 보고서(HTML) 렌더링 — 요약 섹션 + 캠페인 분석·매체별 예산·계층 표 |
-| `monthly-report` | 월간 보고서(HTML) 렌더링 — 요약 섹션 + 계층 표 |
-| `creative-report` | 소재 보고서(HTML) 렌더링 — 최우수 소재·상위 소재 추이·소재 누적 표 |
 | `naver-search` | 브랜드(자사·경쟁) 네이버 추정 검색수 비교(날짜 범위) |
 | `naver-news` | 브랜드 네이버 뉴스 기사 수 비교 + 자사 주요 기사 4건 |
 | `naver-blog` | 브랜드 네이버 블로그 글 수 비교 + 자사 주요 글 4건 |
@@ -72,8 +65,7 @@ laighthouse-plugin-common 레포입니다. 어느 파일을 어느 태그로 가
 
 ## 사용법 예시
 
-- "<브랜드>의 MTD 보고서로 보여줘"
-- "임원용 데일리 보고서 만들어줘"
+- "<브랜드>의 다음 달 예산 계획 세워줘"
 - "<브랜드> 최근 2주 네이버 검색량을 경쟁사와 비교해줘", "<브랜드> 지난주 뉴스 주요 기사 뭐였어?"
 
 ## 마켓플레이스 등록

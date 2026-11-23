@@ -1,175 +1,73 @@
 # laighthouse-analytics-gpt
 
-`laighthouse-plugin` 레포의 Claude Code 플러그인(`plugins/laighthouse-analytics-prod/`)을
-**ChatGPT / Codex 플러그인**으로 이식한 것입니다. 라이트하우스 MCP 연동 데이터를 브리즘
-(airbridge 기반) 성과 보고서(HTML)로 렌더링합니다.
-
-두 가지 배포 형태를 한 폴더에서 지원합니다:
-
-| 배포 형태 | 대상 | 스킬 | MCP | 훅 |
-|---|---|---|---|---|
-| **플러그인** (`.codex-plugin/plugin.json` + `.mcp.json` + `hooks/` + `skills/`) | ChatGPT 데스크톱 Work 모드, Codex CLI, ChatGPT 안의 Codex — 로컬 마켓플레이스로 설치 | 4개 일괄 | 플러그인에 포함 | PostToolUse 캡처 훅 동작 |
-| **스킬 zip** (`build_skill_zips.ps1` 산출물) | chatgpt.com 웹 일반 Chat — 개인/워크스페이스 스킬로 업로드 | 하나씩 업로드 | ChatGPT 설정에서 커넥터로 별도 연결 | 없음 (사전 예방 규칙으로 대체) |
-
-스킬 본문은 두 형태에서 **같은 파일**을 쓰며, 대용량 응답 처리만 실행 시점에 "훅 스텁이 왔는지"로
-분기합니다(`shared/references/gpt-large-response-guardrail.md`).
-
-> 이 폴더는 향후 별도 저장소로 분리될 예정입니다 — 지금은 원본(Claude Code판)과의 편집
-> 이력을 나란히 비교하기 쉽도록 같은 레포 안에 두었습니다.
-
-## Claude Code판과의 차이
-
-| | Claude Code (`plugins/laighthouse-analytics-prod/`) | ChatGPT / Codex (이 폴더) |
-|---|---|---|
-| 플러그인 매니페스트 | `.claude-plugin/plugin.json` + 레포 루트 `.claude-plugin/marketplace.json` | `.codex-plugin/plugin.json` + 레포 루트 `.agents/plugins/marketplace.json` (로컬 마켓플레이스) |
-| 스킬 메타데이터 | SKILL.md frontmatter만 | 추가로 스킬별 `agents/openai.yaml` (표시 이름·색·MCP 도구 의존성) |
-| MCP 연동 | `.mcp.json` (`"type": "http"`) | `.mcp.json` (`"type": "streamable-http"`, Agent Plugins 스키마). 웹 스킬 zip 경로에서는 ChatGPT 설정에서 커넥터로 별도 연결 |
-| 대용량 응답 처리 | PostToolUse 훅(`hooks/capture_ad_performance.py`, `hooks/save_responses.py`) | **같은 훅 스크립트**를 `hooks/`에 포함 (`${PLUGIN_ROOT}` 기준). Codex 런타임(Work 모드·Codex)에서만 실행되며 웹 Chat에서는 사전 예방 규칙으로 대체 — [`shared/references/gpt-large-response-guardrail.md`](shared/references/gpt-large-response-guardrail.md) |
-| 스킬 본문(SKILL.md)·섹션 파일·asset 스크립트 | 원본 | Claude 고유 표현·훅 분기 서술만 수정, 나머지 보고서 로직(계산·렌더링 규칙)은 **동일** |
-
-MCP 서버(`laighthouse`) 자체는 수정하지 않았습니다 — 이 레포는 클라이언트(스킬) 측 지침만
-플랫폼에 맞게 바꿉니다.
-
-## 실행 흐름 (3.1.0~)
-
-Claude Code판과 같은 저장 훅 + `assets/prepare.py` 흐름을 쓴다. 다만 웹 Chat에는 훅이 없으므로 MCP를 두 라운드로 나눈다.
-
-1. **라운드 A** — 응답이 작은 호출(매체 단위·목표·프로모션)을 한 메시지에서 동시에 보낸다.
-2. `prepare.py` — 저장 훅(`hooks/save_responses.py`)이 남긴 응답이 있으면 빌더 입력(`base.json`)과 요약 근거(`facts`)를
-   만들고, 아직 받지 않은 큰 호출(계층 표·소재 단위)을 `missing`으로 알린다.
-3. **라운드 B** — 훅이 동작하는 것이 확인됐을 때만 큰 호출을 보내고 prepare.py를 재실행한다.
-4. 저장된 응답이 하나도 없으면(`note`) 훅이 없는 환경이다 — 각 스킬의 `references/legacy-flow.md`(기존 절차, 대용량
-   응답 사전 예방 규칙 포함)로 진행하고, 이미 받은 라운드 A 응답은 재사용한다.
-
-## 구조
-
-```
-laighthouse-plugin/
-├── .agents/plugins/marketplace.json   # 로컬 마켓플레이스 (ChatGPT 데스크톱/Codex가 읽는 위치)
-└── laighthouse-analytics-gpt/
-    ├── .codex-plugin/plugin.json      # 플러그인 매니페스트 (skills/·hooks/ 경로 선언)
-    ├── .mcp.json                      # laighthouse MCP 서버 (streamable-http)
-    ├── hooks/
-    │   ├── hooks.json                 # PostToolUse: get_ad_performance 대용량 응답 캡처·응답 저장·도메인 규칙 주입
-    │   ├── capture_ad_performance.py  # Claude Code판과 동일한 스크립트
-    │   └── ad_performance_domain.py·.md  # 응답 뒤에 광고 성과 도메인 규칙(계약형 BRS, 상품 차원 구분, 매체 특이사항)을 붙인다
-    ├── build_skill_zips.ps1           # 웹 업로드용 스킬별 zip 생성 + 규격 검증
-    ├── shared/
-    │   ├── references/                # 스킬 간 공유 데이터 스펙 (스킬 루트 기준 경로로 참조됨)
-    │   │   ├── mcp-tools.md
-    │   │   ├── generic-report-pattern.md
-    │   │   ├── target-achievement.md
-    │   │   ├── report-types.md
-    │   │   └── gpt-large-response-guardrail.md   # 훅 스텁 / 원본 분기 규칙
-    │   └── assets/                    # 공용 렌더링 킷 report_kit.py/.js/.css — 빌더가 <스킬>/shared/assets 에서 찾음
-    └── skills/
-        ├── daily-report/          # 데일리 보고서(HTML — 요약 섹션 + 계층 표)
-        │   ├── SKILL.md
-        │   ├── agents/openai.yaml
-        │   ├── assets/
-        │   └── references/daily-report-section-*.md
-        ├── mtd-report/            # MTD 보고서(HTML — 요약 섹션 + 캠페인 분석·예산·계층 표)
-        ├── monthly-report/        # 월간 보고서(HTML — 요약 섹션 + 계층 표)
-        └── creative-report/       # 소재 보고서(HTML — 상위 소재 추이 + 소재 누적 표)
-```
+Claude Code판 `plugins/laighthouse-analytics-prod`의 스킬을 ChatGPT(데스크톱 Work 모드)·Codex용 플러그인으로 옮긴 버전입니다.
+성과 보고서 스킬(daily·mtd·monthly·creative-report)은 5.0.0에서 제거했고, 대신 Claude Code판에만 있던 스킬을 모두 옮겼습니다.
 
 ## 포함된 스킬
 
 | 스킬 | 설명 |
-|------|------|
-| `daily-report` | 데일리 보고서(HTML) 렌더링 — 임원용·실무용 구분 없이 하나(요약 섹션 + 계층 표) |
-| `mtd-report` | MTD 보고서(HTML) 렌더링 — 요약 섹션 + 캠페인 분석·매체별 예산·계층 표 |
-| `monthly-report` | 월간 보고서(HTML) 렌더링 — 요약 섹션 + 계층 표 |
-| `creative-report` | 소재 보고서(HTML) 렌더링 — 최우수 소재·상위 소재 추이·소재 누적 표 |
+|---|---|
+| `naver-search` | 브랜드(자사·경쟁) 네이버 추정 검색수 비교(날짜 범위, HTML) |
+| `naver-news` | 브랜드 네이버 뉴스 기사 수 비교 + 자사 주요 기사 4건(HTML) |
+| `naver-blog` | 브랜드 네이버 블로그 글 수 비교 + 자사 주요 글 4건(HTML) |
+| `weather-impact` | 서울 일별 기온·강수·불쾌지수(+광고 클릭이 있으면 비 온 날 차이, HTML) |
+| `nextmonth-budget-planning` | 월간 미디어믹스 결과(HTML) — 라이트하우스 웹 결과 화면과 같은 모양 |
+| `app-guide` | 라이트하우스 웹 화면(app.laight.ai) 사용법 안내(데이터 조회 없음) |
+| `skill-catalog` | 라이트하우스 스킬 목록을 채팅에 표로 보여 준다 |
+
+훅: `get_ad_performance` 대용량 응답 캡처(`capture_ad_performance.py`), 응답 원본 저장(`save_responses.py`),
+광고 성과 도메인 규칙 주입(`ad_performance_domain.py`·`.md`).
+
+## Claude Code판과의 차이
+
+| | Claude Code (`plugins/laighthouse-analytics-prod/`) | ChatGPT / Codex (`laighthouse-analytics-gpt/`) |
+|---|---|---|
+| 매니페스트 | `.claude-plugin/plugin.json` | `.codex-plugin/plugin.json` + 스킬별 `agents/openai.yaml`(원본은 `agents-meta/`) |
+| MCP | `.mcp.json` (`"type": "http"`) | `.mcp.json` (`"type": "streamable-http"`) |
+| 훅 | `hooks/hooks.json` (`${CLAUDE_PLUGIN_ROOT}`, SessionStart(compact) 포함) | `hooks/hooks.json` (`${PLUGIN_ROOT}`, PostToolUse만 — 압축 뒤 도메인 규칙을 다시 넣지 않는다) |
+| SKILL.md | 원본 | 외부 요인 스킬만 첫 제목 아래 ChatGPT/Codex 환경 안내(훅이 없는 웹 Chat에서의 응답 저장 방법)를 덧붙인다 |
+
+## 구조
+
+```
+laighthouse-analytics-gpt/
+├── .codex-plugin/plugin.json   # 플러그인 매니페스트 (skills/·hooks/ 경로 선언)
+├── .mcp.json                   # laighthouse MCP 서버 (streamable-http)
+├── agents-meta/<스킬>.yaml     # ChatGPT 스킬 메타 원본 → skills/<스킬>/agents/openai.yaml
+├── hooks/                      # hooks.json + laighthouse-plugin-common 사본(capture_ad_performance·save_responses·ad_performance_domain)
+├── skills/                     # sync_from_claude.py가 만드는 사본 — 직접 고치지 않는다
+├── sync_from_claude.py         # Claude Code판 스킬 → skills/
+└── build_skill_zips.ps1        # 웹 업로드용 스킬별 zip 생성 + 규격 검증
+```
+
+## 고치는 순서
+
+1. 스킬은 Claude Code판에서 고칩니다. 공통 레포(laighthouse-plugin-common) 스킬이면 공통 레포에서 고치고 레포 루트에서
+   `python3 ../laighthouse-plugin-common/sync.py`로 가져옵니다.
+2. `python3 laighthouse-analytics-gpt/sync_from_claude.py`로 GPT판 사본을 다시 만듭니다(Claude Code판 스킬 폴더의 `shared/` 사본도 함께 맞춘다).
+   `--check`는 사본이 어긋났는지만 보고 1로 끝나며, `tests/test_gpt_sync.py`가 같은 검사를 합니다.
+3. 스킬을 새로 만들면 `agents-meta/<스킬>.yaml`을 함께 만듭니다(없으면 sync가 멈춘다).
+4. 버전은 Claude Code판 `plugin.json`과 맞춥니다.
 
 ## 설치 A — 플러그인 (ChatGPT 데스크톱 Work 모드 / Codex)
 
-스킬 4개 + MCP 서버 + 캡처 훅이 한 번에 설치됩니다. OpenAI 심사 없이 로컬 마켓플레이스로 배포하는
-경로이며, **ChatGPT 데스크톱 앱 또는 Codex에서만** 됩니다(웹 chatgpt.com은 설치 B 참고).
-
-1. 이 레포를 클론합니다. 레포 루트의 `.agents/plugins/marketplace.json`이 이 폴더를 플러그인으로
-   가리키고 있어, 레포를 열면 ChatGPT 데스크톱/Codex가 마켓플레이스로 인식합니다. 레포 밖에서
-   쓰려면 CLI로 등록합니다:
-   ```bash
-   codex plugin marketplace add <레포 루트 경로>
-   ```
-   개인 범위로 두려면 `~/.agents/plugins/marketplace.json`에 같은 항목을 넣고 `source.path`를
-   플러그인 폴더의 경로로 바꿉니다.
-2. ChatGPT 데스크톱 앱 → Work 탭(또는 Codex) → Plugins Directory에서 소스 "Laighthouse (local)"을
-   선택해 **Laighthouse Analytics**를 설치합니다. MCP 서버 인증은 설치 시점에 요청됩니다
-   (`policy.authentication: ON_INSTALL`).
-3. **훅 신뢰 승인**: 플러그인 훅은 설치만으로 실행되지 않습니다. 대화에서 `/hooks`를 열어
-   `capture_ad_performance.py`·`save_responses.py`·`ad_performance_domain.py`(get_ad_performance 응답에 도메인 규칙 주입)
-   정의를 검토·신뢰해야 PostToolUse 훅이 동작합니다. Claude Code판과 달리 SessionStart(compact) 등록은 두지 않으므로,
-   컨텍스트 압축 뒤에는 도메인 규칙이 다시 들어가지 않습니다(새 대화에서는 다시 들어갑니다). 실행 환경에
-   `python3`가 있어야 합니다. 승인하지 않아도 스킬은 동작하며(원본이 그대로 전달됨), 대용량 응답은
-   웹과 같은 사전 예방 규칙으로 처리됩니다.
-4. 새 대화에서 `@`를 입력해 플러그인을 호출합니다.
-
-플러그인 파일을 수정한 뒤에는 ChatGPT 데스크톱 앱을 재시작해야 반영됩니다.
-
-> 검증 포인트: 훅이 실제로 응답을 교체했는지는 `<임시 디렉터리>/laighthouse_mcp_capture/hook.log`
-> (`ran:`/`skip:`/`captured:`)로 확인합니다. Codex PostToolUse가 `updatedToolOutput`으로 도구 응답을
-> 교체하는 동작과 MCP 도구 matcher 이름 형식은 공식 문서에 명시가 없어, 첫 설치 때 이 로그로
-> 확인해야 합니다. matcher는 접미 매칭(`.*get_ad_performance$`)이라 도구 이름 접두어 형식이 달라도
-> 걸립니다.
+1. 이 레포를 클론합니다. 레포 루트의 `.agents/plugins/marketplace.json`이 이 폴더를 플러그인으로 가리킵니다.
+   레포 밖에서 쓰려면 `codex plugin marketplace add <레포 루트 경로>`.
+2. Plugins Directory에서 소스 "Laighthouse (local)"을 선택해 **Laighthouse Analytics**를 설치합니다(MCP 인증은 설치 시).
+3. 대화에서 `/hooks`를 열어 `capture_ad_performance.py`·`save_responses.py`·`ad_performance_domain.py`(get_ad_performance 응답에
+   광고 성과 도메인 규칙 주입)를 신뢰합니다. 실행 환경에 `python3`가 필요합니다. 신뢰하지 않아도 스킬은 동작하지만, 외부 요인 스킬은
+   모델이 응답을 직접 파일로 저장해야 합니다(각 SKILL.md의 ChatGPT/Codex 환경 안내).
+4. 새 대화에서 `@`를 입력해 플러그인을 호출합니다. 플러그인 파일을 바꾼 뒤에는 앱을 재시작합니다.
 
 ## 설치 B — 스킬 zip (chatgpt.com 웹 일반 Chat)
 
-웹에서는 플러그인 로컬 설치가 안 되므로 스킬을 하나씩 업로드하고 MCP는 커넥터로 따로 연결합니다.
-ChatGPT Skills는 Business/Enterprise/Healthcare/Edu 요금제에서(워크스페이스 관리자가 켠
-경우) 사용할 수 있습니다. 훅은 동작하지 않습니다.
-
-### 1. 업로드용 zip 생성
-
-`skills/` 아래 폴더를 그대로 올리면 **`shared/`가 zip 밖이라 빠집니다** — 스킬 본문이
-참조하는 `shared/references/...`가 전부 깨집니다. 반드시 빌드 스크립트를 거치세요.
+웹에서는 스킬을 하나씩 업로드하고 MCP는 커넥터로 따로 연결합니다. 훅은 동작하지 않습니다.
 
 ```powershell
-.\build_skill_zips.ps1                      # 4개 전부
-.\build_skill_zips.ps1 -Skill daily-report # 하나만
+.\build_skill_zips.ps1                       # 전부
+.\build_skill_zips.ps1 -Skill naver-search   # 하나만
 ```
 
-`~/Downloads/laighthouse-gpt-skills/<skill-name>.zip` 4개가 생성됩니다. 스크립트는 스킬
-폴더에 `shared/references/*`를 **같은 경로 그대로** 주입한 뒤, 만들어진 zip을 다시 열어
-OpenAI Skills 규격(단일 최상위 폴더 / `SKILL.md` 1개 / 50MB·500파일·단일 25MB 한도)과
-본문의 `shared/references` 참조가 번들 안에서 실제로 해석되는지까지 검증합니다.
-
-> `Compress-Archive`는 엔트리 경로에 백슬래시를 넣어 업로드 시 폴더 구조가 깨지므로
-> 쓰지 않습니다. 스크립트는 .NET `ZipArchive`로 슬래시 경로를 직접 기록합니다.
-
-### 2. 업로드
-
-Sidebar → Plugins → Skills → Create → Upload from your computer에서 zip을 **하나씩**
-올립니다. zip 하나에 `SKILL.md`가 정확히 하나여야 해서 4개를 한 번에 묶을 수 없습니다.
-
-MCP 도구(`get_ad_performance` 등)는 ChatGPT 설정에서 `laighthouse` MCP 서버를 커넥터로
-먼저 연결해야 스킬이 호출할 수 있습니다.
-
-## 유지보수 원칙
-
-이 폴더의 스킬 로직(보고서 계산·렌더링 규칙)은 원본 Claude Code 플러그인과 **같은 소스에서
-파생**됩니다. 원본 쪽에서 보고서 로직이 바뀌면(섹션 계산 규칙, MCP 호출 명세 등) 이쪽에도
-반영해야 합니다 — 다만 아래는 이 폴더에서만 다르게 유지합니다:
-1. 대용량 응답 처리: 훅 스텁이 오면 `json_files`, 원본이 오면 `json` — 두 경로를 모두 서술하고
-   판별 규칙은 `gpt-large-response-guardrail.md`에 둡니다. "이 환경에는 훅이 없다"고 단정하는
-   문구를 쓰지 않습니다(Work 모드/Codex에서는 훅이 돕니다).
-2. 훅·공용 스크립트: `hooks/capture_ad_performance.py`·`hooks/save_responses.py`·`hooks/ad_performance_domain.py`·`.md`는 laighthouse-plugin-common 레포의
-   사본입니다 — 레포 루트 `common.json`대로 `python3 ../laighthouse-plugin-common/sync.py`가 맞춥니다.
-   `shared/assets/report_kit.py`·`shared/assets/prepare_kit.py`와 스킬별 `assets/prepare.py`는 Claude Code판과 동일 파일을
-   복사한 것이고, 원본이 바뀌면 그대로 다시 복사합니다. `hooks.json`만 `${PLUGIN_ROOT}` 기준으로 다릅니다.
-3. 매니페스트: `.codex-plugin/plugin.json`(플러그인)과 스킬별 `agents/openai.yaml`(스킬 메타)을
-   함께 유지합니다. 버전은 Claude Code판 `plugin.json`과 맞춥니다.
-4. 공유 참조 배포: 레포에서는 `shared/references/`가 단일 소스지만, 웹 업로드 단위가 스킬
-   폴더 하나라서 `build_skill_zips.ps1`이 빌드 시점에 각 zip 안으로 복사합니다. 플러그인 설치
-   경로에서는 복사 없이 그대로 참조됩니다.
-
-`shared/references/`에 파일을 추가할 때는 경로를 `shared/references/<name>.md`로 참조하면
-됩니다 — 스크립트가 폴더 전체를 통째로 넣으므로 스크립트 수정은 필요 없습니다. 반대로
-스킬 본문에서 참조 경로를 다른 형태로 바꾸면 빌드 검증이 실패합니다.
-
-> 웹(chatgpt.com)에서도 스킬+MCP+훅을 한 번에 설치하려면 플러그인 포털에 Skills-plus-MCP로
-> 제출해 OpenAI 심사를 받아야 합니다. 스킬 본문·도구 스키마가 바뀔 때마다 재심사가 필요하므로,
-> 개발 단계에서는 설치 A(로컬 마켓플레이스)와 설치 B(스킬 zip)를 쓰고 안정화 후 제출합니다.
-> 제출 시 `.codex-plugin/plugin.json`은 그대로 쓰이고 `.mcp.json` 대신 포털에 HTTPS 엔드포인트를
-> 입력합니다.
+`~/Downloads/laighthouse-gpt-skills/<스킬>.zip`이 만들어집니다. 스킬 폴더가 자기완결이라(`shared/` 사본 포함) 폴더를 그대로 묶고,
+OpenAI Skills 규격(단일 최상위 폴더 / `SKILL.md` 1개 / 크기·파일 수 한도)을 검증합니다.
+Sidebar → Plugins → Skills → Create → Upload from your computer에서 zip을 하나씩 올립니다.

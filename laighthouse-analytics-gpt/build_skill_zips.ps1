@@ -6,10 +6,9 @@
     OpenAI Skills 규격상 zip 하나에는 "단일 최상위 폴더"와 "정확히 하나의 SKILL.md"만
     들어갈 수 있다. 따라서 skills/ 아래 스킬마다 zip을 하나씩 만든다.
 
-    이 레포는 스킬 간 공통 참조 문서를 shared/references/ 에 단일 소스로 두지만,
-    zip 밖의 파일은 업로드되지 않으므로 빌드 시점에 각 zip 안으로 복사해 넣는다.
-    zip 내부 경로도 shared/references/ 로 동일하게 유지한다 — SKILL.md·섹션 파일이
-    쓰는 경로를 그대로 두어 소스와 산출물이 어긋나지 않게 하기 위함이다.
+    스킬 폴더(gpt/skills/<스킬>)는 자기완결적이다 — references/·assets/가 폴더 안에 있다.
+    gpt/skills/ 는 sync_from_claude.py 가 레포 루트의 Claude판에서 만든 사본이므로,
+    빌드 전에 sync 를 먼저 돌린다(이 스크립트가 자동으로 실행한다).
 
     Compress-Archive 는 엔트리 경로에 백슬래시를 넣어 업로드 측에서 폴더 구조가
     깨지므로 쓰지 않고, .NET ZipArchive 로 슬래시 경로를 직접 기록한다.
@@ -22,7 +21,7 @@
 
 .EXAMPLE
     .\build_skill_zips.ps1
-    .\build_skill_zips.ps1 -Skill daily-report
+    .\build_skill_zips.ps1 -Skill daily-detailed
 #>
 [CmdletBinding()]
 param(
@@ -37,7 +36,6 @@ Add-Type -AssemblyName System.IO.Compression.FileSystem | Out-Null
 
 $Root      = Split-Path -Parent $MyInvocation.MyCommand.Path
 $SkillsDir = Join-Path $Root 'skills'
-$SharedDir = Join-Path $Root 'shared'
 
 # zip 에서 제외할 항목 (빌드 부산물)
 $ExcludeDirs  = @('__pycache__', '.git', 'node_modules')
@@ -77,7 +75,7 @@ function Add-Tree {
 }
 
 function Get-BundleFiles {
-    # 스킬 폴더 + shared/ 를 합쳐 zip 에 넣을 파일 목록을 만든다.
+    # 스킬 폴더를 zip 에 넣을 파일 목록으로 만든다.
     # 엔트리 경로는 항상 슬래시이며 <skill-name>/ 으로 시작한다.
     param(
         [Parameter(Mandatory)][string]$SkillPath,
@@ -86,7 +84,6 @@ function Get-BundleFiles {
 
     $pairs = New-Object System.Collections.ArrayList
     Add-Tree -BasePath $SkillPath -EntryPrefix "$SkillName/"        -Into $pairs
-    Add-Tree -BasePath $SharedDir -EntryPrefix "$SkillName/shared/" -Into $pairs
     return $pairs
 }
 
@@ -154,13 +151,6 @@ function Test-SkillZip {
             [void]$problems.Add("SKILL.md 위치가 '$($manifests[0].FullName)'")
         }
 
-        # 4. shared/references 가 함께 들어갔는지
-        $sharedCount    = @($entries | Where-Object { $_.FullName -like "$SkillName/shared/references/*" }).Count
-        $sharedExpected = @(Get-ChildItem -LiteralPath (Join-Path $SharedDir 'references') -File).Count
-        if ($sharedCount -ne $sharedExpected) {
-            [void]$problems.Add("shared/references 파일 $sharedCount개 (기대 $sharedExpected개)")
-        }
-
         # 5. 규격 한도
         if ($entries.Count -gt $MaxFileCount) {
             [void]$problems.Add("파일 수 $($entries.Count)개 > $MaxFileCount")
@@ -170,7 +160,7 @@ function Test-SkillZip {
             [void]$problems.Add("25MB 초과 파일 $($tooBig.Count)건")
         }
 
-        # 6. 본문이 참조하는 shared 경로가 실제로 번들에 있는지
+        # 6. 본문이 참조하는 references/·assets/ 경로가 실제로 번들에 있는지
         $entryNames = @{}
         foreach ($e in $entries) { $entryNames[$e.FullName] = $true }
 
@@ -179,7 +169,8 @@ function Test-SkillZip {
             $reader = New-Object System.IO.StreamReader($md.Open(), [System.Text.Encoding]::UTF8)
             try { $text = $reader.ReadToEnd() } finally { $reader.Dispose() }
 
-            foreach ($m in [regex]::Matches($text, 'shared/references/[A-Za-z0-9._-]+\.md')) {
+            if (-not $md.FullName.EndsWith('SKILL.md')) { continue }
+            foreach ($m in [regex]::Matches($text, '(?<![\w/])(references|assets)/[A-Za-z0-9._-]+\.(md|py|js|css)')) {
                 $target = "$SkillName/" + $m.Value
                 if (-not $entryNames.ContainsKey($target)) {
                     [void]$problems.Add("$($md.FullName) 이 참조하는 $($m.Value) 가 번들에 없음")
@@ -199,9 +190,9 @@ function Test-SkillZip {
 if (-not (Test-Path -LiteralPath $SkillsDir)) {
     throw "skills/ 디렉터리를 찾을 수 없습니다: $SkillsDir"
 }
-if (-not (Test-Path -LiteralPath (Join-Path $SharedDir 'references'))) {
-    throw "shared/references/ 디렉터리를 찾을 수 없습니다: $SharedDir"
-}
+# gpt/skills/ 를 Claude판에서 다시 만든다
+& python (Join-Path $Root 'sync_from_claude.py')
+if ($LASTEXITCODE -ne 0) { throw "sync_from_claude.py 실패" }
 if (-not (Test-Path -LiteralPath $OutDir)) {
     New-Item -ItemType Directory -Path $OutDir -Force | Out-Null
 }
