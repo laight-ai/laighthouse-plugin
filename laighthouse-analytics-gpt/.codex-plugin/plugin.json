@@ -1,24 +1,21 @@
 {
   "name": "laighthouse-analytics",
-  "version": "4.3.0",
-  "description": "라이트하우스 분석 플러그인 — MCP 연동 데이터(ELT 기반 get_ad_performance)를 MTD/데일리/월간/소재 성과 보고서(보고서 종류마다 스킬 하나, HTML)로 렌더링합니다.",
+  "version": "5.0.0",
+  "description": "라이트하우스 분석 플러그인 — MCP 연동 데이터로 외부 요인(네이버 검색량·뉴스·블로그, 서울 날씨) 보고서를 날짜 범위로 만들고, 월간 미디어믹스 결과(get_media_mix_job)를 라이트하우스 웹 결과 화면과 같은 모양의 HTML로 만들며, 라이트하우스 화면 사용법을 안내합니다. get_ad_performance 응답에는 매체별 광고 성과 도메인 규칙을 붙여 해석을 돕습니다.",
   "author": {
     "name": "LaightAI"
   },
   "keywords": [
     "analytics",
-    "report",
-    "mtd",
-    "daily",
-    "monthly",
-    "creative",
+    "external-factors",
+    "media-mix",
     "laighthouse"
   ],
   "skills": "./skills/",
   "hooks": "./hooks/hooks.json",
   "interface": {
     "displayName": "Laighthouse Analytics",
-    "shortDescription": "라이트하우스 MCP 데이터를 데일리/MTD/월간/소재 성과 보고서(HTML)로 렌더링합니다.",
+    "shortDescription": "라이트하우스 MCP 데이터로 외부 요인 보고서·미디어믹스 결과·화면 사용 안내를 제공합니다.",
     "category": "Analytics"
   }
 }

@@ -26,13 +26,6 @@ PLUGIN = os.path.join(ROOT, "plugins", "laighthouse-analytics-prod")
 SHARED = os.path.join(PLUGIN, "shared")
 SKILLS = os.path.join(PLUGIN, "skills")
 
-# prepare_kit.py가 report_kit을 import한다.
-KIT = ("assets/prepare_kit.py", "assets/report_kit.py")
-# 템플릿에 __REPORT_KIT_CSS__/__REPORT_KIT_JS__가 있는 스킬만 report_kit.inline_assets가 읽는다.
-KIT_INLINE = ("assets/report_kit.css", "assets/report_kit.js")
-# generic-report-pattern.md가 mcp-tools.md·media-trend.md를 가리킨다.
-REPORT_REFS = ("references/generic-report-pattern.md", "references/mcp-tools.md", "references/media-trend.md")
-TARGET_REFS = ("references/target-achievement.md",)
 # range_report.py가 import하는 모듈 전부 + page.py가 인라인하는 Chart.js
 RANGE_REPORT = tuple("assets/external_context/" + f for f in (
     "blog_trend.py", "buzz.py", "chart.umd.min.js", "check_citations.py", "news_trend.py", "page.py",
@@ -41,10 +34,6 @@ RANGE_REPORT = tuple("assets/external_context/" + f for f in (
 EXTERNAL_REFS = ("references/mcp-tools.md",)
 
 BUNDLES = {
-    "creative-report": KIT + ("assets/report_table.js",) + REPORT_REFS,   # 소재 표는 표 부품 JS만 인라인한다
-    "daily-report": KIT + KIT_INLINE + REPORT_REFS + TARGET_REFS,
-    "monthly-report": KIT + KIT_INLINE + REPORT_REFS + TARGET_REFS,
-    "mtd-report": KIT + KIT_INLINE + REPORT_REFS + TARGET_REFS,
     "nextmonth-budget-planning": (),   # 결과 HTML 을 Claude 가 직접 쓴다 — 공용 파일 없음
     "naver-blog": RANGE_REPORT + EXTERNAL_REFS,
     "naver-news": RANGE_REPORT + EXTERNAL_REFS,
@@ -53,6 +42,15 @@ BUNDLES = {
     "skill-catalog": (),
     "app-guide": (),
 }
+
+
+# 외부 요인 보고서 스킬(range_report.py를 쓰는 것) — GPT판 안내 문구를 고를 때 쓴다(laighthouse-analytics-gpt/sync_from_claude.py)
+EXTERNAL_SKILLS = ("naver-blog", "naver-news", "naver-search", "weather-impact")
+
+
+def family(name):
+    """스킬 계열: 외부 요인 보고서면 "external", 아니면 None."""
+    return "external" if name in EXTERNAL_SKILLS else None
 
 
 def skill_names():
