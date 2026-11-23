@@ -8,7 +8,6 @@ import sys
 ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 SYNC = os.path.join(ROOT, "laighthouse-analytics-gpt", "sync_from_claude.py")
 GPT_SKILLS = os.path.join(ROOT, "laighthouse-analytics-gpt", "skills")
-CLAUDE_SKILLS = os.path.join(ROOT, "plugins", "laighthouse-analytics-prod", "skills")
 
 
 def test_gpt_copies_match_claude_skills():
@@ -30,6 +29,7 @@ def test_gpt_note_only_on_external_skills_right_under_title():
             first = body.split("\n", 1)[0]
             after_title = body.split("\n", 1)[1].lstrip("\n") if first.startswith("# ") else body
             assert after_title.startswith("> 🧩 **ChatGPT/Codex 환경**"), name
+            assert "대신 이 방법을 따른다" in after_title, name   # 본문의 재호출·멈춤 절차보다 우선함을 밝힌다
 
 
 def save_matchers(hooks_json):

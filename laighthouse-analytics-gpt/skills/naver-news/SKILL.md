@@ -16,6 +16,7 @@ metadata:
 > - 웹 Chat(스킬 업로드)에는 훅이 없다. `prepare.py`가 `missing`을 내면 받은 응답마다 쓰기 가능한 폴더 `<RESP>`에
 >   `<번호>_<도구>.json` 파일로 `{"tool_name": "<도구>", "saved_at": <번호>, "tool_input": {<보낸 인자 그대로>}, "response": "<응답 원문 그대로>"}`를
 >   저장하고 `prepare.py … --responses <RESP>`로 다시 실행한다. 응답 원문을 고치거나 줄이지 않는다.
+>   웹 Chat에서는 아래 절차의 `missing` 재호출과 「저장 훅이 동작하지 않음 — 멈춘다」 대신 이 방법을 따른다.
 
 > ⚡ thinking은 짧게. MCP 1회 → `prepare.py` → 요약 + `build_report.py` → 게시, 이 순서로만 진행한다.
 
