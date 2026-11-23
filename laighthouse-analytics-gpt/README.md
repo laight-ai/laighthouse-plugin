@@ -50,8 +50,9 @@ laighthouse-plugin/
     ├── .codex-plugin/plugin.json      # 플러그인 매니페스트 (skills/·hooks/ 경로 선언)
     ├── .mcp.json                      # laighthouse MCP 서버 (streamable-http)
     ├── hooks/
-    │   ├── hooks.json                 # PostToolUse: get_ad_performance 대용량 응답 캡처
-    │   └── capture_ad_performance.py  # Claude Code판과 동일한 스크립트
+    │   ├── hooks.json                 # PostToolUse: get_ad_performance 대용량 응답 캡처·응답 저장·도메인 규칙 주입
+    │   ├── capture_ad_performance.py  # Claude Code판과 동일한 스크립트
+    │   └── ad_performance_domain.py·.md  # 응답 뒤에 광고 성과 도메인 규칙(계약형 BRS, 상품 차원 구분, 매체 특이사항)을 붙인다
     ├── build_skill_zips.ps1           # 웹 업로드용 스킬별 zip 생성 + 규격 검증
     ├── shared/
     │   ├── references/                # 스킬 간 공유 데이터 스펙 (스킬 루트 기준 경로로 참조됨)
@@ -98,7 +99,9 @@ laighthouse-plugin/
    선택해 **Laighthouse Analytics**를 설치합니다. MCP 서버 인증은 설치 시점에 요청됩니다
    (`policy.authentication: ON_INSTALL`).
 3. **훅 신뢰 승인**: 플러그인 훅은 설치만으로 실행되지 않습니다. 대화에서 `/hooks`를 열어
-   `capture_ad_performance.py` 정의를 검토·신뢰해야 PostToolUse 캡처가 동작합니다. 실행 환경에
+   `capture_ad_performance.py`·`save_responses.py`·`ad_performance_domain.py`(get_ad_performance 응답에 도메인 규칙 주입)
+   정의를 검토·신뢰해야 PostToolUse 훅이 동작합니다. Claude Code판과 달리 SessionStart(compact) 등록은 두지 않으므로,
+   컨텍스트 압축 뒤에는 도메인 규칙이 다시 들어가지 않습니다(새 대화에서는 다시 들어갑니다). 실행 환경에
    `python3`가 있어야 합니다. 승인하지 않아도 스킬은 동작하며(원본이 그대로 전달됨), 대용량 응답은
    웹과 같은 사전 예방 규칙으로 처리됩니다.
 4. 새 대화에서 `@`를 입력해 플러그인을 호출합니다.
@@ -151,7 +154,7 @@ MCP 도구(`get_ad_performance` 등)는 ChatGPT 설정에서 `laighthouse` MCP �
 1. 대용량 응답 처리: 훅 스텁이 오면 `json_files`, 원본이 오면 `json` — 두 경로를 모두 서술하고
    판별 규칙은 `gpt-large-response-guardrail.md`에 둡니다. "이 환경에는 훅이 없다"고 단정하는
    문구를 쓰지 않습니다(Work 모드/Codex에서는 훅이 돕니다).
-2. 훅·공용 스크립트: `hooks/capture_ad_performance.py`·`hooks/save_responses.py`는 laighthouse-plugin-common 레포의
+2. 훅·공용 스크립트: `hooks/capture_ad_performance.py`·`hooks/save_responses.py`·`hooks/ad_performance_domain.py`·`.md`는 laighthouse-plugin-common 레포의
    사본입니다 — 레포 루트 `common.json`대로 `python3 ../laighthouse-plugin-common/sync.py`가 맞춥니다.
    `shared/assets/report_kit.py`·`shared/assets/prepare_kit.py`와 스킬별 `assets/prepare.py`는 Claude Code판과 동일 파일을
    복사한 것이고, 원본이 바뀌면 그대로 다시 복사합니다. `hooks.json`만 `${PLUGIN_ROOT}` 기준으로 다릅니다.

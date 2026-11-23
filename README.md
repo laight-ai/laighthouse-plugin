@@ -18,7 +18,7 @@ laighthouse-plugin/
         ├── .claude-plugin/plugin.json
         ├── .mcp.json              # laighthouse MCP 서버 연동 설정
         ├── README.md
-        ├── hooks/                 # PostToolUse 캡처 훅 (대용량 get_ad_performance 응답 → 파일)
+        ├── hooks/                 # PostToolUse·SessionStart 훅 (대용량 응답 캡처·응답 저장·get_ad_performance 도메인 규칙 주입)
         ├── shared/                # 스킬 간 공유 원본 (스킬 폴더마다 필요한 부분을 사본으로 넣는다)
         │   ├── references/        # MCP 도구 규칙·브랜드 비종속 패턴·목표 카드 규칙
         │   └── assets/            # 공용 렌더링 킷 report_kit.py/.js/.css (카드·차트·비교 표·계층 표)
