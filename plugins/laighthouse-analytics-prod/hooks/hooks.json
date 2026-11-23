@@ -12,11 +12,33 @@
         ]
       },
       {
+        "matcher": ".*get_ad_performance$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/ad_performance_domain.py\"",
+            "timeout": 30
+          }
+        ]
+      },
+      {
         "matcher": "^mcp__.+__(get_ad_performance|get_target_progress_v2|list_promotions|get_external_context)$",
         "hooks": [
           {
             "type": "command",
             "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/save_responses.py\"",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/ad_performance_domain.py\"",
             "timeout": 30
           }
         ]

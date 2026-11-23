@@ -1,5 +1,5 @@
 {
-  "version": "v4.1.1",
+  "version": "v4.2.0",
   "targets": [
     {
       "root": "plugins/laighthouse-analytics-prod",
@@ -12,14 +12,18 @@
         "skills/nextmonth-budget-planning",
         "skills/app-guide",
         "hooks/save_responses.py",
-        "hooks/capture_ad_performance.py"
+        "hooks/capture_ad_performance.py",
+        "hooks/ad_performance_domain.py",
+        "hooks/ad_performance_domain.md"
       ]
     },
     {
       "root": "laighthouse-analytics-gpt",
       "include": [
         "hooks/save_responses.py",
-        "hooks/capture_ad_performance.py"
+        "hooks/capture_ad_performance.py",
+        "hooks/ad_performance_domain.py",
+        "hooks/ad_performance_domain.md"
       ]
     }
   ]
