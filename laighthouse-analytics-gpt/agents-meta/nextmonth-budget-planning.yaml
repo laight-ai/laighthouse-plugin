@@ -5,3 +5,21 @@ interface:
 
 policy:
   allow_implicit_invocation: true
+
+dependencies:
+  tools:
+    - type: "mcp"
+      value: "list_media_mix_jobs"
+      description: "실행한 미디어믹스 job 목록을 조회합니다(조직에 따라 없을 수 있음)."
+    - type: "mcp"
+      value: "get_media_mix_job"
+      description: "미디어믹스 job 결과(summary)를 조회합니다."
+    - type: "mcp"
+      value: "list_media_mix_metrics"
+      description: "미디어믹스에 쓸 비용·성과 지표 후보를 조회합니다."
+    - type: "mcp"
+      value: "create_media_mix_job"
+      description: "확인받은 조건으로 미디어믹스 job을 새로 실행합니다."
+    - type: "mcp"
+      value: "get_brand_list"
+      description: "접근 가능한 브랜드 목록을 조회합니다(브랜드명이 거절됐을 때만)."

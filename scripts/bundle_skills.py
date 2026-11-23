@@ -44,15 +44,6 @@ BUNDLES = {
 }
 
 
-# 외부 요인 보고서 스킬(range_report.py를 쓰는 것) — GPT판 안내 문구를 고를 때 쓴다(laighthouse-analytics-gpt/sync_from_claude.py)
-EXTERNAL_SKILLS = ("naver-blog", "naver-news", "naver-search", "weather-impact")
-
-
-def family(name):
-    """스킬 계열: 외부 요인 보고서면 "external", 아니면 None."""
-    return "external" if name in EXTERNAL_SKILLS else None
-
-
 def skill_names():
     return sorted(n for n in os.listdir(SKILLS) if os.path.isdir(os.path.join(SKILLS, n)))
 
