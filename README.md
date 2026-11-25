@@ -26,7 +26,7 @@ laighthouse-plugin/
             ├── naver-news/        #  외부 요인: 네이버 뉴스 언급·주요 기사(HTML, 날짜 범위)
             ├── naver-blog/        #  외부 요인: 네이버 블로그 언급·주요 글(HTML, 날짜 범위)
             ├── weather-impact/    #  외부 요인: 서울 날씨 + 광고 클릭 겹치기(HTML, 날짜 범위)
-            ├── nextmonth-budget-planning/  #  월간 미디어믹스 결과(HTML, Claude 가 직접 작성)
+            ├── nextmonth-budget-planning/  #  다음 달 예산 계획(HTML, Claude 가 직접 작성)
             ├── app-guide/         #  라이트하우스 화면 사용법
             └── skill-catalog/     #  스킬 목록
 ```
@@ -57,7 +57,7 @@ laighthouse-plugin-common 레포입니다. 어느 파일을 어느 태그로 가
 | `naver-news` | 브랜드 네이버 뉴스 기사 수 비교 + 자사 주요 기사 4건 |
 | `naver-blog` | 브랜드 네이버 블로그 글 수 비교 + 자사 주요 글 4건 |
 | `weather-impact` | 서울 일별 기온·강수·불쾌지수(+광고 클릭이 있으면 비 온 날 차이) |
-| `nextmonth-budget-planning` | 월간 미디어믹스 결과(HTML) — 웹 결과 화면과 같은 모양(요약 수치·매체별 요약, 제안 칸에 현재 대비 증감), Claude 가 직접 작성, 조건 확인 후 새로 실행도 가능 |
+| `nextmonth-budget-planning` | 다음 달 예산 계획(HTML) — 기준 달 실적 · 추천 배분 · 피드백 반영 배분 비교, Claude 가 직접 작성. 조건 확인 후 새로 계산, 사용자 피드백 반영 · 되돌리기 · 잔여 예산 채우기 |
 | `app-guide` | 라이트하우스 웹 화면(app.laight.ai) 사용법 — 메뉴 위치, 매체 연동·파일 업로드·목표 설정 등 순서 안내(데이터 조회 없음) — "라이트하우스 사용법", "메뉴 어디 있어" |
 | `skill-catalog` |  라이트하우스 스킬 목록(이름·명령어·설명·요청 예시)을 채팅에 표로 보여 준다 — "스킬 목록", "어떤 스킬 있어" |
 

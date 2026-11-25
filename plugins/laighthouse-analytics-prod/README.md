@@ -13,7 +13,7 @@
 | 스킬 | naver-news | 외부 요인: 브랜드 네이버 뉴스 기사 수 비교 + 자사 주요 기사 4건 |
 | 스킬 | naver-blog | 외부 요인: 브랜드 네이버 블로그 글 수(제목 일치) 비교 + 자사 주요 글 4건 |
 | 스킬 | weather-impact | 외부 요인: 서울 일별 기온·강수·불쾌지수, 광고 클릭이 있으면 겹치기 |
-| 스킬 | nextmonth-budget-planning | 월간 미디어믹스 결과 보고서(HTML) — 라이트하우스 웹 결과 화면과 같은 모양, Claude 가 SKILL.md 의 뼈대대로 직접 작성 |
+| 스킬 | nextmonth-budget-planning | 다음 달 예산 계획(HTML) — 기준 달 실적 · 추천 배분 · 피드백 반영 배분 비교, 사용자 피드백 반영 · 되돌리기, Claude 가 SKILL.md 의 뼈대대로 직접 작성 |
 | 스킬 | app-guide | 라이트하우스 웹 화면(app.laight.ai) 사용법 — 메뉴 위치, 매체 연동·파일 업로드·목표 설정 등 순서 안내(데이터 조회 없음) |
 | 스킬 | skill-catalog |  라이트하우스 스킬 목록(이름·명령어·설명·요청 예시)을 채팅에 표로 보여 준다(파일을 만들지 않는다) |
 | 훅 | ad_performance_domain | `get_ad_performance` 응답 뒤에 광고 성과 도메인 규칙(계약형 BRS, 광고집행/매출발생 상품 구분, 매체별 특이사항)을 세션당 한 번 넣는다 |
@@ -34,13 +34,16 @@
 외부 데이터 수집 대상이 아닌 브랜드는 도구가 "is not collected for external context"로 거절한다.
 수치 회귀 비교와 자체 검사는 공통 레포의 `tests/`에 있다.
 
-### 미디어믹스 결과 (3.5.0~)
-> "다라세제 미디어믹스 결과 보여줘" → `nextmonth-budget-planning` (내가 실행한 job 목록에서 골라 결과를 본다)
-> "다라세제 3월 실적으로 4월 예산 7천만 원 미디어믹스 돌려줘" → `nextmonth-budget-planning` (조건을 확인받고 새로 실행 → 끝나면 보고서)
+### 다음 달 예산 계획 (3.5.0~, 계획 도구 5.1.0~)
+> "다라세제 다음 달 예산 계획 보여줘" → `nextmonth-budget-planning` (내가 시작한 계획 목록에서 골라 결과를 본다)
+> "다라세제 3월 실적으로 4월 예산 7천만 원 계획 세워줘" → `nextmonth-budget-planning` (조건을 확인받고 새로 계산 → 끝나면 보고서)
+> "네이버는 4월 1~10일에 하루 50만 원으로 고정해줘" → 피드백으로 옮겨 되묻고, 확인받으면 반영해 다시 계산
 
-MCP 도구 `get_media_mix_job`을 기본 인자로 부르고, Claude 가 응답의 `summary`로 증감률·비중을 `python3`로 계산한 뒤
-SKILL.md 의 「HTML 뼈대」대로 HTML 을 직접 쓴다(3.12.0~, 스크립트 없음). 표는 기준 달 「N월 현재까지」와 「M월 제안」을 나란히 두고,
-제안 칸마다 현재 대비 증감을 빨강(상승)·파랑(하락)으로 붙인다. SKILL.md 의 원본은 laighthouse-plugin-common
+MCP 미디어믹스 계획 도구(`start_media_mix_plan`·`get_media_mix_plan`·`propose_media_mix_claim`·`apply_media_mix_claim` 등)를 쓰고,
+Claude 가 `get_media_mix_plan` 응답의 `summary`로 증감률·비중을 `python3`로 계산한 뒤 SKILL.md 의 「HTML 뼈대」대로 HTML 을 직접 쓴다
+(5.1.0~, 스크립트 없음). 표는 기준 달 실적 · 추천 배분 · 피드백 반영 배분(피드백이 있을 때만)을 나란히 두고, 배분 칸마다 앞 묶음 대비
+증감을 빨강(상승)·파랑(하락)으로 붙인다. 사용자 피드백은 되묻고 확인받은 뒤에만 반영하고, 되돌리기 · 잔여 예산 채우기도 한다.
+일별 배분과 비용 대비 효과 곡선은 사용자가 물을 때만 채팅으로 답한다. SKILL.md 의 원본은 laighthouse-plugin-common
 레포다 — 공통 레포에서 고친 뒤 `sync.py`로 가져온다. 이전 렌더러(`assets/build_report.py`·`mm_view.js`·`mm_view.css`와 그 테스트)는 git 태그
 `archive/media-mix-html-renderer`에 있다(되살리기: `git checkout archive/media-mix-html-renderer -- <경로>`).
 
