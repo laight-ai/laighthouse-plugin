@@ -13,7 +13,7 @@
 | 스킬 | naver-news | 외부 요인: 브랜드 네이버 뉴스 기사 수 비교 + 자사 주요 기사 4건 |
 | 스킬 | naver-blog | 외부 요인: 브랜드 네이버 블로그 글 수(제목 일치) 비교 + 자사 주요 글 4건 |
 | 스킬 | weather-impact | 외부 요인: 서울 일별 기온·강수·불쾌지수, 광고 클릭이 있으면 겹치기 |
-| 스킬 | nextmonth-budget-planning | 다음 달 예산 계획(HTML) — 기준 달 실적 · 추천 배분 · 피드백 반영 배분 비교, 사용자 피드백 반영 · 되돌리기, Claude 가 SKILL.md 의 뼈대대로 직접 작성 |
+| 스킬 | nextmonth-budget-planning | 다음 달 예산 계획(HTML) — 기준 달 실적 · 예산안 제안 · 피드백 반영 배분 비교, 사용자 피드백 반영 · 되돌리기, Claude 가 SKILL.md 의 뼈대대로 직접 작성 |
 | 스킬 | app-guide | 라이트하우스 웹 화면(app.laight.ai) 사용법 — 메뉴 위치, 매체 연동·파일 업로드·목표 설정 등 순서 안내(데이터 조회 없음) |
 | 스킬 | skill-catalog |  라이트하우스 스킬 목록(이름·명령어·설명·요청 예시)을 채팅에 표로 보여 준다(파일을 만들지 않는다) |
 | 훅 | ad_performance_domain | `get_ad_performance` 응답 뒤에 광고 성과 도메인 규칙(계약형 BRS, 광고집행/매출발생 상품 구분, 매체별 특이사항)을 세션당 한 번 넣는다 |
@@ -41,7 +41,7 @@
 
 MCP 미디어믹스 계획 도구(`start_media_mix_plan`·`get_media_mix_plan`·`propose_media_mix_claim`·`apply_media_mix_claim` 등)를 쓰고,
 Claude 가 `get_media_mix_plan` 응답의 `summary`로 증감률·비중을 `python3`로 계산한 뒤 SKILL.md 의 「HTML 뼈대」대로 HTML 을 직접 쓴다
-(5.1.0~, 스크립트 없음). 표는 기준 달 실적 · 추천 배분 · 피드백 반영 배분(피드백이 있을 때만)을 나란히 두고, 배분 칸마다 앞 묶음 대비
+(5.1.0~, 스크립트 없음). 표는 기준 달 실적 · 예산안 제안 · 피드백 반영 배분(피드백이 있을 때만)을 나란히 두고, 배분 칸마다 앞 묶음 대비
 증감을 빨강(상승)·파랑(하락)으로 붙인다. 사용자 피드백은 되묻고 확인받은 뒤에만 반영하고, 되돌리기 · 잔여 예산 채우기도 한다.
 일별 배분과 비용 대비 효과 곡선은 사용자가 물을 때만 채팅으로 답한다. SKILL.md 의 원본은 laighthouse-plugin-common
 레포다 — 공통 레포에서 고친 뒤 `sync.py`로 가져온다. 이전 렌더러(`assets/build_report.py`·`mm_view.js`·`mm_view.css`와 그 테스트)는 git 태그
