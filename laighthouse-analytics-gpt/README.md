@@ -58,11 +58,13 @@ laighthouse-analytics-gpt/
 3. 대화에서 `/hooks`를 열어 `capture_ad_performance.py`·`save_responses.py`·`ad_performance_domain.py`(get_ad_performance 응답에
    광고 성과 도메인 규칙 주입)를 신뢰합니다. 실행 환경에 `python3`가 필요합니다. 신뢰하지 않아도 스킬은 동작하지만, 외부 요인 스킬은
    모델이 응답을 직접 파일로 저장해야 합니다(각 SKILL.md의 ChatGPT/Codex 환경 안내).
+   `media-mix-backtest-check`는 저장 훅이 남긴 응답만 읽으므로 훅을 신뢰해야 동작합니다.
 4. 새 대화에서 `@`를 입력해 플러그인을 호출합니다. 플러그인 파일을 바꾼 뒤에는 앱을 재시작합니다.
 
 ## 설치 B — 스킬 zip (chatgpt.com 웹 일반 Chat)
 
 웹에서는 스킬을 하나씩 업로드하고 MCP는 커넥터로 따로 연결합니다. 훅은 동작하지 않습니다.
+그래서 저장 훅이 꼭 필요한 `media-mix-backtest-check`는 zip을 만들지 않습니다.
 
 ```powershell
 .\build_skill_zips.ps1                       # 전부
