@@ -38,6 +38,3 @@ dependencies:
     - type: "mcp"
       value: "get_media_mix_reward_curves"
       description: "매체별 비용 대비 효과 곡선을 조회합니다."
-    - type: "mcp"
-      value: "get_media_mix_plan_daily"
-      description: "일별 배분을 예산안 제안 또는 직전 버전과 비교해 조회합니다."
