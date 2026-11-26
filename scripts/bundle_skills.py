@@ -35,6 +35,7 @@ EXTERNAL_REFS = ("references/mcp-tools.md",)
 
 BUNDLES = {
     "nextmonth-budget-planning": (),   # 결과 HTML 을 Claude 가 직접 쓴다 — 공용 파일 없음
+    "media-mix-backtest-check": ("assets/saved_responses.py", "references/mcp-tools.md"),   # 저장 응답을 읽는다
     "naver-blog": RANGE_REPORT + EXTERNAL_REFS,
     "naver-news": RANGE_REPORT + EXTERNAL_REFS,
     "naver-search": RANGE_REPORT + EXTERNAL_REFS,
