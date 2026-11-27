@@ -11,7 +11,8 @@ Claude Code판 `plugins/laighthouse-analytics-prod`의 스킬을 ChatGPT(데스�
 | `naver-news` | 브랜드 네이버 뉴스 기사 수 비교 + 자사 주요 기사 4건(HTML) |
 | `naver-blog` | 브랜드 네이버 블로그 글 수 비교 + 자사 주요 글 4건(HTML) |
 | `weather-impact` | 서울 일별 기온·강수·불쾌지수(+광고 클릭이 있으면 비 온 날 차이, HTML) |
-| `nextmonth-budget-planning` | 월간 미디어믹스 결과(HTML) — 라이트하우스 웹 결과 화면과 같은 모양 |
+| `nextmonth-budget-planning` | 다음 달 예산 계획(채팅 결과, HTML 은 요청할 때만) — 기준 달 실적 · 예산안 제안 · 피드백 반영 배분 비교, 사용자 피드백 반영 |
+| `media-mix-backtest-check` | 예산안 백테스트 타당성 점검(HTML) — 과거 달 예산안을 그 시점 데이터로 다시 계산해 효율 추세 · 평소 월간 변동 폭 · 작년 흐름에 비춰 판정, 성과 검증 아님 |
 | `app-guide` | 라이트하우스 웹 화면(app.laight.ai) 사용법 안내(데이터 조회 없음) |
 | `skill-catalog` | 라이트하우스 스킬 목록을 채팅에 표로 보여 준다 |
 
@@ -57,11 +58,13 @@ laighthouse-analytics-gpt/
 3. 대화에서 `/hooks`를 열어 `capture_ad_performance.py`·`save_responses.py`·`ad_performance_domain.py`(get_ad_performance 응답에
    광고 성과 도메인 규칙 주입)를 신뢰합니다. 실행 환경에 `python3`가 필요합니다. 신뢰하지 않아도 스킬은 동작하지만, 외부 요인 스킬은
    모델이 응답을 직접 파일로 저장해야 합니다(각 SKILL.md의 ChatGPT/Codex 환경 안내).
+   `media-mix-backtest-check`는 저장 훅이 남긴 응답만 읽으므로 훅을 신뢰해야 동작합니다.
 4. 새 대화에서 `@`를 입력해 플러그인을 호출합니다. 플러그인 파일을 바꾼 뒤에는 앱을 재시작합니다.
 
 ## 설치 B — 스킬 zip (chatgpt.com 웹 일반 Chat)
 
 웹에서는 스킬을 하나씩 업로드하고 MCP는 커넥터로 따로 연결합니다. 훅은 동작하지 않습니다.
+그래서 저장 훅이 꼭 필요한 `media-mix-backtest-check`는 zip을 만들지 않습니다.
 
 ```powershell
 .\build_skill_zips.ps1                       # 전부
