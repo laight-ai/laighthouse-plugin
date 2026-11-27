@@ -11,7 +11,7 @@ Claude Code판 `plugins/laighthouse-analytics-prod`의 스킬을 ChatGPT(데스�
 | `naver-news` | 브랜드 네이버 뉴스 기사 수 비교 + 자사 주요 기사 4건(HTML) |
 | `naver-blog` | 브랜드 네이버 블로그 글 수 비교 + 자사 주요 글 4건(HTML) |
 | `weather-impact` | 서울 일별 기온·강수·불쾌지수(+광고 클릭이 있으면 비 온 날 차이, HTML) |
-| `nextmonth-budget-planning` | 다음 달 예산 계획(HTML) — 기준 달 실적 · 예산안 제안 · 피드백 반영 배분 비교, 사용자 피드백 반영 |
+| `nextmonth-budget-planning` | 다음 달 예산 계획(채팅 결과, HTML 은 요청할 때만) — 기준 달 실적 · 예산안 제안 · 피드백 반영 배분 비교, 사용자 피드백 반영 |
 | `app-guide` | 라이트하우스 웹 화면(app.laight.ai) 사용법 안내(데이터 조회 없음) |
 | `skill-catalog` | 라이트하우스 스킬 목록을 채팅에 표로 보여 준다 |
 

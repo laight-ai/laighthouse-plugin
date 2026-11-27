@@ -13,7 +13,7 @@
 | 스킬 | naver-news | 외부 요인: 브랜드 네이버 뉴스 기사 수 비교 + 자사 주요 기사 4건 |
 | 스킬 | naver-blog | 외부 요인: 브랜드 네이버 블로그 글 수(제목 일치) 비교 + 자사 주요 글 4건 |
 | 스킬 | weather-impact | 외부 요인: 서울 일별 기온·강수·불쾌지수, 광고 클릭이 있으면 겹치기 |
-| 스킬 | nextmonth-budget-planning | 다음 달 예산 계획(HTML) — 기준 달 실적 · 예산안 제안 · 피드백 반영 배분 비교, 사용자 피드백 반영 · 되돌리기, Claude 가 SKILL.md 의 뼈대대로 직접 작성 |
+| 스킬 | nextmonth-budget-planning | 다음 달 예산 계획(채팅 결과, HTML 은 요청할 때만) — 기준 달 실적 · 예산안 제안 · 피드백 반영 배분 비교, 사용자 피드백 반영 · 되돌리기, Claude 가 SKILL.md 의 뼈대대로 직접 작성 |
 | 스킬 | app-guide | 라이트하우스 웹 화면(app.laight.ai) 사용법 — 메뉴 위치, 매체 연동·파일 업로드·목표 설정 등 순서 안내(데이터 조회 없음) |
 | 스킬 | skill-catalog |  라이트하우스 스킬 목록(이름·명령어·설명·요청 예시)을 채팅에 표로 보여 준다(파일을 만들지 않는다) |
 | 훅 | ad_performance_domain | `get_ad_performance` 응답 뒤에 광고 성과 도메인 규칙(계약형 BRS, 광고집행/매출발생 상품 구분, 매체별 특이사항)을 세션당 한 번 넣는다 |
@@ -36,7 +36,7 @@
 
 ### 다음 달 예산 계획 (3.5.0~, 계획 도구 5.2.0~)
 > "다라세제 다음 달 예산 계획 보여줘" → `nextmonth-budget-planning` (내가 시작한 계획 목록에서 골라 결과를 본다)
-> "다라세제 3월 실적으로 4월 예산 7천만 원 계획 세워줘" → `nextmonth-budget-planning` (조건을 확인받고 새로 계산 → 끝나면 보고서)
+> "다라세제 3월 실적으로 4월 예산 7천만 원 계획 세워줘" → `nextmonth-budget-planning` (조건을 확인받고 새로 계산 → 끝나면 배분 표와 의견)
 > "네이버는 4월 1~10일에 하루 50만 원으로 고정해줘" → 피드백으로 옮겨 되묻고, 확인받으면 반영해 다시 계산
 
 MCP 미디어믹스 계획 도구(`start_media_mix_plan`·`get_media_mix_plan`·`propose_media_mix_claim`·`apply_media_mix_claim` 등)를 쓰고,
